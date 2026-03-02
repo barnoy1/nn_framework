@@ -1,0 +1,8 @@
+runtime:
+  prepare_data: false
+  supervisely_dataset_root: null
+  supervisely_splits: [train, valid]
+  ann_subdir: ann
+  img_subdir: img
+  wandb_project: null
+  wandb_run_name: null

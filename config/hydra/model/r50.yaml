@@ -1,0 +1,10 @@
+model:
+  official_config_path: configs/rtdetrv2/rtdetrv2_r50vd_6x_coco.yml
+  variant: r50
+  num_classes: 1
+  num_queries: 300
+  hidden_dim: 256
+  dn_num_group: 5
+
+train:
+  backbone_lr_multiplier: 0.5

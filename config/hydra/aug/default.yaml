@@ -1,0 +1,9 @@
+aug:
+  image_size: 640
+  heavy_scale_min: 0.5
+  heavy_scale_max: 1.5
+  light_scale_min: 0.9
+  light_scale_max: 1.1
+  switch_epoch_ratio: 0.85
+  horizontal_flip_prob: 0.5
+  color_jitter_prob: 0.3

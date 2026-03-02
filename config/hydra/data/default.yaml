@@ -1,0 +1,11 @@
+data:
+  dataset_root: /workspace/datasets
+  train_sets:
+    - img_dir: /workspace/datasets/train/img
+      ann_file: /workspace/datasets/instances_train.json
+  val_sets:
+    - img_dir: /workspace/datasets/valid/img
+      ann_file: /workspace/datasets/instances_valid.json
+  iou_types: [bbox, segm]
+  filter_empty_targets: true
+  keep_rle_in_targets: true

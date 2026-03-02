@@ -1,0 +1,8 @@
+defaults:
+  - model: r18
+  - train: default
+  - data: default
+  - aug: default
+  - runtime: default
+  - experiment: drone_instance_seg
+  - _self_

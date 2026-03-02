@@ -1,0 +1,300 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    
+    {
+      "name": "inference-model",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/../../.venv/bin/python",
+      "program": "${workspaceFolder}/tools/inference.py",
+      "cwd": "${workspaceFolder}/tools",
+      "args": [
+        "-c",
+        "configs/rtdetrv2/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yml",
+        "-r",
+        "${workspaceFolder}/../../weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth",
+        "-i",
+        "${workspaceFolder}/docker/input_data",
+        "-o",
+        "tools/inference_out",
+        "--device",
+        "cuda",
+        "--batch-size",
+        "1",
+        "--num-workers",
+        "2",
+        "--save-json"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "inference-onnx",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/../../.venv/bin/python",
+      "program": "${workspaceFolder}/tools/inference.py",
+      "cwd": "${workspaceFolder}/tools",
+      "args": [
+        "-c",
+        "configs/rtdetrv2/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yml",
+        "--onnx_model",
+        "${workspaceFolder}/exported_models/model.onnx",
+        "-i",
+        "${workspaceFolder}/docker/input_data",
+        "-o",
+        "${workspaceFolder}/docker/output_data",
+        "--device",
+        "cuda",
+        "--batch-size",
+        "1",
+        "--num-workers",
+        "2",
+        "--save-json"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "export-onnx-model",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/../../.venv/bin/python",
+      "program": "${workspaceFolder}/tools/export_onnx.py",
+      "cwd": "${workspaceFolder}/tools",
+      "args": [
+        "-c",
+        "${workspaceFolder}/configs/rtdetrv2/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yml",
+        "-r",
+        "${workspaceFolder}/../../weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth",
+        "-o",
+        "${workspaceFolder}/exported_models/model.onnx",
+        "--check",
+        "--simplify"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "export-dataset-coco-rle",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/../../.venv/bin/python",
+      "program": "${workspaceFolder}/nn-utilities/helpers/supervisely_to_coco_rle.py",
+      "cwd": "${workspaceFolder}/nn-utilities/helpers",
+      "args": [
+        "--dataset_root",
+        "${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja",
+        "--output_dir",
+        "${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja",
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "train-coco-instance-seg-rle-host",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/../../.venv/bin/python",
+      "program": "${workspaceFolder}/tools/train.py",
+      "cwd": "${workspaceFolder}/tools",
+      "args": [
+        "-c",
+        "${workspaceFolder}/configs/rtdetrv2/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yml",
+        "-d",
+        "cuda",
+        "-u",
+        "evaluator.iou_types=['bbox']",
+        "train_dataloader.total_batch_size=1",
+        "val_dataloader.total_batch_size=1",
+        "train_dataloader.dataset.img_folder=${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/train/img",
+        "train_dataloader.dataset.ann_file=${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_train.json",
+        "val_dataloader.dataset.img_folder=${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/valid/img",
+        "val_dataloader.dataset.ann_file=${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_valid.json"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "eval-coco-instance-seg-rle-host",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/../../.venv/bin/python",
+      "program": "${workspaceFolder}/tools/train.py",
+      "cwd": "${workspaceFolder}/tools",
+      "args": [
+        "-c",
+        "${workspaceFolder}/configs/rtdetrv2/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yml",
+        "-t",
+        "${workspaceFolder}/../../weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth",
+        "-d",
+        "cuda",
+        "--test-only",
+        "-u",
+        "evaluator.iou_types=['bbox']",
+        "train_dataloader.total_batch_size=1",
+        "val_dataloader.total_batch_size=1",
+        "train_dataloader.dataset.img_folder=${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/train/img",
+        "train_dataloader.dataset.ann_file=${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_train.json",
+        "val_dataloader.dataset.img_folder=${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/valid/img",
+        "val_dataloader.dataset.ann_file=${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_valid.json"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "nn_framework: cli train",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/../../.venv/bin/python",
+      "program": "${workspaceFolder}/../../cli.py",
+      "cwd": "${workspaceFolder}/../..",
+      "args": [
+        "train",
+        "--model-profile",
+        "r18",
+        "--overrides",
+        "data.train_sets=[{img_dir:'${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/train/img',ann_file:'${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_train.json'}]",
+        "data.val_sets=[{img_dir:'${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/valid/img',ann_file:'${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_valid.json'}]",
+        "train.batch_size=1",
+        "train.val_batch_size=1"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "nn_framework: cli eval",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/../../.venv/bin/python",
+      "program": "${workspaceFolder}/../../cli.py",
+      "cwd": "${workspaceFolder}/../..",
+      "args": [
+        "eval",
+        "--model-profile",
+        "r18",
+        "--checkpoint",
+        "${workspaceFolder}/../../weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth",
+        "--device",
+        "cuda",
+        "--overrides",
+        "data.train_sets=[{img_dir:'${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/train/img',ann_file:'${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_train.json'}]",
+        "data.val_sets=[{img_dir:'${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/valid/img',ann_file:'${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_valid.json'}]",
+        "train.batch_size=1",
+        "train.val_batch_size=1"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "nn_framework: cli inference",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/../../.venv/bin/python",
+      "program": "${workspaceFolder}/../../cli.py",
+      "cwd": "${workspaceFolder}/../..",
+      "args": [
+        "inference",
+        "--model-profile",
+        "r18",
+        "--checkpoint",
+        "${workspaceFolder}/../../weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth",
+        "--input-dir",
+        "${workspaceFolder}/docker/input_data",
+        "--output-dir",
+        "tools/inference_out",
+        "--device",
+        "cuda",
+        "--batch-size",
+        "1",
+        "--num-workers",
+        "2"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "nn_framework: cli inference onnx",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/../../.venv/bin/python",
+      "program": "${workspaceFolder}/../../cli.py",
+      "cwd": "${workspaceFolder}/../..",
+      "args": [
+        "inference-onnx",
+        "--model-profile",
+        "r18",
+        "--onnx-model",
+        "${workspaceFolder}/exported_models/model.onnx",
+        "--input-dir",
+        "${workspaceFolder}/docker/input_data",
+        "--output-dir",
+        "tools/inference_out",
+        "--device",
+        "cuda",
+        "--batch-size",
+        "1",
+        "--num-workers",
+        "2"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "nn_framework: cli export onnx",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${workspaceFolder}/../../.venv/bin/python",
+      "program": "${workspaceFolder}/../../cli.py",
+      "cwd": "${workspaceFolder}/../..",
+      "args": [
+        "export-onnx",
+        "--checkpoint",
+        "${workspaceFolder}/../../weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth",
+        "--onnx-model",
+        "${workspaceFolder}/exported_models/model.onnx"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}
