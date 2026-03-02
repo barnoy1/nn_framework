@@ -8,6 +8,8 @@ from typing import Dict, List, Sequence
 import numpy as np
 from pycocotools import mask as mask_utils
 
+from nn_framework.utils.log import logger
+
 
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff")
 
@@ -178,7 +180,7 @@ def main() -> None:
         img_subdir=args.img_subdir,
     )
     for path in files:
-        print(path)
+        logger.info("{}", path)
 
 
 if __name__ == "__main__":

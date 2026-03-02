@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
 from nn_framework.flows.common.runtime import build_flow_runtime
 from nn_framework.engine.callbacks import CallbackList
 from nn_framework.engine.trainer import Trainer
+from nn_framework.utils.log import logger
 
 
 def parse_args() -> argparse.Namespace:
@@ -34,7 +35,7 @@ def main() -> None:
         allow_mismatch=args.allow_class_mismatch,
     )
     loaded, skipped, missing = runtime.wrapper.safe_load_state_dict(runtime.built.model, state)
-    print(f"Loaded checkpoint tensors={loaded}, skipped_shape={skipped}, missing={missing}")
+    logger.info("Loaded checkpoint tensors={}, skipped_shape={}, missing={}", loaded, skipped, missing)
 
     trainer = Trainer(
         app_config=runtime.app_config,
@@ -51,9 +52,9 @@ def main() -> None:
     )
 
     metrics = trainer.validate(epoch=0)
-    print("Evaluation metrics:")
+    logger.info("Evaluation metrics:")
     for key, value in metrics.items():
-        print(f"{key}: {value}")
+        logger.info("{}: {}", key, value)
 
 
 if __name__ == "__main__":

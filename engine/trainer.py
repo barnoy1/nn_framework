@@ -11,6 +11,7 @@ from .callbacks import CallbackList
 from ..config import AppConfig
 from .evaluate import evaluate_predictions
 from ..model import ModelWrapperAdapter
+from ..utils.log import logger
 
 
 class Trainer:
@@ -110,7 +111,7 @@ class Trainer:
             self.callbacks.on_batch_end(self, epoch, step, metrics)
 
             if step % self.app_config.train.log_every_n_steps == 0 and self.accelerator.is_main_process:
-                print(f"epoch={epoch} step={step} loss={metrics['train/loss']:.6f}")
+                logger.info("epoch={} step={} loss={:.6f}", epoch, step, metrics["train/loss"])
 
         self.scheduler.step()
         return {"loss": running_loss / max(1, num_steps)}
@@ -185,4 +186,4 @@ class Trainer:
             self.callbacks.on_epoch_end(self, epoch, merged_metrics)
 
             if self.accelerator.is_main_process:
-                print(f"epoch={epoch} metrics={merged_metrics}")
+                logger.info("epoch={} metrics={}", epoch, merged_metrics)

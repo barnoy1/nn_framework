@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 import os
 import subprocess
 import sys
 from pathlib import Path
 from typing import Callable, List
+
+import yaml
+
+from utils.log import logger, setup_logger
 
 REPO_ROOT = Path(__file__).resolve().parent
 MODEL_ROOT = REPO_ROOT / "raw_models" / "RT-DETR" / "rtdetrv2_pytorch"
@@ -15,8 +20,8 @@ if str(REPO_ROOT) not in sys.path:
 ActionHandler = Callable[[argparse.Namespace], None]
 
 
-def _run(cmd: List[str], cwd: Path = REPO_ROOT) -> None:
-    print("Executing:", " ".join(cmd))
+def _run(cmd: List[str], cwd: Path = REPO_ROOT, extra_env: dict[str, str] | None = None) -> None:
+    logger.info("Executing: {}", " ".join(cmd))
     child_env = dict(os.environ)
 
     keys_to_remove = [
@@ -40,22 +45,27 @@ def _run(cmd: List[str], cwd: Path = REPO_ROOT) -> None:
         else:
             child_env.pop("PYTHONPATH", None)
 
+    if extra_env:
+        child_env.update(extra_env)
+
     subprocess.run(cmd, cwd=str(cwd), check=True, env=child_env)
 
 
 def _run_train(args: argparse.Namespace) -> None:
+    run_root = Path(args.run_root)
     cmd = [
         sys.executable,
         str(REPO_ROOT / "flows" / "train" / "mangr_train.py"),
         "--model-profile",
         args.model_profile,
     ]
-    if args.overrides:
-        cmd.extend(["--overrides", *args.overrides])
-    _run(cmd)
+    overrides = [*args.overrides, f"train.output_dir={run_root}"]
+    cmd.extend(["--overrides", *overrides])
+    _run(cmd, extra_env={"NN_FRAMEWORK_RUN_DIR": str(run_root)})
 
 
 def _run_eval(args: argparse.Namespace) -> None:
+    run_root = Path(args.run_root)
     cmd = [
         sys.executable,
         str(REPO_ROOT / "flows" / "eval" / "mangr_eval.py"),
@@ -66,12 +76,14 @@ def _run_eval(args: argparse.Namespace) -> None:
         "--device",
         args.device,
     ]
-    if args.overrides:
-        cmd.extend(["--overrides", *args.overrides])
-    _run(cmd)
+    overrides = [*args.overrides, f"train.output_dir={run_root}"]
+    cmd.extend(["--overrides", *overrides])
+    _run(cmd, extra_env={"NN_FRAMEWORK_RUN_DIR": str(run_root)})
 
 
 def _run_inference(args: argparse.Namespace) -> None:
+    run_root = Path(args.run_root)
+    inference_dir = run_root / "inference"
     cmd = [
         sys.executable,
         str(REPO_ROOT / "flows" / "inference" / "mangr_inference.py"),
@@ -80,7 +92,7 @@ def _run_inference(args: argparse.Namespace) -> None:
         "--input-dir",
         args.input_dir,
         "--output-dir",
-        args.output_dir,
+        str(inference_dir),
         "--device",
         args.device,
         "--batch-size",
@@ -96,10 +108,11 @@ def _run_inference(args: argparse.Namespace) -> None:
     if args.overrides:
         cmd.extend(["--overrides", *args.overrides])
 
-    _run(cmd)
+    _run(cmd, extra_env={"NN_FRAMEWORK_RUN_DIR": str(run_root)})
 
 
 def _run_export_onnx(args: argparse.Namespace) -> None:
+    run_root = Path(args.run_root)
     cmd = [
         sys.executable,
         str(MODEL_ROOT / "tools" / "export_onnx.py"),
@@ -112,11 +125,12 @@ def _run_export_onnx(args: argparse.Namespace) -> None:
         "--check",
         "--simplify",
     ]
-    _run(cmd)
+    _run(cmd, extra_env={"NN_FRAMEWORK_RUN_DIR": str(run_root)})
 
 
 def _add_common_arguments(target_parser: argparse.ArgumentParser) -> None:
     target_parser.add_argument("--model-profile", default="r18", choices=["r18", "r50"])
+    target_parser.add_argument("--output-dir", type=str, default=str(REPO_ROOT / "out"))
     target_parser.add_argument("--overrides", nargs="*", default=[])
 
 
@@ -139,7 +153,6 @@ def _register_inference_parser(subparsers: argparse._SubParsersAction) -> None:
     _add_common_arguments(infer_parser)
     infer_parser.add_argument("--checkpoint", type=str, required=True)
     infer_parser.add_argument("--input-dir", type=str, required=True)
-    infer_parser.add_argument("--output-dir", type=str, required=True)
     infer_parser.add_argument("--device", type=str, default="cuda")
     infer_parser.add_argument("--batch-size", type=int, default=1)
     infer_parser.add_argument("--num-workers", type=int, default=2)
@@ -151,7 +164,6 @@ def _register_inference_onnx_parser(subparsers: argparse._SubParsersAction) -> N
     _add_common_arguments(infer_onnx_parser)
     infer_onnx_parser.add_argument("--onnx-model", type=str, required=True)
     infer_onnx_parser.add_argument("--input-dir", type=str, required=True)
-    infer_onnx_parser.add_argument("--output-dir", type=str, required=True)
     infer_onnx_parser.add_argument("--device", type=str, default="cuda")
     infer_onnx_parser.add_argument("--batch-size", type=int, default=1)
     infer_onnx_parser.add_argument("--num-workers", type=int, default=2)
@@ -178,8 +190,34 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _prepare_run_layout(args: argparse.Namespace) -> Path:
+    base_out = Path(args.output_dir).expanduser()
+    if not base_out.is_absolute():
+        base_out = (REPO_ROOT / base_out).resolve()
+
+    run_name = datetime.now().strftime("%Y-%m-%d__%H-%M-%S")
+    run_root = base_out / run_name
+    for subdir in ("logs", "configs", "inference", "dataset"):
+        (run_root / subdir).mkdir(parents=True, exist_ok=True)
+
+    payload = {
+        "action": args.action,
+        "run_root": str(run_root),
+        "args": {k: v for k, v in vars(args).items() if not k.startswith("_") and k != "handler"},
+    }
+    with (run_root / "configs" / "execution.yaml").open("w", encoding="utf-8") as file:
+        yaml.safe_dump(payload, file, sort_keys=False)
+
+    return run_root
+
+
 def main() -> None:
     args = parse_args()
+    run_root = _prepare_run_layout(args)
+    args.run_root = str(run_root)
+    os.environ["NN_FRAMEWORK_RUN_DIR"] = str(run_root)
+    setup_logger(force=True)
+    logger.info("Run directory: {}", run_root)
     args.handler(args)
 
 

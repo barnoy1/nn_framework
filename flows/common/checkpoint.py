@@ -6,6 +6,8 @@ from typing import Dict, Optional, Tuple
 import torch
 from torch import nn
 
+from nn_framework.utils.log import logger
+
 
 def resolve_checkpoint_path(path: str) -> Path:
     candidate = Path(path).expanduser()
@@ -23,7 +25,7 @@ def resolve_checkpoint_path(path: str) -> Path:
 
     for fallback in candidates:
         if fallback.exists():
-            print(f"Warning: checkpoint not found at {candidate}, using {fallback}")
+            logger.warning("checkpoint not found at {}, using {}", candidate, fallback)
             return fallback
 
     checked = "\n  - ".join(str(p) for p in [candidate, *candidates])
@@ -89,7 +91,7 @@ def validate_checkpoint_class_compatibility(
         "or set --allow-class-mismatch to bypass this safety check."
     )
     if allow_mismatch:
-        print(f"Warning: {message}")
+        logger.warning(message)
         return
     raise RuntimeError(message)
 

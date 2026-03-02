@@ -1,0 +1,11 @@
+logging:
+  console:
+    enabled: true
+    level: "DEBUG"
+
+  file:
+    enabled: true
+    level: "INFO"
+    path: "logs/{time:YYYY-MM-DD__HH:mm:ss}.log"
+    rotation: "10 MB"
+    retention: "1 week"

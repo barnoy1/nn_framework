@@ -16,6 +16,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from nn_framework.flows.common.runtime import build_flow_runtime
+from nn_framework.utils.log import logger
 
 IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
 
@@ -113,7 +114,7 @@ def _run_pytorch(args: argparse.Namespace) -> None:
         allow_mismatch=args.allow_class_mismatch,
     )
     loaded, skipped, missing = runtime.wrapper.safe_load_state_dict(runtime.built.model, state)
-    print(f"Loaded checkpoint tensors={loaded}, skipped_shape={skipped}, missing={missing}")
+    logger.info("Loaded checkpoint tensors={}, skipped_shape={}, missing={}", loaded, skipped, missing)
 
     model = runtime.built.model
     postprocessor = runtime.built.postprocessor
@@ -132,9 +133,14 @@ def _run_pytorch(args: argparse.Namespace) -> None:
     transforms = T.Compose([T.Resize((runtime.app_config.aug.image_size, runtime.app_config.aug.image_size)), T.ToTensor()])
 
     image_paths = list_images(args.input_dir)
-    print(f"[mangr_inference] backend=pytorch device={args.device} images={len(image_paths)} input={args.input_dir}")
+    logger.info(
+        "[mangr_inference] backend=pytorch device={} images={} input={}",
+        args.device,
+        len(image_paths),
+        args.input_dir,
+    )
     if not image_paths:
-        print("[mangr_inference] no supported images found; nothing to process")
+        logger.warning("[mangr_inference] no supported images found; nothing to process")
         return
 
     records = []
@@ -168,11 +174,11 @@ def _run_pytorch(args: argparse.Namespace) -> None:
             )
             processed += 1
 
-        print(f"[mangr_inference] processed {processed}/{len(image_paths)}")
+        logger.info("[mangr_inference] processed {}/{}", processed, len(image_paths))
 
     with (output_dir / "detections.json").open("w", encoding="utf-8") as file:
         json.dump(records, file, indent=2)
-    print(f"[mangr_inference] done. wrote {processed} images + {output_dir / 'detections.json'}")
+    logger.info("[mangr_inference] done. wrote {} images + {}", processed, output_dir / "detections.json")
 
 
 
@@ -194,9 +200,14 @@ def _run_onnx(args: argparse.Namespace) -> None:
     transforms = T.Compose([T.Resize((640, 640)), T.ToTensor()])
 
     image_paths = list_images(args.input_dir)
-    print(f"[mangr_inference] backend=onnx device={args.device} images={len(image_paths)} input={args.input_dir}")
+    logger.info(
+        "[mangr_inference] backend=onnx device={} images={} input={}",
+        args.device,
+        len(image_paths),
+        args.input_dir,
+    )
     if not image_paths:
-        print("[mangr_inference] no supported images found; nothing to process")
+        logger.warning("[mangr_inference] no supported images found; nothing to process")
         return
 
     records = []
@@ -231,11 +242,11 @@ def _run_onnx(args: argparse.Namespace) -> None:
             )
             processed += 1
 
-        print(f"[mangr_inference] processed {processed}/{len(image_paths)}")
+        logger.info("[mangr_inference] processed {}/{}", processed, len(image_paths))
 
     with (output_dir / "detections.json").open("w", encoding="utf-8") as file:
         json.dump(records, file, indent=2)
-    print(f"[mangr_inference] done. wrote {processed} images: {output_dir}")
+    logger.info("[mangr_inference] done. wrote {} images: {}", processed, output_dir)
 
 
 def main() -> None:
