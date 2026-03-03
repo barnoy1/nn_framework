@@ -61,6 +61,10 @@ class Trainer:
             self.scheduler,
         )
 
+        if self.ema_model is not None:
+            self.ema_model.to(self.accelerator.device)
+            self.ema_model.align_to_model(self.accelerator.unwrap_model(self.model))
+
         self.global_step = 0
         self.current_epoch = 0
 
@@ -75,6 +79,55 @@ class Trainer:
                     packed[key] = value
             device_targets.append(packed)
         return device_targets
+
+    @staticmethod
+    def _to_result_list(outputs, postprocessor, orig_sizes):
+        if isinstance(outputs, list) and outputs and isinstance(outputs[0], dict):
+            return outputs
+
+        if isinstance(outputs, dict):
+            processed = postprocessor(outputs, orig_sizes)
+        elif isinstance(outputs, (tuple, list)) and len(outputs) == 3:
+            labels, boxes, scores = outputs
+            if labels.ndim == 1:
+                labels = labels.unsqueeze(0)
+                boxes = boxes.unsqueeze(0)
+                scores = scores.unsqueeze(0)
+            return [
+                {"labels": labels_i, "boxes": boxes_i, "scores": scores_i}
+                for labels_i, boxes_i, scores_i in zip(labels, boxes, scores)
+            ]
+        else:
+            processed = postprocessor(outputs, orig_sizes)
+
+        if isinstance(processed, list):
+            return processed
+
+        if isinstance(processed, (tuple, list)) and len(processed) == 3:
+            labels, boxes, scores = processed
+            if labels.ndim == 1:
+                labels = labels.unsqueeze(0)
+                boxes = boxes.unsqueeze(0)
+                scores = scores.unsqueeze(0)
+            return [
+                {"labels": labels_i, "boxes": boxes_i, "scores": scores_i}
+                for labels_i, boxes_i, scores_i in zip(labels, boxes, scores)
+            ]
+
+        if isinstance(processed, dict) and {"labels", "boxes", "scores"}.issubset(set(processed.keys())):
+            labels = processed["labels"]
+            boxes = processed["boxes"]
+            scores = processed["scores"]
+            if labels.ndim == 1:
+                labels = labels.unsqueeze(0)
+                boxes = boxes.unsqueeze(0)
+                scores = scores.unsqueeze(0)
+            return [
+                {"labels": labels_i, "boxes": boxes_i, "scores": scores_i}
+                for labels_i, boxes_i, scores_i in zip(labels, boxes, scores)
+            ]
+
+        raise TypeError(f"Unsupported validation output format: {type(processed)}")
 
     def _train_one_epoch(self, epoch: int) -> Dict[str, float]:
         self.model.train()
@@ -122,9 +175,13 @@ class Trainer:
 
         use_ema = self.ema_model is not None
         if use_ema:
-            unwrapped = self.accelerator.unwrap_model(self.model)
-            self.ema_model.store(unwrapped)
-            self.ema_model.copy_to(unwrapped)
+            try:
+                unwrapped = self.accelerator.unwrap_model(self.model)
+                self.ema_model.store(unwrapped)
+                self.ema_model.copy_to(unwrapped)
+            except RuntimeError as error:
+                logger.warning("EMA copy skipped during validate due to state mismatch: {}", error)
+                use_ema = False
 
         all_predictions: List[Dict[str, torch.Tensor]] = []
         all_targets_for_metric: List[Dict[str, torch.Tensor]] = []
@@ -135,7 +192,7 @@ class Trainer:
 
             outputs = self.model(images)
             orig_sizes = torch.stack([target["orig_size"] for target in targets], dim=0)
-            results = self.postprocessor(outputs, orig_sizes)
+            results = self._to_result_list(outputs, self.postprocessor, orig_sizes)
 
             for prediction, target in zip(results, targets):
                 pred = {

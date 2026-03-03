@@ -1,4 +1,12 @@
 logging:
+  level_colors:
+    TRACE: "<white>"
+    DEBUG: "<white>"
+    INFO: "<white>"
+    WARNING: "<yellow>"
+    ERROR: "<red>"
+    CRITICAL: "<RED><white>"
+
   console:
     enabled: true
     level: "DEBUG"

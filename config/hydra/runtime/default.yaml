@@ -1,3 +1,5 @@
+# @package _global_
+
 runtime:
   prepare_data: false
   supervisely_dataset_root: null

@@ -9,7 +9,7 @@ from typing import List
 import numpy as np
 import torch
 import torchvision.transforms as T
-from PIL import Image, ImageDraw
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT) not in sys.path:
@@ -17,6 +17,7 @@ if str(ROOT) not in sys.path:
 
 from nn_framework.flows.common.runtime import build_flow_runtime
 from nn_framework.utils.log import logger
+from nn_framework.utils.viz.visualize import render_prediction_with_yolo_caption
 
 IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
 
@@ -40,17 +41,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--allow-class-mismatch", action="store_true")
     parser.add_argument("--overrides", nargs="*", default=[])
     return parser.parse_args()
-
-
-def _draw_boxes(image: Image.Image, labels, boxes, scores, score_thr: float) -> Image.Image:
-    draw = ImageDraw.Draw(image)
-    for index, box in enumerate(boxes):
-        score = float(scores[index])
-        if score < score_thr:
-            continue
-        draw.rectangle(list(box), outline="red", width=2)
-        draw.text((box[0], box[1]), text=f"{int(labels[index])} {score:.3f}", fill="blue")
-    return image
 
 
 def _to_result_list(outputs, postprocessor, orig_sizes) -> List[dict]:
@@ -118,6 +108,7 @@ def _run_pytorch(args: argparse.Namespace) -> None:
 
     model = runtime.built.model
     postprocessor = runtime.built.postprocessor
+    class_id_to_name = runtime.built.class_id_to_name
 
     if hasattr(model, "deploy"):
         model = model.deploy()
@@ -161,8 +152,13 @@ def _run_pytorch(args: argparse.Namespace) -> None:
             boxes = result["boxes"].detach().cpu().numpy()
             scores = result["scores"].detach().cpu().numpy()
 
-            rendered = _draw_boxes(image.copy(), labels, boxes, scores, score_thr=args.score_thr)
-            rendered.save(output_dir / image_path.name)
+            rendered = render_prediction_with_yolo_caption(
+                image=np.asarray(image.copy()),
+                prediction=result,
+                class_id_to_name=class_id_to_name,
+                confidence_threshold=args.score_thr,
+            )
+            Image.fromarray(rendered).save(output_dir / image_path.name)
 
             records.append(
                 {
@@ -185,6 +181,8 @@ def _run_pytorch(args: argparse.Namespace) -> None:
 def _run_onnx(args: argparse.Namespace) -> None:
     if not args.onnx_model:
         raise ValueError("--onnx-model is required for ONNX inference")
+
+    runtime = build_flow_runtime(model_profile=args.model_profile, overrides=args.overrides, build_loaders=False)
 
     import onnxruntime as ort
 
@@ -229,8 +227,13 @@ def _run_onnx(args: argparse.Namespace) -> None:
         scores_batch = ort_outputs[2]
 
         for image_path, image, labels, boxes, scores in zip(batch_paths, original_images, labels_batch, boxes_batch, scores_batch):
-            rendered = _draw_boxes(image.copy(), labels, boxes, scores, score_thr=args.score_thr)
-            rendered.save(output_dir / image_path.name)
+            rendered = render_prediction_with_yolo_caption(
+                image=np.asarray(image.copy()),
+                prediction={"labels": labels, "boxes": boxes, "scores": scores},
+                class_id_to_name=runtime.built.class_id_to_name,
+                confidence_threshold=args.score_thr,
+            )
+            Image.fromarray(rendered).save(output_dir / image_path.name)
 
             records.append(
                 {

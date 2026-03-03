@@ -14,17 +14,23 @@ _CONSOLE_FORMAT = (
     "<cyan>{file}:{function}:{line}</cyan> - <level>{message}</level></bold>"
 )
 _FILE_FORMAT = "{time:YYYY-MM-DD HH:mm:ss} | {level} | {file}:{function}:{line} - {message}"
+_DEFAULT_LEVEL_COLORS = {
+    "TRACE": "<white>",
+    "DEBUG": "<white>",
+    "INFO": "<white>",
+    "WARNING": "<yellow>",
+    "ERROR": "<red>",
+    "CRITICAL": "<RED><white>",
+}
 
 
-def _configure_level_colors() -> None:
-    colors = {
-        "TRACE": "<white>",
-        "DEBUG": "<white>",
-        "INFO": "<white>",
-        "WARNING": "<yellow>",
-        "ERROR": "<red>",
-        "CRITICAL": "<RED><white>",
-    }
+def _configure_level_colors(overrides: Optional[dict[str, str]] = None) -> None:
+    colors = dict(_DEFAULT_LEVEL_COLORS)
+    if overrides:
+        for level_name, color in overrides.items():
+            if not isinstance(level_name, str) or not isinstance(color, str):
+                continue
+            colors[level_name.upper()] = color
     for level_name, color in colors.items():
         _base_logger.level(level_name, color=color)
 
@@ -58,10 +64,16 @@ def setup_logger(config_path: Optional[str | Path] = None, force: bool = False) 
         payload = yaml.safe_load(file) or {}
         config = payload.get("logging", {})
 
-    _base_logger.remove()
-    _configure_level_colors()
-
     console_cfg = config.get("console", {})
+    level_colors = config.get("level_colors")
+    if not isinstance(level_colors, dict):
+        level_colors = console_cfg.get("level_colors", {})
+    if not isinstance(level_colors, dict):
+        level_colors = {}
+
+    _base_logger.remove()
+    _configure_level_colors(level_colors)
+
     if console_cfg.get("enabled", True):
         _base_logger.add(
             sys.stderr,

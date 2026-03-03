@@ -20,6 +20,19 @@ if str(REPO_ROOT) not in sys.path:
 ActionHandler = Callable[[argparse.Namespace], None]
 
 
+def _resolve_checkpoint_path(path: str) -> str:
+    candidate = Path(path).expanduser()
+    if candidate.exists():
+        return str(candidate.resolve())
+
+    fallback = MODEL_ROOT / "weights" / candidate.name
+    if fallback.exists():
+        logger.warning("checkpoint not found at {}, using {}", candidate, fallback)
+        return str(fallback.resolve())
+
+    return path
+
+
 def _run(cmd: List[str], cwd: Path = REPO_ROOT, extra_env: dict[str, str] | None = None) -> None:
     logger.info("Executing: {}", " ".join(cmd))
     child_env = dict(os.environ)
@@ -66,13 +79,14 @@ def _run_train(args: argparse.Namespace) -> None:
 
 def _run_eval(args: argparse.Namespace) -> None:
     run_root = Path(args.run_root)
+    checkpoint_path = _resolve_checkpoint_path(args.checkpoint)
     cmd = [
         sys.executable,
         str(REPO_ROOT / "flows" / "eval" / "mangr_eval.py"),
         "--model-profile",
         args.model_profile,
         "--checkpoint",
-        args.checkpoint,
+        checkpoint_path,
         "--device",
         args.device,
     ]
@@ -102,7 +116,7 @@ def _run_inference(args: argparse.Namespace) -> None:
     ]
 
     if getattr(args, "checkpoint", ""):
-        cmd.extend(["--checkpoint", args.checkpoint])
+        cmd.extend(["--checkpoint", _resolve_checkpoint_path(args.checkpoint)])
     if getattr(args, "onnx_model", ""):
         cmd.extend(["--onnx-model", args.onnx_model])
     if args.overrides:
@@ -113,13 +127,14 @@ def _run_inference(args: argparse.Namespace) -> None:
 
 def _run_export_onnx(args: argparse.Namespace) -> None:
     run_root = Path(args.run_root)
+    checkpoint_path = _resolve_checkpoint_path(args.checkpoint)
     cmd = [
         sys.executable,
         str(MODEL_ROOT / "tools" / "export_onnx.py"),
         "-c",
         str(MODEL_ROOT / "configs" / "rtdetrv2" / "rtdetrv2_r18vd_120e_coco_instance_seg_rle.yml"),
         "-r",
-        args.checkpoint,
+        checkpoint_path,
         "-o",
         args.onnx_model,
         "--check",

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from typing import Dict, List, Protocol, Tuple
 
@@ -18,6 +18,7 @@ class BuiltComponents:
     optimizer: torch.optim.Optimizer
     scheduler: torch.optim.lr_scheduler.LRScheduler
     ema_model: EMAModel | None
+    class_id_to_name: Dict[int, str] = field(default_factory=dict)
 
 
 class ModelBuilder(ABC):

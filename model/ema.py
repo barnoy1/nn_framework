@@ -17,11 +17,25 @@ class EMAModel:
             param.requires_grad_(False)
         self._shadow_backup: Optional[Dict[str, torch.Tensor]] = None
 
+    def to(self, device: torch.device | str) -> None:
+        self.ema_model.to(device)
+
+    def align_to_model(self, model: nn.Module) -> None:
+        model_parameter = next(model.parameters(), None)
+        if model_parameter is None:
+            return
+        ema_parameter = next(self.ema_model.parameters(), None)
+        if ema_parameter is None:
+            return
+        if ema_parameter.device != model_parameter.device:
+            self.ema_model.to(model_parameter.device)
+
     def update(self, model: nn.Module) -> None:
         with torch.no_grad():
+            self.align_to_model(model)
             model_state = model.state_dict()
             for key, ema_value in self.ema_model.state_dict().items():
-                model_value = model_state[key].detach()
+                model_value = model_state[key].detach().to(device=ema_value.device)
                 if not ema_value.dtype.is_floating_point:
                     ema_value.copy_(model_value)
                 else:

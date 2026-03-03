@@ -37,7 +37,8 @@ class DynamicAlbumentations:
             A.LongestMaxSize(max_size=self.config.image_size),
             A.PadIfNeeded(min_height=self.config.image_size, min_width=self.config.image_size, border_mode=cv2.BORDER_CONSTANT),
             A.RandomScale(scale_limit=(self.config.heavy_scale_min - 1.0, self.config.heavy_scale_max - 1.0), p=0.9),
-            A.RandomSizedBBoxSafeCrop(height=self.config.image_size, width=self.config.image_size, p=0.8),
+            A.PadIfNeeded(min_height=self.config.image_size, min_width=self.config.image_size, border_mode=cv2.BORDER_CONSTANT),
+            A.RandomSizedBBoxSafeCrop(height=self.config.image_size, width=self.config.image_size, p=1.0),
             *self._build_common(),
         ]
         return self._compose(ops)
@@ -47,7 +48,8 @@ class DynamicAlbumentations:
             A.LongestMaxSize(max_size=self.config.image_size),
             A.PadIfNeeded(min_height=self.config.image_size, min_width=self.config.image_size, border_mode=cv2.BORDER_CONSTANT),
             A.RandomScale(scale_limit=(self.config.light_scale_min - 1.0, self.config.light_scale_max - 1.0), p=0.4),
-            A.CenterCrop(height=self.config.image_size, width=self.config.image_size, p=0.7),
+            A.PadIfNeeded(min_height=self.config.image_size, min_width=self.config.image_size, border_mode=cv2.BORDER_CONSTANT),
+            A.CenterCrop(height=self.config.image_size, width=self.config.image_size, p=1.0),
             *self._build_common(),
         ]
         return self._compose(ops)

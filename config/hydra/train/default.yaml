@@ -1,3 +1,5 @@
+# @package _global_
+
 train:
   epochs: 120
   batch_size: 8
