@@ -1,5 +1,0 @@
-# @package _global_
-
-model:
-  source_root: raw_models/RT-DETR/rtdetrv2_pytorch
-  official_config_path: configs/rtdetrv2/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yml

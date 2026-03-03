@@ -11,15 +11,12 @@
       "cwd": "${workspaceFolder}",
       "args": [
         "train",
+        "--config",
+        "infra/config/hydra/experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
         "--model-profile",
         "r18",
         "--output-dir",
-        "${workspaceFolder}/out",
-        "--overrides",
-        "data.train_sets=[{img_dir:'${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/train/img',ann_file:'${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_train.json'}]",
-        "data.val_sets=[{img_dir:'${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/valid/img',ann_file:'${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_valid.json'}]",
-        "train.batch_size=1",
-        "train.val_batch_size=1"
+        "${workspaceFolder}/out"
       ],
       "env": {
         "PYTHONUNBUFFERED": "1"
@@ -37,6 +34,8 @@
       "cwd": "${workspaceFolder}",
       "args": [
         "eval",
+        "--config",
+        "infra/config/hydra/experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
         "--model-profile",
         "r18",
         "--output-dir",
@@ -44,12 +43,7 @@
         "--checkpoint",
         "${workspaceFolder}/weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth",
         "--device",
-        "cuda",
-        "--overrides",
-        "data.train_sets=[{img_dir:'${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/train/img',ann_file:'${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_train.json'}]",
-        "data.val_sets=[{img_dir:'${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/valid/img',ann_file:'${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_valid.json'}]",
-        "train.batch_size=1",
-        "train.val_batch_size=1"
+        "cuda"
       ],
       "env": {
         "PYTHONUNBUFFERED": "1"
@@ -67,6 +61,8 @@
       "cwd": "${workspaceFolder}",
       "args": [
         "inference",
+        "--config",
+        "infra/config/hydra/experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
         "--model-profile",
         "r18",
         "--checkpoint",
@@ -98,6 +94,8 @@
       "cwd": "${workspaceFolder}",
       "args": [
         "inference-onnx",
+        "--config",
+        "infra/config/hydra/experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
         "--model-profile",
         "r18",
         "--onnx-model",
@@ -129,10 +127,35 @@
       "cwd": "${workspaceFolder}",
       "args": [
         "export-onnx",
+        "--config",
+        "infra/config/hydra/experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
         "--checkpoint",
         "${workspaceFolder}/weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth",
         "--onnx-model",
         "${workspaceFolder}/raw_models/RT-DETR/rtdetrv2_pytorch/exported_models/model.onnx"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "nn_framework: cli export coco rle",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/cli.py",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "export-coco-rle",
+        "--config",
+        "infra/config/hydra/experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
+        "--dataset_root",
+        "${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja",
+        "--output_dir",
+        "${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja"
       ],
       "env": {
         "PYTHONUNBUFFERED": "1"

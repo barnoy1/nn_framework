@@ -1,7 +1,0 @@
-defaults:
-  - model: r18
-  - train: default
-  - data: default
-  - runtime: default
-  - experiment: rtdetrv2_r18vd_120e_coco_instance_seg_rle
-  - _self_
