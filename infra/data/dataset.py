@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -9,15 +9,12 @@ from PIL import Image
 from pycocotools.coco import COCO
 from torch.utils.data import Dataset
 
-from .transforms import DynamicAlbumentations
-
-
 class COCODetectionDataset(Dataset):
     def __init__(
         self,
         img_dir: str,
         ann_file: str,
-        transforms: Optional[DynamicAlbumentations] = None,
+        transforms: Optional[Any] = None,
         iou_types: Optional[List[str]] = None,
         keep_rle: bool = True,
         filter_empty_targets: bool = True,

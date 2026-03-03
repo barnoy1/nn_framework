@@ -5,14 +5,14 @@ from pathlib import Path
 
 import numpy as np
 import torch
-import torchvision.transforms as T
 from PIL import Image
 
 from infra.core import to_result_list
+from infra.data.preprocess import build_image_preprocess_from_loader
 from infra.engine.flows.common.runtime import build_flow_runtime
 from infra.utils.viz.visualize import render_prediction_with_yolo_caption
 
-from .shared import infer_resize_size_from_loader, list_images
+from .shared import list_images
 
 
 def run_pytorch(args, logger) -> None:
@@ -45,8 +45,7 @@ def run_pytorch(args, logger) -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    resize_size = infer_resize_size_from_loader(runtime.app_config.data.val_dataloader, default=640)
-    transforms = T.Compose([T.Resize((resize_size, resize_size)), T.ToTensor()])
+    transforms = build_image_preprocess_from_loader(runtime.app_config.data.val_dataloader, logger=logger, default_size=640)
     image_paths = list_images(args.input_dir)
 
     logger.info("[mangr_inference] backend=pytorch device={} images={} input={}", args.device, len(image_paths), args.input_dir)

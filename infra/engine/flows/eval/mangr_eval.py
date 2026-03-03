@@ -9,7 +9,6 @@ from typing import Dict, List
 import numpy as np
 import torch
 import torchvision
-import torchvision.transforms as T
 from PIL import Image
 from pycocotools.coco import COCO
 
@@ -19,6 +18,7 @@ if str(ROOT) not in sys.path:
 
 from infra.adapters import LoguruLoggerAdapter
 from infra.core import to_result_list
+from infra.data.preprocess import build_image_preprocess_from_loader
 from infra.engine.evaluate import evaluate_predictions
 from infra.engine.flows.common.runtime import build_flow_runtime
 from infra.engine.flows.eval.dataset_profile import model_num_classes, profile_dataset_distribution
@@ -99,38 +99,6 @@ def _build_eval_samples(val_sets, label_mapping: Dict[int, int]) -> List[Dict]:
     return samples
 
 
-def _build_eval_preprocess(val_loader_cfg: Dict | None, logger) -> T.Compose:
-    ops = []
-    dataset_cfg = val_loader_cfg.get("dataset") if isinstance(val_loader_cfg, dict) else None
-    transforms_cfg = dataset_cfg.get("transforms") if isinstance(dataset_cfg, dict) else None
-    configured_ops = transforms_cfg.get("ops") if isinstance(transforms_cfg, dict) else None
-
-    if isinstance(configured_ops, list):
-        for op in configured_ops:
-            if not isinstance(op, dict):
-                continue
-            op_type = str(op.get("type", "")).strip().lower()
-
-            if op_type == "resize":
-                size = op.get("size")
-                if isinstance(size, list) and len(size) >= 2:
-                    height = int(size[0])
-                    width = int(size[1])
-                else:
-                    height = int(size)
-                    width = int(size)
-                ops.append(T.Resize((height, width)))
-                continue
-
-            if op_type == "convertpilimage":
-                continue
-
-            logger.warning("Unsupported val_dataloader transform '{}' in eval preprocessing; skipping.", op.get("type"))
-
-    ops.append(T.ToTensor())
-    return T.Compose(ops)
-
-
 def main() -> None:
     args = parse_args()
     logger = LoguruLoggerAdapter()
@@ -181,7 +149,7 @@ def main() -> None:
     model = model.to(device).eval()
     class_id_to_name = runtime.built.class_id_to_name
 
-    transforms = _build_eval_preprocess(runtime.app_config.data.val_dataloader, logger)
+    transforms = build_image_preprocess_from_loader(runtime.app_config.data.val_dataloader, logger=logger, default_size=640)
     batch_size = 1
 
     samples = _build_eval_samples(runtime.app_config.data.val_sets, runtime.app_config.data.mapping or {})

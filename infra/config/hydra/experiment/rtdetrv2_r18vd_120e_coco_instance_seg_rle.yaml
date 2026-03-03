@@ -136,19 +136,18 @@ data:
       transforms:
         type: Compose
         ops:
-          - {type: RandomPhotometricDistort, p: 0.5}
-          - {type: RandomZoomOut, fill: 0}
-          - {type: RandomIoUCrop, p: 0.8}
-          - {type: SanitizeBoundingBoxes, min_size: 1}
-          - {type: RandomHorizontalFlip}
+          - {type: RandomHorizontalFlip, p: 0.5}
+          - {type: RandomVerticalFlip, p: 0.2}
+          - {type: Rotate, limit: 15, p: 0.3}
+          - {type: HueSaturationValue, hue_shift_limit: 12, sat_shift_limit: 24, val_shift_limit: 12, p: 0.3}
+          - {type: RandomBrightnessContrast, p: 0.3}
           - {type: Resize, size: [640, 640]}
-          - {type: SanitizeBoundingBoxes, min_size: 1}
           - {type: ConvertPILImage, dtype: 'float32', scale: true}
           - {type: ConvertBoxes, fmt: 'cxcywh', normalize: true}
         policy:
           name: stop_epoch
           epoch: 71
-          ops: ['RandomPhotometricDistort', 'RandomZoomOut', 'RandomIoUCrop']
+          ops: ['RandomVerticalFlip', 'Rotate', 'HueSaturationValue', 'RandomBrightnessContrast']
     shuffle: true
     num_workers: 2
     total_batch_size: 2
