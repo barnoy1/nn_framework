@@ -22,6 +22,41 @@ from nn_framework.utils.viz.visualize import render_prediction_with_yolo_caption
 IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
 
 
+def _infer_resize_size_from_loader(loader_cfg: dict | None, default: int = 640) -> int:
+    if not isinstance(loader_cfg, dict):
+        return default
+
+    dataset_cfg = loader_cfg.get("dataset")
+    if not isinstance(dataset_cfg, dict):
+        return default
+
+    transforms_cfg = dataset_cfg.get("transforms")
+    if not isinstance(transforms_cfg, dict):
+        return default
+
+    ops = transforms_cfg.get("ops")
+    if not isinstance(ops, list):
+        return default
+
+    for op in ops:
+        if not isinstance(op, dict):
+            continue
+        if str(op.get("type", "")).lower() != "resize":
+            continue
+        size = op.get("size")
+        if isinstance(size, list) and len(size) >= 2:
+            try:
+                return int(size[0])
+            except (TypeError, ValueError):
+                return default
+        try:
+            return int(size)
+        except (TypeError, ValueError):
+            return default
+
+    return default
+
+
 def list_images(folder: str) -> List[Path]:
     root = Path(folder)
     return [path for path in sorted(root.iterdir()) if path.suffix.lower() in IMG_EXTS]
@@ -121,7 +156,8 @@ def _run_pytorch(args: argparse.Namespace) -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    transforms = T.Compose([T.Resize((runtime.app_config.aug.image_size, runtime.app_config.aug.image_size)), T.ToTensor()])
+    resize_size = _infer_resize_size_from_loader(runtime.app_config.data.val_dataloader, default=640)
+    transforms = T.Compose([T.Resize((resize_size, resize_size)), T.ToTensor()])
 
     image_paths = list_images(args.input_dir)
     logger.info(

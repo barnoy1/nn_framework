@@ -25,6 +25,41 @@ from nn_framework.model import (
 )
 
 
+def _infer_resize_size_from_loader(loader_cfg: dict | None, default: int = 640) -> int:
+    if not isinstance(loader_cfg, dict):
+        return default
+
+    dataset_cfg = loader_cfg.get("dataset")
+    if not isinstance(dataset_cfg, dict):
+        return default
+
+    transforms_cfg = dataset_cfg.get("transforms")
+    if not isinstance(transforms_cfg, dict):
+        return default
+
+    ops = transforms_cfg.get("ops")
+    if not isinstance(ops, list):
+        return default
+
+    for op in ops:
+        if not isinstance(op, dict):
+            continue
+        if str(op.get("type", "")).lower() != "resize":
+            continue
+        size = op.get("size")
+        if isinstance(size, list) and len(size) >= 2:
+            try:
+                return int(size[0])
+            except (TypeError, ValueError):
+                return default
+        try:
+            return int(size)
+        except (TypeError, ValueError):
+            return default
+
+    return default
+
+
 @dataclass(frozen=True)
 class FlowRuntime:
     app_config: AppConfig
@@ -65,8 +100,10 @@ def _prepare_data_if_needed(config: AppConfig) -> None:
 
 def _build_loaders(config: AppConfig) -> tuple[DataLoader, DataLoader]:
     use_masks = "segm" in config.data.iou_types
-    train_transforms = DynamicAlbumentations(config=config.aug, use_masks=use_masks)
-    val_transforms = DynamicAlbumentations(config=config.aug, use_masks=use_masks)
+    train_resize = _infer_resize_size_from_loader(config.data.train_dataloader, default=640)
+    val_resize = _infer_resize_size_from_loader(config.data.val_dataloader, default=train_resize)
+    train_transforms = DynamicAlbumentations(use_masks=use_masks, image_size=train_resize)
+    val_transforms = DynamicAlbumentations(use_masks=use_masks, image_size=val_resize)
     val_transforms.current_stage = "light"
 
     train_datasets = [

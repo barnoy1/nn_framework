@@ -1,20 +1,20 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Literal, Optional
+from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class ModelConfig(BaseModel):
-    source_root: str = "raw_models/RT-DETR/rtdetrv2_pytorch"
-    official_config_path: str = "configs/rtdetrv2/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yml"
-    variant: Literal["r18", "r50"] = "r18"
-    num_classes: int = 1
-    num_queries: int = 300
-    hidden_dim: int = 256
-    dn_num_group: int = 5
-    sync_bn: bool = True
+    source_root: str
+    official_config_path: str
+    variant: Literal["r18", "r50"]
+    num_classes: int
+    num_queries: int
+    hidden_dim: int
+    dn_num_group: int
+    sync_bn: bool
 
 
 class TrainConfig(BaseModel):
@@ -49,31 +49,20 @@ class DataConfig(BaseModel):
         img_dir: str
         ann_file: str
 
-    dataset_root: Optional[str] = "/workspace/datasets"
-    train_sets: List[DatasetPair] = Field(
-        default_factory=lambda: [
-            DataConfig.DatasetPair(
-                img_dir="/workspace/datasets/train/img",
-                ann_file="/workspace/datasets/instances_train.json",
-            )
-        ]
-    )
-    val_sets: List[DatasetPair] = Field(
-        default_factory=lambda: [
-            DataConfig.DatasetPair(
-                img_dir="/workspace/datasets/valid/img",
-                ann_file="/workspace/datasets/instances_valid.json",
-            )
-        ]
-    )
-
-    train_img_dir: Optional[str] = None
-    train_ann_file: Optional[str] = None
-    val_img_dir: Optional[str] = None
-    val_ann_file: Optional[str] = None
+    dataset_root: Optional[str] = None
+    train_sets: List[DatasetPair] = Field(default_factory=list)
+    val_sets: List[DatasetPair] = Field(default_factory=list)
     iou_types: List[Literal["bbox", "segm"]] = Field(default_factory=lambda: ["bbox", "segm"])
     filter_empty_targets: bool = True
     keep_rle_in_targets: bool = True
+    task: str = "detection"
+    evaluator: Dict = Field(default_factory=lambda: {"type": "CocoEvaluator", "iou_types": ["bbox", "segm"]})
+    num_classes: int = 80
+    remap_mscoco_category: bool = False
+    label2classid: Dict[int, str] = Field(default_factory=dict)
+    class_id_to_name: Dict[int, str] = Field(default_factory=dict)
+    train_dataloader: Dict = Field(default_factory=dict)
+    val_dataloader: Dict = Field(default_factory=dict)
 
     @field_validator("iou_types")
     @classmethod
@@ -84,30 +73,62 @@ class DataConfig(BaseModel):
 
     @model_validator(mode="after")
     def normalize_legacy_paths(self) -> "DataConfig":
-        if self.train_img_dir and self.train_ann_file:
-            self.train_sets = [DataConfig.DatasetPair(img_dir=self.train_img_dir, ann_file=self.train_ann_file)]
-        if self.val_img_dir and self.val_ann_file:
-            self.val_sets = [DataConfig.DatasetPair(img_dir=self.val_img_dir, ann_file=self.val_ann_file)]
+        def extract_sets(loader_cfg: Dict) -> List[DataConfig.DatasetPair]:
+            if not isinstance(loader_cfg, dict):
+                return []
+            dataset_cfg = loader_cfg.get("dataset")
+            if not isinstance(dataset_cfg, dict):
+                return []
+            datasets_cfg = dataset_cfg.get("datasets")
+            if not isinstance(datasets_cfg, list):
+                return []
+
+            parsed: List[DataConfig.DatasetPair] = []
+            for entry in datasets_cfg:
+                if not isinstance(entry, dict):
+                    continue
+                img_dir = entry.get("img_dir") or entry.get("img_folder")
+                ann_file = entry.get("ann_file")
+                if img_dir and ann_file:
+                    parsed.append(DataConfig.DatasetPair(img_dir=str(img_dir), ann_file=str(ann_file)))
+            return parsed
+
+        if not self.train_sets:
+            self.train_sets = extract_sets(self.train_dataloader)
+        if not self.val_sets:
+            self.val_sets = extract_sets(self.val_dataloader)
 
         if not self.train_sets:
             raise ValueError("data.train_sets must contain at least one dataset pair")
         if not self.val_sets:
             raise ValueError("data.val_sets must contain at least one dataset pair")
+
+        if not self.class_id_to_name and self.label2classid:
+            self.class_id_to_name = {int(key): str(value) for key, value in self.label2classid.items()}
+        if not self.label2classid and self.class_id_to_name:
+            self.label2classid = {int(key): str(value) for key, value in self.class_id_to_name.items()}
         return self
 
 
-class AugConfig(BaseModel):
-    image_size: int = 640
-    heavy_scale_min: float = 0.5
-    heavy_scale_max: float = 1.5
-    light_scale_min: float = 0.9
-    light_scale_max: float = 1.1
-    switch_epoch_ratio: float = 0.85
-    horizontal_flip_prob: float = 0.5
-    color_jitter_prob: float = 0.3
-
-
 class RuntimeConfig(BaseModel):
+    class ExportConfig(BaseModel):
+        post_process: bool = True
+        nms: bool = True
+        benchmark: bool = False
+        fuse_conv_bn: bool = False
+
+    use_gpu: bool = True
+    use_xpu: bool = False
+    use_mlu: bool = False
+    use_npu: bool = False
+    log_iter: int = 20
+    save_dir: str = "output"
+    snapshot_epoch: int = 1
+    print_flops: bool = False
+    print_params: bool = False
+    epoches: Optional[int] = None
+    export: ExportConfig = Field(default_factory=ExportConfig)
+
     prepare_data: bool = False
     supervisely_dataset_root: Optional[str] = None
     supervisely_splits: List[str] = Field(default_factory=lambda: ["train", "valid"])
@@ -116,12 +137,18 @@ class RuntimeConfig(BaseModel):
     wandb_project: Optional[str] = None
     wandb_run_name: Optional[str] = None
 
+    @field_validator("epoches")
+    @classmethod
+    def validate_epoches(cls, value: Optional[int]) -> Optional[int]:
+        if value is not None and value <= 0:
+            raise ValueError("runtime.epoches must be > 0 when provided")
+        return value
+
 
 class AppConfig(BaseModel):
-    model: ModelConfig = Field(default_factory=ModelConfig)
+    model: ModelConfig
     train: TrainConfig = Field(default_factory=TrainConfig)
     data: DataConfig = Field(default_factory=DataConfig)
-    aug: AugConfig = Field(default_factory=AugConfig)
     runtime: RuntimeConfig = Field(default_factory=RuntimeConfig)
 
     @field_validator("data")

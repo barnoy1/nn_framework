@@ -67,6 +67,11 @@ class Trainer:
 
         self.global_step = 0
         self.current_epoch = 0
+        self.total_epochs = (
+            int(self.app_config.runtime.epoches)
+            if self.app_config.runtime.epoches is not None
+            else int(self.app_config.train.epochs)
+        )
 
     def _move_targets_to_device(self, targets: List[Dict]) -> List[Dict]:
         device_targets: List[Dict] = []
@@ -227,7 +232,7 @@ class Trainer:
     def fit(self) -> None:
         self.callbacks.on_train_start(self)
 
-        for epoch in range(self.app_config.train.epochs):
+        for epoch in range(self.total_epochs):
             self.current_epoch = epoch
             self.callbacks.on_epoch_start(self, epoch)
 

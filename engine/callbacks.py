@@ -98,7 +98,7 @@ class DynamicAugCallback(Callback):
         dataset = trainer.train_loader.dataset
         transforms = getattr(dataset, "transforms", None)
         if transforms is not None and hasattr(transforms, "update_augmentation"):
-            transforms.update_augmentation(epoch=epoch, total_epochs=trainer.app_config.train.epochs)
+            transforms.update_augmentation(epoch=epoch, total_epochs=trainer.total_epochs)
 
 
 class CallbackList:
