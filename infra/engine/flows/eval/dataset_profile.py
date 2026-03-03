@@ -45,15 +45,15 @@ def collect_class_frequency(dataset) -> tuple[Dict[int, int], Dict[int, str]]:
     return frequencies, contiguous_to_name
 
 
-def profile_dataset_distribution(runtime, logger) -> None:
-    counts, names = collect_class_frequency(runtime.val_loader.dataset)
+def _profile_single_dataset_distribution(*, dataset, split_name: str, output_dir: Path, logger) -> None:
+    counts, names = collect_class_frequency(dataset)
     if not counts:
-        logger.warning("Could not compute class-frequency profile for validation dataset")
+        logger.warning("Could not compute class-frequency profile for {} dataset", split_name)
         return
 
     total_instances = sum(counts.values())
     if total_instances <= 0:
-        logger.warning("Validation dataset has no instances after filtering")
+        logger.warning("{} dataset has no instances after filtering", split_name)
         return
 
     rows: List[List[object]] = []
@@ -64,9 +64,8 @@ def profile_dataset_distribution(runtime, logger) -> None:
         rows.append([class_id, class_name, frequency, f"{percentage:.2f}%"])
 
     table = tabulate(rows, headers=["class_id", "class_name", "frequency", "dataset_pct"], tablefmt="psql", floatfmt=".2f")
-    logger.info("Validation dataset class-frequency profile (instances={}):\n{}", total_instances, table)
+    logger.info("{} dataset class-frequency profile (instances={}):\n{}", split_name.capitalize(), total_instances, table)
 
-    output_dir = Path(runtime.app_config.train.output_dir) / "dataset"
     output_dir.mkdir(parents=True, exist_ok=True)
     sns.set_theme(style="whitegrid")
     class_ids = [row[0] for row in rows]
@@ -76,7 +75,7 @@ def profile_dataset_distribution(runtime, logger) -> None:
     axis = sns.barplot(x=class_ids, y=frequencies, color="#9ecae1")
     axis.set_xlabel("class_id")
     axis.set_ylabel("frequency")
-    axis.set_title("Validation class frequency distribution")
+    axis.set_title(f"{split_name.capitalize()} class frequency distribution")
     axis.tick_params(axis="x", labelrotation=45)
 
     y_max = max(frequencies) if frequencies else 1
@@ -85,11 +84,37 @@ def profile_dataset_distribution(runtime, logger) -> None:
         y_pos = patch.get_height()
         axis.text(x_pos, y_pos + y_max * 0.01, f"{row[1]}\n{row[3]}", ha="center", va="bottom", fontsize=8, rotation=90)
 
-    chart_path = output_dir / "val_class_frequency.png"
+    chart_path = output_dir / f"{split_name}_class_frequency.png"
     plt.tight_layout()
     plt.savefig(chart_path, dpi=200)
     plt.close()
     logger.info("Saved class-frequency chart: {}", chart_path)
+
+
+def profile_dataset_distribution(runtime, logger) -> None:
+    output_dir = Path(runtime.app_config.train.output_dir) / "dataset"
+    _profile_single_dataset_distribution(
+        dataset=runtime.val_loader.dataset,
+        split_name="val",
+        output_dir=output_dir,
+        logger=logger,
+    )
+
+
+def profile_train_and_val_dataset_distribution(runtime, logger) -> None:
+    output_dir = Path(runtime.app_config.train.output_dir) / "dataset"
+    _profile_single_dataset_distribution(
+        dataset=runtime.train_loader.dataset,
+        split_name="train",
+        output_dir=output_dir,
+        logger=logger,
+    )
+    _profile_single_dataset_distribution(
+        dataset=runtime.val_loader.dataset,
+        split_name="val",
+        output_dir=output_dir,
+        logger=logger,
+    )
 
 
 def dataset_num_classes(dataset) -> Optional[int]:

@@ -1,235 +1,272 @@
 # @package _global_
 
 model:
+  # Filesystem root of the concrete model repository implementation.
   source_root: raw_models/RT-DETR/rtdetrv2_pytorch
+  # Baseline model recipe used by wrapper/model builder.
   official_config_path: configs/rtdetrv2/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yml
+  # Backbone profile variant (affects speed/accuracy/params).
   variant: r18
+  # Number of classifier outputs expected from the head.
   num_classes: 80
+  # Number of object queries decoded per image.
   num_queries: 300
+  # Transformer hidden channel width.
   hidden_dim: 256
+  # Denoising groups for training stabilization.
   dn_num_group: 5
+  # Enable SyncBatchNorm across devices in distributed setups.
   sync_bn: true
 
 train:
+  # Total training epochs.
   epochs: 120
+  # Per-step training batch size.
   batch_size: 8
+  # Per-step validation batch size.
   val_batch_size: 8
+  # DataLoader worker processes.
   num_workers: 4
+  # Base optimizer learning rate.
   lr: 0.0002
+  # Multiplier applied to backbone LR relative to base LR.
   backbone_lr_multiplier: 1.25
+  # L2 regularization strength.
   weight_decay: 0.0001
+  # Gradient clipping norm threshold (0 disables).
   grad_clip_norm: 0.1
+  # AMP mode (`fp16` reduces memory/latency).
   mixed_precision: fp16
-  output_dir: ./nn_framework/outputs
+  # Root directory for run artifacts.
+  output_dir: ./out
+  # Logging cadence in training steps.
   log_every_n_steps: 20
+  # Validation cadence in epochs.
   val_every_n_epochs: 1
+  # Checkpoint save cadence in epochs.
   save_every_n_epochs: 1
+  # Enable Exponential Moving Average model weights.
   use_ema: true
+  # EMA decay factor (higher = slower update).
   ema_decay: 0.9999
+  # Warmup updates before full EMA behavior.
   ema_warmup_updates: 2000
+  # Global random seed for reproducibility.
   seed: 42
 
 data:
+  # Skip samples with no valid annotations during training.
   filter_empty_targets: true
+  # Keep segmentation in RLE format when mask tensors are not materialized.
   keep_rle_in_targets: true
+  # High-level task mode.
   task: detection
   evaluator:
+    # Evaluator backend.
     type: CocoEvaluator
+    # IoU tasks to compute metrics for.
     iou_types: [bbox, segm]
+  # Declared dataset class space size.
   num_classes: 80
+  # Compatibility flag for COCO-style category remap paths.
   remap_mscoco_category: true
   mapping:
+    # Map dataset contiguous class 0 -> model class index 4 (airplane).
     0: 4
 
-  label2classid: &label2classid
-    0: person
-    1: bicycle
-    2: car
-    3: motorcycle
-    4: airplane
-    5: bus
-    6: train
-    7: truck
-    8: boat
-    9: traffic light
-    10: fire hydrant
-    11: stop sign
-    12: parking meter
-    13: bench
-    14: bird
-    15: cat
-    16: dog
-    17: horse
-    18: sheep
-    19: cow
-    20: elephant
-    21: bear
-    22: zebra
-    23: giraffe
-    24: backpack
-    25: umbrella
-    26: handbag
-    27: tie
-    28: suitcase
-    29: frisbee
-    30: skis
-    31: snowboard
-    32: sports ball
-    33: kite
-    34: baseball bat
-    35: baseball glove
-    36: skateboard
-    37: surfboard
-    38: tennis racket
-    39: bottle
-    40: wine glass
-    41: cup
-    42: fork
-    43: knife
-    44: spoon
-    45: bowl
-    46: banana
-    47: apple
-    48: sandwich
-    49: orange
-    50: broccoli
-    51: carrot
-    52: hot dog
-    53: pizza
-    54: donut
-    55: cake
-    56: chair
-    57: couch
-    58: potted plant
-    59: bed
-    60: dining table
-    61: toilet
-    62: tv
-    63: laptop
-    64: mouse
-    65: remote
-    66: keyboard
-    67: cell phone
-    68: microwave
-    69: oven
-    70: toaster
-    71: sink
-    72: refrigerator
-    73: book
-    74: clock
-    75: vase
-    76: scissors
-    77: teddy bear
-    78: hair drier
-    79: toothbrush
-
+  # Canonical mapping from class index to class name used by logs/visualization.
+  label2classid: &label2classid {0: person, 1: bicycle, 2: car, 3: motorcycle, 4: airplane, 5: bus, 6: train, 7: truck, 8: boat, 9: traffic light, 10: fire hydrant, 11: stop sign, 12: parking meter, 13: bench, 14: bird, 15: cat, 16: dog, 17: horse, 18: sheep, 19: cow, 20: elephant, 21: bear, 22: zebra, 23: giraffe, 24: backpack, 25: umbrella, 26: handbag, 27: tie, 28: suitcase, 29: frisbee, 30: skis, 31: snowboard, 32: sports ball, 33: kite, 34: baseball bat, 35: baseball glove, 36: skateboard, 37: surfboard, 38: tennis racket, 39: bottle, 40: wine glass, 41: cup, 42: fork, 43: knife, 44: spoon, 45: bowl, 46: banana, 47: apple, 48: sandwich, 49: orange, 50: broccoli, 51: carrot, 52: hot dog, 53: pizza, 54: donut, 55: cake, 56: chair, 57: couch, 58: potted plant, 59: bed, 60: dining table, 61: toilet, 62: tv, 63: laptop, 64: mouse, 65: remote, 66: keyboard, 67: cell phone, 68: microwave, 69: oven, 70: toaster, 71: sink, 72: refrigerator, 73: book, 74: clock, 75: vase, 76: scissors, 77: teddy bear, 78: hair drier, 79: toothbrush}
+  # Alias used by visualizers/inference output label rendering.
   class_id_to_name: *label2classid
 
   train_dataloader:
+    # Loader implementation type.
     type: DataLoader
     dataset:
+      # Dataset adapter type.
       type: CocoDetection
       datasets:
+        # Training image directory.
         - img_folder: /home/ronbar/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/train/img
+          # Training COCO annotation file.
           ann_file: /home/ronbar/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_train.json
+      # Ask dataset to prepare segmentation masks.
       return_masks: true
       transforms:
+        # Transform container semantics.
         type: Compose
         ops:
+          # Geometric: flips image + bboxes + masks.
           - {type: RandomHorizontalFlip, p: 0.5}
+          # Geometric: vertical flip (synchronized with annotations).
           - {type: RandomVerticalFlip, p: 0.2}
+          # Geometric: rotation in degrees range [-limit, +limit].
           - {type: Rotate, limit: 15, p: 0.3}
+          # Image-only color jitter in HSV space (annotations unchanged).
           - {type: HueSaturationValue, hue_shift_limit: 12, sat_shift_limit: 24, val_shift_limit: 12, p: 0.3}
+          # Image-only contrast/brightness change.
           - {type: RandomBrightnessContrast, p: 0.3}
+          # Final spatial normalization to model input size.
           - {type: Resize, size: [640, 640]}
+          # Convert image to float tensor-like representation with scaling.
           - {type: ConvertPILImage, dtype: 'float32', scale: true}
+          # Convert GT boxes to normalized cxcywh expected by model/loss.
           - {type: ConvertBoxes, fmt: 'cxcywh', normalize: true}
         policy:
+          # Policy trigger type.
           name: stop_epoch
+          # Epoch to disable listed heavy augmentations.
           epoch: 71
+          # Augmentations affected by policy.
           ops: ['RandomVerticalFlip', 'Rotate', 'HueSaturationValue', 'RandomBrightnessContrast']
+    # Shuffle training data each epoch.
     shuffle: true
+    # Worker count for train loader.
     num_workers: 2
+    # Global intended train batch size (framework-level metadata).
     total_batch_size: 2
+    # Drop final incomplete batch for stable step math.
     drop_last: true
     collate_fn:
+      # Batch collation strategy.
       type: BatchImageCollateFunction
+      # Multi-scale training candidate sizes.
       scales: [480, 512, 544, 576, 608, 640, 640, 640, 672, 704, 736, 768, 800]
-      stop_epoch: 71
+    
 
   val_dataloader:
+    # Loader implementation type.
     type: DataLoader
     dataset:
+      # Dataset adapter type.
       type: CocoDetection
       datasets:
+        # Validation image directory.
         - img_folder: /home/ronbar/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/valid/img
+          # Validation COCO annotation file.
           ann_file: /home/ronbar/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_valid.json
+      # Keep masks available for segm evaluation.
       return_masks: true
       transforms:
+        # Transform container semantics.
         type: Compose
         ops:
+          # Deterministic resize for validation/inference parity.
           - {type: Resize, size: [640, 640]}
+          # Convert image to scaled float representation.
           - {type: ConvertPILImage, dtype: 'float32', scale: true}
+    # Keep deterministic order for reproducible eval.
     shuffle: false
+    # Worker count for val loader.
     num_workers: 2
+    # Global intended validation batch size (framework-level metadata).
     total_batch_size: 2
+    # Keep tail batch for full-dataset evaluation coverage.
     drop_last: false
     collate_fn:
+      # Batch collation strategy.
       type: BatchImageCollateFunction
 
 runtime:
   common:
+    # Runtime-selected model profile.
     model_profile: r18
+    # Runtime default output root.
     output_dir: out
+    # Execution device.
     device: cuda
+    # Generic runtime batch size used by utility flows.
     batch_size: 1
+    # Generic runtime worker count.
     num_workers: 2
+    # Hardware backend toggles.
     use_gpu: true
     use_xpu: false
     use_mlu: false
     use_npu: false
+    # Iteration logging interval for runtime tools.
     log_iter: 20
+    # Snapshot/checkpoint interval (runtime layer).
     snapshot_epoch: 1
+    # Debug flags for model complexity reporting.
     print_flops: false
     print_params: false
+    # Runtime epoch override.
     epoches: 120
 
+  visualization:
+    # Number of qualitative visualization samples to save.
+    num_samples: 4
+    # tensorboard logging directory for visualizations.
+    tensorboard:
+      # Enable TensorBoard logging for visualizations.
+      enabled: true
+      log_dir: visualization/tensorboard
+    # wandb logging configuration for visualizations.
+    wandb:
+      # Enable Weights & Biases logging for visualizations.
+      enabled: true
+      # Directory for wandb logs/artifacts for visualizations.
+      wandb_dir: visualization/wandb      
+
   data_preparation:
+    # Whether to convert raw Supervisely-like data before training/eval.
     prepare_data: false
+    # Source dataset root for conversion when enabled.
     supervisely_dataset_root: null
+    # Splits to convert.
     supervisely_splits: [train, valid]
+    # Annotation and image subfolder names in source dataset.
     ann_subdir: ann
     img_subdir: img
+    # Optional experiment tracking hooks.
     wandb_project: null
     wandb_run_name: null
 
   export:
+    # Apply postprocessing in export flow.
     post_process: true
+    # Apply NMS in export flow.
     nms: true
+    # Enable benchmark mode for export profiling.
     benchmark: false
+    # Fuse Conv+BN prior to export when supported.
     fuse_conv_bn: false
 
   actions:
+    # Train action parameters (empty uses defaults above).
     train: {}
 
     eval:
+      # Checkpoint used by eval action.
       checkpoint: /home/ronbar/repo/nn_framework/raw_models/RT-DETR/rtdetrv2_pytorch/weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
 
     inference:
+      # Checkpoint used by inference action.
       checkpoint: /home/ronbar/repo/nn_framework/raw_models/RT-DETR/rtdetrv2_pytorch/weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
+      # Input directory for image inference.
       input_dir: /home/ronbar/repo/nn_framework/input_data
 
     inference_onnx:
+      # ONNX model file for ONNX inference path.
       onnx_model: /home/ronbar/repo/nn_framework/raw_models/RT-DETR/rtdetrv2_pytorch/exported_models/model.onnx
+      # Input directory for ONNX inference.
       input_dir: /home/ronbar/repo/nn_framework/input_data
 
     export_onnx:
+      # Source checkpoint for ONNX export.
       checkpoint: /home/ronbar/repo/nn_framework/raw_models/RT-DETR/rtdetrv2_pytorch/weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
+      # Destination ONNX path.
       onnx_model: /home/ronbar/repo/nn_framework/raw_models/RT-DETR/rtdetrv2_pytorch/exported_models/model.onnx
 
     export_coco_rle:
+      # Dataset root for COCO-RLE conversion utility.
       dataset_root: /home/ronbar/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja
+      # Output directory for converted artifacts.
       output_dir: /home/ronbar/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja
+      # Splits to export.
       splits: [train, valid]
+      # Annotation and image subfolder names for exporter.
       ann_subdir: ann
       img_subdir: img
+

@@ -8,7 +8,9 @@ ROOT = Path(__file__).resolve().parents[4]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from infra.adapters import LoguruLoggerAdapter
 from infra.engine.flows.common.runtime import build_flow_runtime
+from infra.engine.flows.eval.dataset_profile import profile_train_and_val_dataset_distribution
 from infra.engine.callbacks import (
     CallbackList,
     CheckpointCallback,
@@ -30,6 +32,9 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     runtime = build_flow_runtime(model_profile=args.model_profile, overrides=args.overrides, config_path=args.config)
+    experiment_name = Path(args.config).stem
+    logger = LoguruLoggerAdapter()
+    profile_train_and_val_dataset_distribution(runtime, logger)
 
     callbacks = CallbackList(
         [
@@ -55,6 +60,7 @@ def main() -> None:
         callbacks=callbacks,
         ema_model=runtime.built.ema_model,
         model_wrapper=runtime.wrapper,
+        experiment_name=experiment_name,
     )
     trainer.fit()
 

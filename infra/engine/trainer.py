@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import torch
-import torchvision
 from accelerate import Accelerator
 from accelerate.utils import set_seed
 
 from ..adapters import LoguruLoggerAdapter
-from ..core import move_targets_to_device, to_result_list
+from ..core import move_targets_to_device
 from .callbacks import CallbackList
 from ..config import AppConfig
-from .evaluate import evaluate_predictions
+from .flows.eval.shared import run_eval_artifacts
 from .model import ModelWrapperAdapter
 from ..interfaces import LoggerPort
 
@@ -31,6 +30,7 @@ class Trainer:
         ema_model=None,
         model_wrapper: Optional[ModelWrapperAdapter] = None,
         logger_port: Optional[LoggerPort] = None,
+        experiment_name: str = "experiment",
     ) -> None:
         self.app_config = app_config
         self.model = model
@@ -43,6 +43,7 @@ class Trainer:
         self.callbacks = callbacks
         self.ema_model = ema_model
         self.model_wrapper = model_wrapper
+        self.experiment_name = experiment_name
         self.logger = logger_port or LoguruLoggerAdapter()
 
         set_seed(self.app_config.train.seed)
@@ -135,58 +136,19 @@ class Trainer:
                 self.logger.warning("EMA copy skipped during validate due to state mismatch: {}", error)
                 use_ema = False
 
-        all_predictions: List[Dict[str, torch.Tensor]] = []
-        all_targets_for_metric: List[Dict[str, torch.Tensor]] = []
-
-        for images, targets in self.val_loader:
-            images = images.to(self.accelerator.device, non_blocking=True)
-            targets = move_targets_to_device(targets, self.accelerator.device)
-
-            outputs = self.model(images)
-            orig_sizes = torch.stack([target["orig_size"] for target in targets], dim=0)
-            results = to_result_list(outputs, self.postprocessor, orig_sizes)
-
-            for prediction, target in zip(results, targets):
-                orig_size = target["orig_size"].detach().cpu().float()
-                width = float(orig_size[0].item())
-                height = float(orig_size[1].item())
-
-                gt_boxes = target["boxes"].detach().cpu().float()
-                if gt_boxes.numel() == 0:
-                    gt_boxes_xyxy = torch.zeros((0, 4), dtype=torch.float32)
-                else:
-                    gt_boxes_xyxy = torchvision.ops.box_convert(gt_boxes, in_fmt="cxcywh", out_fmt="xyxy")
-                    scale = torch.tensor([width, height, width, height], dtype=torch.float32)
-                    gt_boxes_xyxy = gt_boxes_xyxy * scale
-
-                pred = {
-                    "boxes": prediction["boxes"].detach().cpu(),
-                    "scores": prediction["scores"].detach().cpu(),
-                    "labels": prediction["labels"].detach().cpu().long(),
-                }
-                if score_thr > 0.0:
-                    keep = pred["scores"] >= float(score_thr)
-                    pred["boxes"] = pred["boxes"][keep]
-                    pred["scores"] = pred["scores"][keep]
-                    pred["labels"] = pred["labels"][keep]
-                if "masks" in prediction:
-                    pred["masks"] = prediction["masks"].detach().cpu().bool()
-                    if score_thr > 0.0:
-                        pred["masks"] = pred["masks"][keep]
-                all_predictions.append(pred)
-
-                gt = {
-                    "boxes": gt_boxes_xyxy,
-                    "labels": target["labels"].detach().cpu().long(),
-                }
-                if "masks" in target:
-                    gt["masks"] = target["masks"].detach().cpu().bool()
-                all_targets_for_metric.append(gt)
-
-        metrics = evaluate_predictions(
-            predictions=all_predictions,
-            targets=all_targets_for_metric,
-            iou_types=self.app_config.data.iou_types,
+        class_id_to_name = {int(key): str(value) for key, value in (self.app_config.data.class_id_to_name or {}).items()}
+        metrics = run_eval_artifacts(
+            app_config=self.app_config,
+            model=self.accelerator.unwrap_model(self.model),
+            postprocessor=self.postprocessor,
+            device=self.accelerator.device,
+            logger=self.logger,
+            class_id_to_name=class_id_to_name,
+            experiment_name=self.experiment_name,
+            vis_samples=int(self.app_config.runtime.visualization.num_samples),
+            score_thr=float(score_thr),
+            image_epoch_suffix=epoch + 1,
+            write_metrics_json=True,
         )
 
         if use_ema:
@@ -197,21 +159,26 @@ class Trainer:
 
     def fit(self) -> None:
         self.callbacks.on_train_start(self)
+        try:
+            first_epoch_in_run = True
+            for epoch in range(self.total_epochs):
+                self.current_epoch = epoch
+                self.callbacks.on_epoch_start(self, epoch)
 
-        for epoch in range(self.total_epochs):
-            self.current_epoch = epoch
-            self.callbacks.on_epoch_start(self, epoch)
+                train_metrics = self._train_one_epoch(epoch)
 
-            train_metrics = self._train_one_epoch(epoch)
+                val_metrics: Dict[str, float] = {}
+                should_validate = first_epoch_in_run or ((epoch + 1) % self.app_config.train.val_every_n_epochs == 0)
+                if should_validate:
+                    val_metrics = self.validate(epoch)
+                first_epoch_in_run = False
 
-            val_metrics: Dict[str, float] = {}
-            if (epoch + 1) % self.app_config.train.val_every_n_epochs == 0:
-                val_metrics = self.validate(epoch)
+                merged_metrics = {f"train_{k}": v for k, v in train_metrics.items()} | {
+                    f"val_{k}": v for k, v in val_metrics.items()
+                }
+                self.callbacks.on_epoch_end(self, epoch, merged_metrics)
 
-            merged_metrics = {f"train_{k}": v for k, v in train_metrics.items()} | {
-                f"val_{k}": v for k, v in val_metrics.items()
-            }
-            self.callbacks.on_epoch_end(self, epoch, merged_metrics)
-
-            if self.accelerator.is_main_process:
-                self.logger.info("epoch={} metrics={}", epoch, merged_metrics)
+                if self.accelerator.is_main_process:
+                    self.logger.info("epoch={} metrics={}", epoch, merged_metrics)
+        finally:
+            self.callbacks.on_train_end(self)
