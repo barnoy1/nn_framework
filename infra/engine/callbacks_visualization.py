@@ -203,6 +203,14 @@ class ValidationVisualizationCallback(Callback):
     def on_epoch_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
         if not trainer.accelerator.is_main_process or self._logger is None:
             return
+        numeric_metrics: Dict[str, float] = {}
+        for key, value in metrics.items():
+            try:
+                numeric_metrics[str(key)] = float(value)
+            except (TypeError, ValueError):
+                continue
+        if numeric_metrics:
+            self._logger.log_metrics(metrics=numeric_metrics, step=epoch + 1)
         self._log_output_artifacts()
 
     def on_train_end(self, trainer: "Trainer") -> None:

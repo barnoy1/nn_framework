@@ -19,33 +19,27 @@ model:
   sync_bn: true
 
   losses:
-    # Concrete criterion loss-to-coefficient pairing (used for box/cls/dfl reporting groups).
-    # Add/remove per selected model criterion implementation.
+    # Concrete criterion loss-to-coefficient pairing (used for optimization + reporting groups).
+    # Grouping policy:
+    #   - box / cls / dfl: core detection losses (generic defaults)
+    #   - custom: model-specific losses under test (RT-DETRv2-specific variants)
+    # Prefix entries (for example: loss_bbox_aux_) match all indexed losses like loss_bbox_aux_0, loss_bbox_aux_1, ...
     criterion_pairs:
       box:
         - loss: loss_bbox
           coef: 5.0
         - loss: loss_giou
           coef: 2.0
-        - loss: loss_bbox_dn
-          coef: 5.0
-        - loss: loss_giou_dn
-          coef: 5.0
       cls:
         - loss: loss_vfl
           coef: 5.0
         - loss: loss_focal
           coef: 5.0
-        - loss: loss_vfl_dn
-          coef: 1.0
-        - loss: loss_focal_dn
-          coef: 1.0
       dfl:
         - loss: loss_dfl
           coef: 1.0
       custom:
-        # RT-DETRv2 criterion-specific auxiliary and encoder supervision losses.
-        # These are not part of common YOLO-style box/cls/dfl groups.
+        # RT-DETRv2-specific auxiliary supervision variants.
         - loss: loss_bbox_aux_
           coef: 5.0
         - loss: loss_giou_aux_
@@ -54,6 +48,18 @@ model:
           coef: 5.0
         - loss: loss_focal_aux_
           coef: 5.0
+
+        # RT-DETRv2-specific denoising supervision variants.
+        - loss: loss_bbox_dn_
+          coef: 5.0
+        - loss: loss_giou_dn_
+          coef: 2.0
+        - loss: loss_vfl_dn_
+          coef: 1.0
+        - loss: loss_focal_dn_
+          coef: 1.0
+
+        # RT-DETRv2-specific encoder supervision variants.
         - loss: loss_bbox_enc_
           coef: 5.0
         - loss: loss_giou_enc_
@@ -62,6 +68,7 @@ model:
           coef: 5.0
         - loss: loss_focal_enc_
           coef: 5.0
+      
     
 train:
   # Total training epochs.
@@ -247,7 +254,7 @@ runtime:
     # tensorboard logging directory for visualizations.
     tensorboard:
       # Enable TensorBoard logging for visualizations.
-      enabled: true
+      enabled: false
       log_dir: visualization/tensorboard
     # mlflow logging configuration for visualizations.
     mlflow:

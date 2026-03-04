@@ -4,6 +4,8 @@ from typing import Dict
 
 import torch
 
+from infra.utils.loss_aliases import canonical_loss_alias
+
 
 class LossComponentSplitter:
     def __init__(self, terms: Dict[str, list[str]]) -> None:
@@ -13,10 +15,10 @@ class LossComponentSplitter:
     def from_config(cls, app_config) -> "LossComponentSplitter":
         configured_pairs = app_config.model.losses.criterion_pairs
         terms = {
-            "box": [str(item.loss).lower() for item in configured_pairs.box],
-            "cls": [str(item.loss).lower() for item in configured_pairs.cls],
-            "dfl": [str(item.loss).lower() for item in configured_pairs.dfl],
-            "custom": [str(item.loss).lower() for item in configured_pairs.custom],
+            "box": [canonical_loss_alias(str(item.loss)) for item in configured_pairs.box],
+            "cls": [canonical_loss_alias(str(item.loss)) for item in configured_pairs.cls],
+            "dfl": [canonical_loss_alias(str(item.loss)) for item in configured_pairs.dfl],
+            "custom": [canonical_loss_alias(str(item.loss)) for item in configured_pairs.custom],
         }
         return cls(terms=terms)
 
@@ -27,7 +29,10 @@ class LossComponentSplitter:
             normalized = str(term).strip().lower()
             if not normalized:
                 continue
-            if normalized in lowered:
+            if normalized.endswith("_"):
+                if lowered.startswith(normalized):
+                    return True
+            elif lowered == normalized or lowered.startswith(f"{normalized}_"):
                 return True
         return False
 

@@ -130,6 +130,13 @@ class MLflowCallback(Callback):
             for key, value in metrics.items():
                 mlflow.log_metric(f"val/{key}", float(value), step=current_step)
 
+    def on_epoch_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
+        if self._active and trainer.accelerator.is_main_process:
+            current_step = self._step(trainer.global_step)
+            mlflow.log_metric("epoch", float(epoch), step=current_step)
+            for key, value in metrics.items():
+                mlflow.log_metric(str(key), float(value), step=current_step)
+
     def on_train_end(self, trainer: "Trainer") -> None:
         if self._active and self._owns_run:
             mlflow.end_run()
