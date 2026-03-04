@@ -12,7 +12,7 @@
       "args": [
         "train",
         "--config",
-        "infra/config/hydra/experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
+        "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
         "--model-profile",
         "r18",
         "--output-dir",
@@ -35,7 +35,7 @@
       "args": [
         "eval",
         "--config",
-        "infra/config/hydra/experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
+        "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
         "--model-profile",
         "r18",
         "--output-dir",
@@ -62,7 +62,7 @@
       "args": [
         "inference",
         "--config",
-        "infra/config/hydra/experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
+        "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
         "--model-profile",
         "r18",
         "--checkpoint",
@@ -95,7 +95,7 @@
       "args": [
         "inference-onnx",
         "--config",
-        "infra/config/hydra/experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
+        "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
         "--model-profile",
         "r18",
         "--onnx-model",
@@ -128,7 +128,7 @@
       "args": [
         "export-onnx",
         "--config",
-        "infra/config/hydra/experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
+        "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
         "--checkpoint",
         "${workspaceFolder}/weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth",
         "--onnx-model",
@@ -151,7 +151,7 @@
       "args": [
         "export-coco-rle",
         "--config",
-        "infra/config/hydra/experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
+        "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
         "--dataset_root",
         "${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja",
         "--output_dir",

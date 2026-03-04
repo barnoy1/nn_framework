@@ -84,13 +84,13 @@ def setup_logger(config_path: Optional[str | Path] = None, force: bool = False) 
 
     file_cfg = config.get("file", {})
     if file_cfg.get("enabled", True):
+        configured_path = str(file_cfg.get("path", "logs/{time:YYYY-MM-DD__HH-mm-ss}.log"))
         run_root = os.environ.get("NN_FRAMEWORK_RUN_DIR", "").strip()
         if run_root:
-            file_path = str((Path(run_root).resolve() / "logs" / "app.log"))
-            Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+            file_path = _resolve_log_path(configured_path, Path(run_root).resolve())
         else:
-            file_path = _resolve_log_path(file_cfg.get("path", "logs/{time:YYYY-MM-DD__HH:mm:ss}.log"), root)
-            Path(file_path.split("{time:")[0]).mkdir(parents=True, exist_ok=True)
+            file_path = _resolve_log_path(configured_path, root)
+        Path(file_path).parent.mkdir(parents=True, exist_ok=True)
         _base_logger.add(
             file_path,
             level=file_cfg.get("level", "INFO"),

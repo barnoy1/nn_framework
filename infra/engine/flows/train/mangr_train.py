@@ -17,6 +17,7 @@ from infra.engine.callbacks import (
     DynamicAugCallback,
     EMACallback,
     MLflowCallback,
+    ValidationVisualizationCallback,
     YoloStyleArtifactsCallback,
 )
 from infra.engine.trainer import Trainer
@@ -52,6 +53,19 @@ def main() -> None:
                 tracking_dir=runtime.app_config.ensure_output_dir() / str(mlflow_cfg.mlflow_dir),
                 experiment_name=runtime.app_config.runtime.mlflow_experiment_name or experiment_name,
                 run_name=runtime.app_config.runtime.mlflow_run_name or experiment_name,
+                tracking_backend=str(mlflow_cfg.tracking_backend),
+                sqlite_db_name=str(mlflow_cfg.sqlite_db_name),
+                ui_host=str(mlflow_cfg.host),
+                ui_port=int(mlflow_cfg.port),
+                start_ui_service=bool(mlflow_cfg.start_service),
+            ),
+            ValidationVisualizationCallback(
+                output_dir=runtime.app_config.ensure_output_dir(),
+                num_samples=int(runtime.app_config.runtime.visualization.num_samples),
+                experiment_name=experiment_name,
+                tensorboard_enabled=bool(runtime.app_config.runtime.visualization.tensorboard.enabled),
+                tensorboard_log_dir=str(runtime.app_config.runtime.visualization.tensorboard.log_dir),
+                mlflow_enabled=False,
             ),
         ]
     )

@@ -8,11 +8,29 @@ import yaml
 from .constants import ACTION_TO_RUNTIME_SECTION, REPO_ROOT
 
 
+def _resolve_relocated_experiment_path(candidate: Path) -> Path | None:
+    parts = candidate.parts
+    marker = ("infra", "config", "hydra", "experiment")
+    if len(parts) < len(marker):
+        return None
+    for index in range(len(parts) - len(marker) + 1):
+        if tuple(parts[index : index + len(marker)]) == marker:
+            file_name = candidate.name
+            relocated = (REPO_ROOT / "experiment" / file_name).resolve()
+            if relocated.exists():
+                return relocated
+            return None
+    return None
+
+
 def resolve_config_path(path: str) -> Path:
     candidate = Path(path).expanduser()
     if not candidate.is_absolute():
         candidate = (REPO_ROOT / candidate).resolve()
     if not candidate.exists():
+        relocated = _resolve_relocated_experiment_path(candidate)
+        if relocated is not None:
+            return relocated
         raise FileNotFoundError(f"Config file not found: {candidate}")
     return candidate
 
@@ -186,6 +204,10 @@ def resolve_experiment_conf_path(dataset_conf: str) -> str | None:
 
     if not isinstance(experiment_name, str) or not experiment_name:
         return None
+
+    experiment_path = REPO_ROOT / "experiment" / f"{experiment_name}.yaml"
+    if experiment_path.exists():
+        return str(experiment_path.resolve())
 
     experiment_path = hydra_root / "experiment" / f"{experiment_name}.yaml"
     if experiment_path.exists():

@@ -8,10 +8,9 @@ import torch
 import torchvision.transforms as T
 from PIL import Image
 
+from infra.engine.flows.common.image_io import list_images
 from infra.engine.flows.common.runtime import build_flow_runtime
 from infra.utils.viz.visualize import render_prediction_with_yolo_caption
-
-from .shared import list_images
 
 
 def run_onnx(args, logger) -> None:

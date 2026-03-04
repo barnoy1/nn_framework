@@ -5,6 +5,8 @@ from .loggers import (
     TensorBoardVisualizationLogger,
     VisualizationLogger,
     create_visualization_logger,
+    start_mlflow_ui_service,
+    start_tensorboard_service,
 )
 
 __all__ = [
@@ -14,4 +16,6 @@ __all__ = [
     "MlflowVisualizationLogger",
     "CompositeVisualizationLogger",
     "create_visualization_logger",
+    "start_mlflow_ui_service",
+    "start_tensorboard_service",
 ]

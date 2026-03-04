@@ -49,11 +49,19 @@ class ExportConfig(BaseModel):
 class TensorBoardVisualizationConfig(BaseModel):
     enabled: bool = False
     log_dir: str = "runs/visualization"
+    host: str = "127.0.0.1"
+    port: int = 6006
+    start_service: bool = True
 
 
 class MlflowVisualizationConfig(BaseModel):
     enabled: bool = False
     mlflow_dir: str = "mlflow"
+    tracking_backend: str = "sqlite"
+    sqlite_db_name: str = "mlflow.db"
+    host: str = "127.0.0.1"
+    port: int = 5000
+    start_service: bool = True
 
 
 class VisualizationConfig(BaseModel):

@@ -3,9 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List
 
-from infra.data.preprocess import infer_resize_size_from_loader
-
 IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
+
 
 def list_images(folder: str) -> List[Path]:
     root = Path(folder)

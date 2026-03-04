@@ -45,6 +45,7 @@ def compute_validation_loss_components(
     running_cls = 0.0
     running_dfl = 0.0
     running_custom = 0.0
+    component_sums: Dict[str, float] = {}
     num_steps = 0
 
     for images, targets in val_loader:
@@ -56,6 +57,12 @@ def compute_validation_loss_components(
             loss_dict = criterion(outputs, targets)
             total_loss = sum(loss_dict.values())
 
+        for key, value in loss_dict.items():
+            if value is None:
+                continue
+            numeric = float(value.detach().item()) if torch.is_tensor(value) else float(value)
+            component_sums[str(key)] = component_sums.get(str(key), 0.0) + numeric
+
         parts = splitter.split(loss_dict)
         running_total += float(total_loss.detach().item())
         running_box += float(parts["box_loss"])
@@ -65,10 +72,12 @@ def compute_validation_loss_components(
         num_steps += 1
 
     denom = max(1, num_steps)
-    return {
+    metrics = {
         "loss": running_total / float(denom),
         "box_loss": running_box / float(denom),
         "cls_loss": running_cls / float(denom),
         "dfl_loss": running_dfl / float(denom),
         "custom_loss": running_custom / float(denom),
     }
+    metrics.update({f"criterion/{key}": total / float(denom) for key, total in component_sums.items()})
+    return metrics

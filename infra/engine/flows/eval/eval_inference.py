@@ -163,6 +163,12 @@ def run_eval_inference_loop(
     with detections_path.open("w", encoding="utf-8") as file:
         json.dump(detection_records, file, indent=2)
     logger.info("Saved eval detections JSON to {}", detections_path)
+    vis_logger.log_artifact(file_path=detections_path, artifact_path="eval")
+    vis_logger.log_text(
+        tag="eval/detections_summary",
+        text=f"records={len(detection_records)} path={detections_path}",
+        step=0,
+    )
 
     return {
         "all_predictions": all_predictions,

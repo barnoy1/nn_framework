@@ -13,7 +13,7 @@ if str(ROOT) not in sys.path:
 from infra.adapters import LoguruLoggerAdapter
 from infra.engine.flows.common.runtime import build_flow_runtime
 from infra.engine.flows.eval.dataset_profile import model_num_classes, profile_dataset_distribution
-from infra.engine.flows.eval.shared import run_eval_artifacts
+from infra.engine.flows.eval.eval_artifacts import run_eval_artifacts
 
 
 def parse_args() -> argparse.Namespace:

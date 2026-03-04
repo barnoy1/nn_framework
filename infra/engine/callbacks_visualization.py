@@ -31,6 +31,7 @@ class ValidationVisualizationCallback(Callback):
         self.mlflow_enabled = mlflow_enabled
         self._logger = None
         self._save_dir = self.output_dir / "inference" / "validation"
+        self._last_logged_artifacts: set[Path] = set()
 
     @staticmethod
     def _to_uint8_rgb(image: np.ndarray) -> np.ndarray:
@@ -61,24 +62,56 @@ class ValidationVisualizationCallback(Callback):
         return canvas
 
     def on_train_start(self, trainer: "Trainer") -> None:
-        if not trainer.accelerator.is_main_process or self.num_samples <= 0:
+        if not trainer.accelerator.is_main_process:
             return
         self._save_dir.mkdir(parents=True, exist_ok=True)
+        vis_cfg = trainer.app_config.runtime.visualization
         self._logger = create_visualization_logger(
             output_root=self.output_dir,
             experiment_name=self.experiment_name,
             tensorboard_enabled=self.tensorboard_enabled,
             tensorboard_log_dir=self.tensorboard_log_dir,
+            tensorboard_host=str(vis_cfg.tensorboard.host),
+            tensorboard_port=int(vis_cfg.tensorboard.port),
+            tensorboard_start_service=bool(vis_cfg.tensorboard.start_service),
             mlflow_enabled=self.mlflow_enabled,
-            mlflow_dir="mlflow",
+            mlflow_dir=str(vis_cfg.mlflow.mlflow_dir),
+            mlflow_tracking_backend=str(vis_cfg.mlflow.tracking_backend),
+            mlflow_sqlite_db_name=str(vis_cfg.mlflow.sqlite_db_name),
+            mlflow_host=str(vis_cfg.mlflow.host),
+            mlflow_port=int(vis_cfg.mlflow.port),
+            mlflow_start_service=bool(vis_cfg.mlflow.start_service),
+            execution_config=trainer.app_config.model_dump(mode="json"),
             logger_port=trainer.logger,
         )
 
+    def on_batch_end(self, trainer: "Trainer", epoch: int, step: int, metrics: Dict[str, float]) -> None:
+        if not trainer.accelerator.is_main_process or self._logger is None:
+            return
+        self._logger.log_metrics(metrics=metrics, step=trainer.global_step)
+
     def on_validation_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
-        if not trainer.accelerator.is_main_process or self.num_samples <= 0:
+        if not trainer.accelerator.is_main_process:
             return
         if self._logger is None:
             return
+
+        self._logger.log_metrics(
+            metrics={f"val/{key}": float(value) for key, value in metrics.items()},
+            step=epoch + 1,
+        )
+
+        eval_dir = self.output_dir / "inference" / "eval"
+        for artifact_name in ("metrics.json", "detections.json"):
+            artifact_path = eval_dir / artifact_name
+            if artifact_path.exists() and artifact_path not in self._last_logged_artifacts:
+                self._logger.log_artifact(file_path=artifact_path, artifact_path="eval")
+                self._logger.log_text(
+                    tag=f"eval/{artifact_name}",
+                    text=f"path={artifact_path}",
+                    step=epoch + 1,
+                )
+                self._last_logged_artifacts.add(artifact_path)
 
         samples = list(getattr(trainer, "last_validation_visual_samples", []) or [])[: self.num_samples]
         if not samples:

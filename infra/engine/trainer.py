@@ -11,7 +11,7 @@ from ..adapters import LoguruLoggerAdapter
 from ..core import move_targets_to_device
 from .callbacks import CallbackList
 from ..config import AppConfig
-from .flows.eval.shared import run_eval_artifacts
+from .flows.eval.eval_artifacts import run_eval_artifacts
 from .model import ModelWrapperAdapter
 from .training import (
     LossComponentSplitter,
@@ -112,6 +112,7 @@ class Trainer:
         running_cls_loss = 0.0
         running_dfl_loss = 0.0
         running_custom_loss = 0.0
+        component_sums: Dict[str, float] = {}
         num_steps = 0
 
         for step, (images, targets) in enumerate(self.train_loader):
@@ -156,6 +157,12 @@ class Trainer:
                 "train/dfl_loss": float(parts["dfl_loss"]),
                 "train/custom_loss": float(parts["custom_loss"]),
             }
+            for loss_key, loss_value in loss_dict.items():
+                if loss_value is None:
+                    continue
+                numeric = float(loss_value.detach().item()) if torch.is_tensor(loss_value) else float(loss_value)
+                metrics[f"train/criterion/{loss_key}"] = numeric
+                component_sums[str(loss_key)] = component_sums.get(str(loss_key), 0.0) + numeric
             self.callbacks.on_batch_end(self, epoch, step, metrics)
 
             if step % self.app_config.train.log_every_n_steps == 0 and self.accelerator.is_main_process:
@@ -163,13 +170,15 @@ class Trainer:
 
         self.scheduler.step()
         denom = max(1, num_steps)
-        return {
+        epoch_metrics = {
             "loss": running_loss / float(denom),
             "box_loss": running_box_loss / float(denom),
             "cls_loss": running_cls_loss / float(denom),
             "dfl_loss": running_dfl_loss / float(denom),
             "custom_loss": running_custom_loss / float(denom),
         }
+        epoch_metrics.update({f"criterion/{key}": total / float(denom) for key, total in component_sums.items()})
+        return epoch_metrics
 
     @torch.no_grad()
     def validate(self, epoch: int, score_thr: float = 0.0) -> Dict[str, float]:

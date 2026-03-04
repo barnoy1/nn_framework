@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import torch
 
@@ -41,8 +41,17 @@ def run_eval_artifacts(
         experiment_name=experiment_name,
         tensorboard_enabled=bool(app_config.runtime.visualization.tensorboard.enabled),
         tensorboard_log_dir=str(app_config.runtime.visualization.tensorboard.log_dir),
+        tensorboard_host=str(app_config.runtime.visualization.tensorboard.host),
+        tensorboard_port=int(app_config.runtime.visualization.tensorboard.port),
+        tensorboard_start_service=bool(app_config.runtime.visualization.tensorboard.start_service),
         mlflow_enabled=bool(app_config.runtime.visualization.mlflow.enabled),
         mlflow_dir=str(app_config.runtime.visualization.mlflow.mlflow_dir),
+        mlflow_tracking_backend=str(app_config.runtime.visualization.mlflow.tracking_backend),
+        mlflow_sqlite_db_name=str(app_config.runtime.visualization.mlflow.sqlite_db_name),
+        mlflow_host=str(app_config.runtime.visualization.mlflow.host),
+        mlflow_port=int(app_config.runtime.visualization.mlflow.port),
+        mlflow_start_service=bool(app_config.runtime.visualization.mlflow.start_service),
+        execution_config=app_config.model_dump(mode="json"),
         logger_port=logger,
     )
 
@@ -74,6 +83,20 @@ def run_eval_artifacts(
 
     if write_metrics_json:
         write_metrics_json_file(eval_vis_dir=eval_vis_dir, metrics=metrics, logger=logger)
+        try:
+            metrics_json_path = eval_vis_dir / "metrics.json"
+            loaded_metrics = json.loads(metrics_json_path.read_text(encoding="utf-8"))
+            json_metrics = {f"eval_json/{key}": float(value) for key, value in loaded_metrics.items()}
+            vis_logger.log_metrics(metrics=json_metrics, step=0)
+            vis_logger.log_artifact(file_path=metrics_json_path, artifact_path="eval")
+            vis_logger.log_text(
+                tag="eval/metrics_json",
+                text=json.dumps(loaded_metrics, indent=2, ensure_ascii=False),
+                step=0,
+            )
+            logger.info("Logged metrics.json payload to visualization backends from {}", metrics_json_path)
+        except Exception as error:
+            logger.warning("Failed to log metrics.json payload to visualization backends: {}", error)
 
     vis_logger.log_metrics(metrics={f"eval/{key}": float(value) for key, value in metrics.items()}, step=0)
     vis_logger.close()
