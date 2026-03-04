@@ -65,7 +65,7 @@ def main() -> None:
                 experiment_name=experiment_name,
                 tensorboard_enabled=bool(runtime.app_config.runtime.visualization.tensorboard.enabled),
                 tensorboard_log_dir=str(runtime.app_config.runtime.visualization.tensorboard.log_dir),
-                mlflow_enabled=False,
+                mlflow_enabled=bool(runtime.app_config.runtime.visualization.mlflow.enabled),
             ),
         ]
     )

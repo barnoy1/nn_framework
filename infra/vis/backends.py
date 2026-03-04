@@ -49,6 +49,37 @@ class TensorBoardVisualizationLogger:
 
     def log_artifact(self, file_path: Path, artifact_path: str = "artifacts") -> None:
         resolved = Path(file_path).resolve()
+        tag_base = f"artifact/{artifact_path}/{resolved.stem}"
+        if not resolved.exists():
+            self._writer.add_text(
+                tag=f"artifact/{artifact_path}",
+                text_string=f"missing artifact file={resolved}",
+                global_step=0,
+            )
+            return
+
+        suffix = resolved.suffix.lower()
+        try:
+            if suffix in {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp"}:
+                image = np.array(Image.open(resolved).convert("RGB"))
+                chw = np.transpose(image, (2, 0, 1))
+                self._writer.add_image(tag=tag_base, img_tensor=chw, global_step=0)
+                return
+
+            if suffix in {".json", ".txt", ".yaml", ".yml", ".csv"}:
+                text = resolved.read_text(encoding="utf-8", errors="ignore")
+                if len(text) > 20000:
+                    text = f"{text[:20000]}\n... (truncated)"
+                self._writer.add_text(tag=tag_base, text_string=text, global_step=0)
+                return
+        except Exception as error:
+            self._writer.add_text(
+                tag=f"{tag_base}/error",
+                text_string=f"failed to read artifact {resolved}: {error}",
+                global_step=0,
+            )
+            return
+
         summary = f"artifact_path={artifact_path} file={resolved}"
         self._writer.add_text(tag=f"artifact/{artifact_path}", text_string=summary, global_step=0)
 

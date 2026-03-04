@@ -87,6 +87,8 @@ def _profile_single_dataset_distribution(*, dataset, split_name: str, output_dir
     chart_path = output_dir / f"{split_name}_class_frequency.png"
     plt.tight_layout()
     plt.savefig(chart_path, dpi=200)
+    if str(split_name).strip().lower() == "val":
+        plt.savefig(output_dir / "labels.png", dpi=200)
     plt.close()
     logger.info("Saved class-frequency chart: {}", chart_path)
 

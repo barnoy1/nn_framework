@@ -14,6 +14,7 @@ from infra.adapters import LoguruLoggerAdapter
 from infra.engine.flows.common.runtime import build_flow_runtime
 from infra.engine.flows.eval.dataset_profile import model_num_classes, profile_dataset_distribution
 from infra.engine.flows.eval.eval_artifacts import run_eval_artifacts
+from infra.engine.training import save_val_batch_visualization
 
 
 def parse_args() -> argparse.Namespace:
@@ -37,6 +38,22 @@ def main() -> None:
     runtime.built.ema_model = None
 
     profile_dataset_distribution(runtime, logger)
+
+    output_root = runtime.app_config.ensure_output_dir()
+    saved_val_batches = 0
+    for step, (images, targets) in enumerate(runtime.val_loader):
+        if step >= 3:
+            break
+        save_val_batch_visualization(
+            output_root=output_root,
+            images=images,
+            targets=targets,
+            step=step,
+            epoch_suffix=None,
+        )
+        saved_val_batches += 1
+    if saved_val_batches > 0:
+        logger.info("Saved {} val batch visualizations to {}", saved_val_batches, output_root)
 
     state = runtime.wrapper.load_checkpoint_state(args.checkpoint)
     runtime.wrapper.validate_checkpoint_class_compatibility(runtime.built.model, state)
@@ -65,6 +82,7 @@ def main() -> None:
     experiment_name = Path(args.config).stem
     device = torch.device(args.device)
     class_id_to_name = runtime.built.class_id_to_name
+    diagnostics: Dict[str, object] = {}
     metrics = run_eval_artifacts(
         app_config=runtime.app_config,
         model=runtime.built.model,
@@ -77,6 +95,7 @@ def main() -> None:
         score_thr=args.score_thr,
         image_epoch_suffix=None,
         write_metrics_json=True,
+        diagnostics=diagnostics,
     )
 
     logger.info("Evaluation metrics:")

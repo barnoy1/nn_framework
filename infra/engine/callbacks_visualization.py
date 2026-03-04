@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Dict, List, TYPE_CHECKING
 
@@ -61,10 +62,67 @@ class ValidationVisualizationCallback(Callback):
             canvas[y0 : y0 + h, x0 : x0 + w] = image
         return canvas
 
+    @staticmethod
+    def _safe_ratio(numerator: float, denominator: float) -> float:
+        if denominator <= 0.0:
+            return 0.0
+        return float(numerator / denominator)
+
+    @staticmethod
+    def _compute_detection_scores(matrix: np.ndarray) -> Dict[str, float]:
+        if matrix is None or matrix.size == 0 or matrix.shape[0] < 2 or matrix.shape[1] < 2:
+            return {
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": 0.0,
+                "accuracy": 0.0,
+            }
+
+        class_count = int(matrix.shape[0] - 1)
+        core = matrix[:class_count, :class_count]
+        tp = float(np.trace(core))
+        pred_non_bg = float(matrix[:, :class_count].sum())
+        gt_non_bg = float(matrix[:class_count, :].sum())
+        fp = max(0.0, pred_non_bg - tp)
+        fn = max(0.0, gt_non_bg - tp)
+        precision = ValidationVisualizationCallback._safe_ratio(tp, tp + fp)
+        recall = ValidationVisualizationCallback._safe_ratio(tp, tp + fn)
+        f1 = ValidationVisualizationCallback._safe_ratio(2.0 * precision * recall, precision + recall)
+        accuracy = ValidationVisualizationCallback._safe_ratio(tp, tp + fp + fn)
+        return {
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+            "accuracy": accuracy,
+        }
+
+    def _log_output_artifacts(self) -> None:
+        if self._logger is None:
+            return
+
+        root = self.output_dir
+        artifact_candidates = [
+            root / "results.csv",
+            root / "results.png",
+            root / "bbox_metrics.png",
+            root / "BoxP_curve.png",
+            root / "BoxR_curve.png",
+            root / "BoxF1_curve.png",
+            root / "BoxPR_curve.png",
+            root / "confusion_matrix.png",
+            root / "confusion_matrix_normalized.png",
+            root / "dataset" / "labels.png",
+        ]
+
+        for artifact_path in artifact_candidates:
+            resolved = artifact_path.resolve()
+            if resolved.exists() and resolved not in self._last_logged_artifacts:
+                self._logger.log_artifact(file_path=resolved, artifact_path="training")
+                self._last_logged_artifacts.add(resolved)
+
     def on_train_start(self, trainer: "Trainer") -> None:
         if not trainer.accelerator.is_main_process:
             return
-        self._save_dir.mkdir(parents=True, exist_ok=True)
         vis_cfg = trainer.app_config.runtime.visualization
         self._logger = create_visualization_logger(
             output_root=self.output_dir,
@@ -101,28 +159,51 @@ class ValidationVisualizationCallback(Callback):
             step=epoch + 1,
         )
 
+        matrix = getattr(trainer, "last_validation_confusion_matrix", None)
+        labels = list(getattr(trainer, "last_validation_confusion_labels", []) or [])
+        if matrix is not None and labels:
+            scores = self._compute_detection_scores(matrix)
+            self._logger.log_metrics(
+                metrics={f"val/confusion/{key}": float(value) for key, value in scores.items()},
+                step=epoch + 1,
+            )
+            self._logger.log_text(
+                tag="val/confusion_labels",
+                text=json.dumps(labels, ensure_ascii=False),
+                step=epoch + 1,
+            )
+
         eval_dir = self.output_dir / "inference" / "eval"
         for artifact_name in ("metrics.json", "detections.json"):
             artifact_path = eval_dir / artifact_name
-            if artifact_path.exists() and artifact_path not in self._last_logged_artifacts:
-                self._logger.log_artifact(file_path=artifact_path, artifact_path="eval")
+            resolved_artifact = artifact_path.resolve()
+            if resolved_artifact.exists() and resolved_artifact not in self._last_logged_artifacts:
+                self._logger.log_artifact(file_path=resolved_artifact, artifact_path="eval")
                 self._logger.log_text(
                     tag=f"eval/{artifact_name}",
-                    text=f"path={artifact_path}",
+                    text=f"path={resolved_artifact}",
                     step=epoch + 1,
                 )
-                self._last_logged_artifacts.add(artifact_path)
+                self._last_logged_artifacts.add(resolved_artifact)
+
+        self._log_output_artifacts()
 
         samples = list(getattr(trainer, "last_validation_visual_samples", []) or [])[: self.num_samples]
         if not samples:
             return
 
         panel = self._compose_grid(samples)
+        self._save_dir.mkdir(parents=True, exist_ok=True)
         output_path = self._save_dir / f"val_epoch_{epoch + 1:04d}.jpg"
         Image.fromarray(panel).save(output_path)
 
         self._logger.log_image(tag="train/val_visualization_grid", image=panel, step=epoch + 1)
         trainer.logger.info("Saved validation visualization grid ({} samples) to {}", len(samples), output_path)
+
+    def on_epoch_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
+        if not trainer.accelerator.is_main_process or self._logger is None:
+            return
+        self._log_output_artifacts()
 
     def on_train_end(self, trainer: "Trainer") -> None:
         if self._logger is not None:

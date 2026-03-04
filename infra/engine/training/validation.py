@@ -27,7 +27,10 @@ def use_ema_weights_for_eval(ema_model, unwrapped_model, logger):
         yield use_ema
     finally:
         if use_ema:
-            ema_model.restore(unwrapped_model)
+            try:
+                ema_model.restore(unwrapped_model)
+            except RuntimeError as error:
+                logger.warning("EMA restore skipped after validate due to state mismatch: {}", error)
 
 
 @torch.no_grad()

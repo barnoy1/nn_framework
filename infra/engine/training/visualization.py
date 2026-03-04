@@ -8,7 +8,15 @@ import torch
 from PIL import Image, ImageDraw
 
 
-def save_train_batch_visualization(output_root: Path, images: torch.Tensor, targets, step: int) -> None:
+def _save_batch_visualization(
+    *,
+    output_root: Path,
+    images: torch.Tensor,
+    targets,
+    step: int,
+    file_prefix: str,
+    epoch_suffix: int | None = None,
+) -> None:
     panels = []
     max_images = min(4, int(images.shape[0]))
     for index in range(max_images):
@@ -43,4 +51,35 @@ def save_train_batch_visualization(output_root: Path, images: torch.Tensor, targ
         x0 = col * panel_w
         canvas[y0 : y0 + panel_h, x0 : x0 + panel_w] = panel
 
-    Image.fromarray(canvas).save(output_root / f"train_batch{step}.jpg")
+    suffix = ""
+    if epoch_suffix is not None:
+        suffix = f"_{int(epoch_suffix):04d}"
+    Image.fromarray(canvas).save(output_root / f"{file_prefix}{step}{suffix}.jpg")
+
+
+def save_train_batch_visualization(output_root: Path, images: torch.Tensor, targets, step: int) -> None:
+    _save_batch_visualization(
+        output_root=output_root,
+        images=images,
+        targets=targets,
+        step=step,
+        file_prefix="train_batch",
+        epoch_suffix=None,
+    )
+
+
+def save_val_batch_visualization(
+    output_root: Path,
+    images: torch.Tensor,
+    targets,
+    step: int,
+    epoch_suffix: int | None = None,
+) -> None:
+    _save_batch_visualization(
+        output_root=output_root,
+        images=images,
+        targets=targets,
+        step=step,
+        file_prefix="val_batch",
+        epoch_suffix=epoch_suffix,
+    )

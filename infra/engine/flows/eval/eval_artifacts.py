@@ -11,6 +11,7 @@ from infra.engine.evaluate import evaluate_predictions
 from infra.vis import create_visualization_logger
 
 from .eval_inference import run_eval_inference_loop
+from .eval_model_metrics import generate_eval_model_metrics_bundle, log_eval_model_metrics_bundle
 from .eval_reporting import populate_confusion_diagnostics, write_metrics_json as write_metrics_json_file
 from .eval_sampling import build_eval_samples
 
@@ -86,8 +87,6 @@ def run_eval_artifacts(
         try:
             metrics_json_path = eval_vis_dir / "metrics.json"
             loaded_metrics = json.loads(metrics_json_path.read_text(encoding="utf-8"))
-            json_metrics = {f"eval_json/{key}": float(value) for key, value in loaded_metrics.items()}
-            vis_logger.log_metrics(metrics=json_metrics, step=0)
             vis_logger.log_artifact(file_path=metrics_json_path, artifact_path="eval")
             vis_logger.log_text(
                 tag="eval/metrics_json",
@@ -99,12 +98,35 @@ def run_eval_artifacts(
             logger.warning("Failed to log metrics.json payload to visualization backends: {}", error)
 
     vis_logger.log_metrics(metrics={f"eval/{key}": float(value) for key, value in metrics.items()}, step=0)
-    vis_logger.close()
+
+    diagnostics_payload: Dict[str, Any] = diagnostics if diagnostics is not None else {}
 
     populate_confusion_diagnostics(
-        diagnostics=diagnostics,
+        diagnostics=diagnostics_payload,
         confusion_events=eval_outputs["confusion_events"],
         class_id_to_name=class_id_to_name,
     )
+
+    confusion_matrix = None
+    confusion_labels = []
+    confusion_matrix = diagnostics_payload.get("confusion_matrix")
+    confusion_labels = list(diagnostics_payload.get("confusion_labels", []))
+
+    output_root.mkdir(parents=True, exist_ok=True)
+    confusion_scores = generate_eval_model_metrics_bundle(
+        output_root=output_root,
+        metrics=metrics,
+        confusion_matrix=confusion_matrix,
+        confusion_labels=confusion_labels,
+    )
+    log_eval_model_metrics_bundle(
+        output_root=output_root,
+        vis_logger=vis_logger,
+        step=0,
+        metrics=metrics,
+        confusion_scores=confusion_scores,
+        confusion_labels=confusion_labels,
+    )
+    vis_logger.close()
 
     return metrics

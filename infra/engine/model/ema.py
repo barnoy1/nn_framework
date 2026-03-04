@@ -50,7 +50,10 @@ class EMAModel:
     def restore(self, model: nn.Module) -> None:
         if self._shadow_backup is None:
             return
-        model.load_state_dict(self._shadow_backup, strict=True)
+        try:
+            model.load_state_dict(self._shadow_backup, strict=True)
+        except RuntimeError:
+            model.load_state_dict(self._shadow_backup, strict=False)
         self._shadow_backup = None
 
     def state_dict(self) -> Dict[str, object]:

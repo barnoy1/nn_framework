@@ -57,8 +57,13 @@ class YoloStyleArtifactsCallback(Callback):
         plt.legend()
         plt.tight_layout()
         plt.savefig(output_root / "labels.png", dpi=180)
-        plt.savefig(output_root / "labels.jpg", dpi=180)
+        dataset_dir = output_root / "dataset"
+        dataset_dir.mkdir(parents=True, exist_ok=True)
+        plt.savefig(dataset_dir / "labels.png", dpi=180)
         plt.close()
+        legacy_jpg = output_root / "labels.jpg"
+        if legacy_jpg.exists():
+            legacy_jpg.unlink(missing_ok=True)
 
     @staticmethod
     def _safe_ratio(numerator: float, denominator: float) -> float:
