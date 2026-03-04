@@ -30,10 +30,10 @@ class RTDETRv2ModelBuilder(ModelBuilder):
         if str(repo_root) not in sys.path:
             sys.path.insert(0, str(repo_root))
 
-    def _load_official_config(self):
+    def _load_model_config(self):
         from src.core import YAMLConfig
 
-        config_rel_path = self.app_config.model.official_config_path or self.app_config.model.model_config_path
+        config_rel_path = self.app_config.model.model_config_path or self.app_config.model.model_config_path
         config_path = self.repo_root / str(config_rel_path)
         if not config_path.exists():
             raise FileNotFoundError(f"Official config not found: {config_path}")
@@ -73,7 +73,7 @@ class RTDETRv2ModelBuilder(ModelBuilder):
         return optimizer, scheduler
 
     def build(self) -> BuiltComponents:
-        yaml_cfg = self._load_official_config()
+        yaml_cfg = self._load_model_config()
         model = yaml_cfg.model
         criterion = yaml_cfg.criterion
         postprocessor = yaml_cfg.postprocessor

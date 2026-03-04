@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from infra.interfaces import LoggerPort
 from infra.utils.log import logger as default_logger
 
 
-class LoguruLoggerAdapter(LoggerPort):
+class LoguruLoggerAdapter():
     def __init__(self, bound_logger=None) -> None:
         self._logger = bound_logger or default_logger
 

@@ -35,8 +35,8 @@ class DataPreparationConfig(BaseModel):
     supervisely_splits: List[str] = Field(default_factory=lambda: ["train", "valid"])
     ann_subdir: str = "ann"
     img_subdir: str = "img"
-    wandb_project: Optional[str] = None
-    wandb_run_name: Optional[str] = None
+    mlflow_experiment_name: Optional[str] = None
+    mlflow_run_name: Optional[str] = None
 
 
 class ExportConfig(BaseModel):
@@ -51,16 +51,15 @@ class TensorBoardVisualizationConfig(BaseModel):
     log_dir: str = "runs/visualization"
 
 
-class WandbVisualizationConfig(BaseModel):
+class MlflowVisualizationConfig(BaseModel):
     enabled: bool = False
-    wandb_dir: str = "wandb"
-    entity: Optional[str] = None
+    mlflow_dir: str = "mlflow"
 
 
 class VisualizationConfig(BaseModel):
     num_samples: int = 16
     tensorboard: TensorBoardVisualizationConfig = Field(default_factory=TensorBoardVisualizationConfig)
-    wandb: WandbVisualizationConfig = Field(default_factory=WandbVisualizationConfig)
+    mlflow: MlflowVisualizationConfig = Field(default_factory=MlflowVisualizationConfig)
 
 
 class RuntimeConfig(BaseModel):
@@ -131,9 +130,9 @@ class RuntimeConfig(BaseModel):
         return self.data_preparation.img_subdir
 
     @property
-    def wandb_project(self) -> Optional[str]:
-        return self.data_preparation.wandb_project
+    def mlflow_experiment_name(self) -> Optional[str]:
+        return self.data_preparation.mlflow_experiment_name
 
     @property
-    def wandb_run_name(self) -> Optional[str]:
-        return self.data_preparation.wandb_run_name
+    def mlflow_run_name(self) -> Optional[str]:
+        return self.data_preparation.mlflow_run_name

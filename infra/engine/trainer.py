@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, Optional
 
+import numpy as np
 import torch
 from accelerate import Accelerator
 from accelerate.utils import set_seed
@@ -12,7 +13,12 @@ from .callbacks import CallbackList
 from ..config import AppConfig
 from .flows.eval.shared import run_eval_artifacts
 from .model import ModelWrapperAdapter
-from ..interfaces import LoggerPort
+from .training import (
+    LossComponentSplitter,
+    compute_validation_loss_components,
+    save_train_batch_visualization,
+    use_ema_weights_for_eval,
+)
 
 
 class Trainer:
@@ -72,15 +78,40 @@ class Trainer:
 
         self.global_step = 0
         self.current_epoch = 0
+        self._saved_train_batch_steps: set[int] = set()
+        self.last_validation_confusion_matrix: Optional[np.ndarray] = None
+        self.last_validation_confusion_labels: list[str] = []
         self.total_epochs = (
             int(self.app_config.runtime.epoches)
             if self.app_config.runtime.epoches is not None
             else int(self.app_config.train.epochs)
         )
+        self._loss_splitter = LossComponentSplitter.from_config(self.app_config)
+
+    def _split_loss_components(self, loss_dict: Dict[str, torch.Tensor]) -> Dict[str, float]:
+        return self._loss_splitter.split(loss_dict)
+
+    @torch.no_grad()
+    def _compute_validation_loss_components(self) -> Dict[str, float]:
+        return compute_validation_loss_components(
+            model=self.model,
+            criterion=self.criterion,
+            val_loader=self.val_loader,
+            accelerator=self.accelerator,
+            splitter=self._loss_splitter,
+        )
+
+    def _save_train_batch_visualization(self, images: torch.Tensor, targets, step: int) -> None:
+        output_root = self.app_config.ensure_output_dir()
+        save_train_batch_visualization(output_root=output_root, images=images, targets=targets, step=step)
 
     def _train_one_epoch(self, epoch: int) -> Dict[str, float]:
         self.model.train()
         running_loss = 0.0
+        running_box_loss = 0.0
+        running_cls_loss = 0.0
+        running_dfl_loss = 0.0
+        running_custom_loss = 0.0
         num_steps = 0
 
         for step, (images, targets) in enumerate(self.train_loader):
@@ -105,54 +136,66 @@ class Trainer:
                 self.accelerator.clip_grad_norm_(self.model.parameters(), self.app_config.train.grad_clip_norm)
             self.optimizer.step()
 
+            if self.accelerator.is_main_process and epoch == 0 and step < 3 and step not in self._saved_train_batch_steps:
+                self._save_train_batch_visualization(images=images, targets=targets, step=step)
+                self._saved_train_batch_steps.add(step)
+
             running_loss += float(loss.detach().item())
+            parts = self._split_loss_components(loss_dict)
+            running_box_loss += float(parts["box_loss"])
+            running_cls_loss += float(parts["cls_loss"])
+            running_dfl_loss += float(parts["dfl_loss"])
+            running_custom_loss += float(parts["custom_loss"])
             num_steps += 1
             self.global_step += 1
 
-            metrics = {"train/loss": float(loss.detach().item())}
+            metrics = {
+                "train/loss": float(loss.detach().item()),
+                "train/box_loss": float(parts["box_loss"]),
+                "train/cls_loss": float(parts["cls_loss"]),
+                "train/dfl_loss": float(parts["dfl_loss"]),
+                "train/custom_loss": float(parts["custom_loss"]),
+            }
             self.callbacks.on_batch_end(self, epoch, step, metrics)
 
             if step % self.app_config.train.log_every_n_steps == 0 and self.accelerator.is_main_process:
                 self.logger.info("epoch={} step={} loss={:.6f}", epoch, step, metrics["train/loss"])
 
         self.scheduler.step()
-        return {"loss": running_loss / max(1, num_steps)}
+        denom = max(1, num_steps)
+        return {
+            "loss": running_loss / float(denom),
+            "box_loss": running_box_loss / float(denom),
+            "cls_loss": running_cls_loss / float(denom),
+            "dfl_loss": running_dfl_loss / float(denom),
+            "custom_loss": running_custom_loss / float(denom),
+        }
 
     @torch.no_grad()
     def validate(self, epoch: int, score_thr: float = 0.0) -> Dict[str, float]:
         self.model.eval()
-
-        use_ema = self.ema_model is not None
-        if use_ema:
-            try:
-                unwrapped = self.accelerator.unwrap_model(self.model)
-                self.ema_model.store(unwrapped)
-                self.ema_model.copy_to(unwrapped)
-            except RuntimeError as error:
-                try:
-                    self.ema_model.restore(unwrapped)
-                except Exception:
-                    pass
-                self.logger.warning("EMA copy skipped during validate due to state mismatch: {}", error)
-                use_ema = False
-
-        class_id_to_name = {int(key): str(value) for key, value in (self.app_config.data.class_id_to_name or {}).items()}
-        metrics = run_eval_artifacts(
-            app_config=self.app_config,
-            model=self.accelerator.unwrap_model(self.model),
-            postprocessor=self.postprocessor,
-            device=self.accelerator.device,
-            logger=self.logger,
-            class_id_to_name=class_id_to_name,
-            experiment_name=self.experiment_name,
-            vis_samples=int(self.app_config.runtime.visualization.num_samples),
-            score_thr=float(score_thr),
-            image_epoch_suffix=epoch + 1,
-            write_metrics_json=True,
-        )
-
-        if use_ema:
-            self.ema_model.restore(self.accelerator.unwrap_model(self.model))
+        unwrapped_model = self.accelerator.unwrap_model(self.model)
+        with use_ema_weights_for_eval(self.ema_model, unwrapped_model, self.logger):
+            class_id_to_name = {int(key): str(value) for key, value in (self.app_config.data.class_id_to_name or {}).items()}
+            diagnostics: Dict[str, object] = {}
+            metrics = run_eval_artifacts(
+                app_config=self.app_config,
+                model=unwrapped_model,
+                postprocessor=self.postprocessor,
+                device=self.accelerator.device,
+                logger=self.logger,
+                class_id_to_name=class_id_to_name,
+                experiment_name=self.experiment_name,
+                vis_samples=int(self.app_config.runtime.visualization.num_samples),
+                score_thr=float(score_thr),
+                image_epoch_suffix=epoch + 1,
+                write_metrics_json=True,
+                diagnostics=diagnostics,
+            )
+            val_loss_metrics = self._compute_validation_loss_components()
+            metrics = metrics | val_loss_metrics
+            self.last_validation_confusion_matrix = diagnostics.get("confusion_matrix")
+            self.last_validation_confusion_labels = diagnostics.get("confusion_labels", [])
 
         self.callbacks.on_validation_end(self, epoch, metrics)
         return metrics

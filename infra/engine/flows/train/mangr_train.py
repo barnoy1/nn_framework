@@ -16,7 +16,8 @@ from infra.engine.callbacks import (
     CheckpointCallback,
     DynamicAugCallback,
     EMACallback,
-    WandBCallback,
+    MLflowCallback,
+    YoloStyleArtifactsCallback,
 )
 from infra.engine.trainer import Trainer
 
@@ -35,16 +36,23 @@ def main() -> None:
     experiment_name = Path(args.config).stem
     logger = LoguruLoggerAdapter()
     profile_train_and_val_dataset_distribution(runtime, logger)
+    mlflow_cfg = runtime.app_config.runtime.visualization.mlflow
 
     callbacks = CallbackList(
         [
             DynamicAugCallback(),
             EMACallback(),
+            YoloStyleArtifactsCallback(enabled=True),
             CheckpointCallback(
                 output_dir=runtime.app_config.ensure_output_dir(),
                 save_every_n_epochs=runtime.app_config.train.save_every_n_epochs,
             ),
-            WandBCallback(enabled=bool(runtime.app_config.runtime.wandb_project)),
+            MLflowCallback(
+                enabled=bool(mlflow_cfg.enabled),
+                tracking_dir=runtime.app_config.ensure_output_dir() / str(mlflow_cfg.mlflow_dir),
+                experiment_name=runtime.app_config.runtime.mlflow_experiment_name or experiment_name,
+                run_name=runtime.app_config.runtime.mlflow_run_name or experiment_name,
+            ),
         ]
     )
 

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import os
 from pathlib import Path
 from typing import Dict, List, Optional, Protocol
 
 import numpy as np
+from PIL import Image
 
 
 class VisualizationLogger(Protocol):
@@ -45,22 +45,16 @@ class TensorBoardVisualizationLogger:
         self._writer.close()
 
 
-class WandbVisualizationLogger:
-    def __init__(self, project: str, run_name: str, run_dir: Path, entity: Optional[str] = None):
-        import wandb
+class MlflowVisualizationLogger:
+    def __init__(self, experiment_name: str, run_name: str, tracking_dir: Path):
+        import mlflow
 
-        self._wandb = wandb
-        target_dir = run_dir.resolve()
-        init_dir = target_dir.parent if target_dir.name == "wandb" else target_dir
-        init_dir.mkdir(parents=True, exist_ok=True)
-        os.environ.setdefault("WANDB_DIR", str(init_dir))
-        self._run = wandb.init(
-            project=project,
-            name=run_name,
-            dir=str(init_dir),
-            entity=entity,
-            reinit="finish_previous",
-        )
+        self._mlflow = mlflow
+        self._tracking_dir = tracking_dir.resolve()
+        self._tracking_dir.mkdir(parents=True, exist_ok=True)
+        self._mlflow.set_tracking_uri(self._tracking_dir.as_uri())
+        self._mlflow.set_experiment(experiment_name)
+        self._run = self._mlflow.start_run(run_name=run_name)
         self._last_step = -1
 
     def _monotonic_step(self, step: int) -> int:
@@ -72,15 +66,21 @@ class WandbVisualizationLogger:
 
     def log_image(self, tag: str, image: np.ndarray, step: int) -> None:
         resolved_step = self._monotonic_step(step)
-        self._wandb.log({tag: self._wandb.Image(image)}, step=resolved_step)
+        image_dir = self._tracking_dir / "images"
+        image_dir.mkdir(parents=True, exist_ok=True)
+        image_name = tag.replace("/", "_")
+        image_path = image_dir / f"{image_name}_{resolved_step:06d}.png"
+        Image.fromarray(image).save(image_path)
+        self._mlflow.log_artifact(str(image_path), artifact_path="images")
 
     def log_metrics(self, metrics: Dict[str, float], step: int) -> None:
         resolved_step = self._monotonic_step(step)
-        self._wandb.log({key: float(value) for key, value in metrics.items()}, step=resolved_step)
+        for key, value in metrics.items():
+            self._mlflow.log_metric(key, float(value), step=resolved_step)
 
     def close(self) -> None:
         if self._run is not None:
-            self._run.finish()
+            self._mlflow.end_run()
 
 
 @dataclass
@@ -106,9 +106,8 @@ def create_visualization_logger(
     experiment_name: str,
     tensorboard_enabled: bool,
     tensorboard_log_dir: str,
-    wandb_enabled: bool,
-    wandb_dir: str,
-    wandb_entity: Optional[str],
+    mlflow_enabled: bool,
+    mlflow_dir: str,
     logger_port,
 ) -> VisualizationLogger:
     loggers: List[VisualizationLogger] = []
@@ -122,26 +121,24 @@ def create_visualization_logger(
         except Exception as error:
             logger_port.warning("TensorBoard visualization logger unavailable: {}", error)
 
-    if wandb_enabled:
+    if mlflow_enabled:
         try:
-            resolved_wandb_dir = (output_root / wandb_dir).resolve()
+            resolved_mlflow_dir = (output_root / mlflow_dir).resolve()
             loggers.append(
-                WandbVisualizationLogger(
-                    project=experiment_name,
+                MlflowVisualizationLogger(
+                    experiment_name=experiment_name,
                     run_name=experiment_name,
-                    run_dir=resolved_wandb_dir,
-                    entity=wandb_entity,
+                    tracking_dir=resolved_mlflow_dir,
                 )
             )
             logger_port.info(
-                "W&B visualization logging enabled entity={} project={} run={} dir={}",
-                wandb_entity,
+                "MLflow visualization logging enabled experiment={} run={} dir={}",
                 experiment_name,
                 experiment_name,
-                resolved_wandb_dir,
+                resolved_mlflow_dir,
             )
         except Exception as error:
-            logger_port.warning("W&B visualization logger unavailable: {}", error)
+            logger_port.warning("MLflow visualization logger unavailable: {}", error)
 
     if not loggers:
         return NullVisualizationLogger()

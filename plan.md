@@ -1,82 +1,194 @@
-# Implementation Plan: RT-DETRv2 Production Training Architecture
+# nn_framework SRP Refactor Plan
 
-This document outlines the step-by-step execution plan for building a production-grade training stack for RT-DETRv2, supporting both Object Detection and Instance Segmentation (RLE-based).
+## Purpose
 
-## 1. Phase 1: Data Preparation & Conversion
-**Goal:** Convert Supervisely annotations into RLE-based COCO format.
+Refactor the codebase to improve maintainability, scalability, and readability by enforcing SRP and clean architecture boundaries, while preserving existing runtime behavior.
 
-- [ ] **src/data_prep.py**: Implement the converter.
-    - Port logic from `@nn-utilities/helpers/supervisely_to_coco_rle.py`.
-    - Ensure `pycocotools.mask` is used for efficient RLE.
-    - Map class IDs to contiguous integers starting at 0.
-    - Automate conversion for `train` and `valid` splits.
-- [ ] **Validation:** Verify `instances_train.json` and `instances_valid.json` exist and contain valid RLE segmentations and bounding boxes.
-
-## 2. Phase 2: Configuration & Schemas
-**Goal:** Define a type-safe, hierarchical configuration system.
-
-- [ ] **src/config.py**: Define Pydantic models.
-    - `ModelConfig`: Backbone, queries, hidden dims, `dn_num_group`.
-    - `TrainConfig`: LRs (with backbone multiplier), weight decay, EMA.
-    - `DataConfig`: Paths, batch sizes, `iou_types` (bbox/segm).
-    - `AugConfig`: Albumentations parameters.
-- [ ] **configs/**: Create Hydra YAML structure.
-    - `config.yaml`: Main entry.
-    - `model/r18.yaml`, `model/r50.yaml`: Architecture specifics.
-    - `experiment/drone_instance_seg.yaml`: Overrides for the drone dataset.
-
-## 3. Phase 3: Dataset & Augmentation
-**Goal:** Implement a robust, RLE-aware data pipeline.
-
-- [ ] **src/transforms.py**: Define Albumentations pipelines.
-    - Implement `update_augmentation(epoch)` for v2 dynamic intensity.
-    - Support both box and mask transformations.
-- [ ] **src/dataset.py**: Implement `COCODetectionDataset`.
-    - **Critical:** Convert boxes to `cxcywh` normalized FloatTensor.
-    - Handle RLE decoding/loading via `pycocotools`.
-    - Strict tensor casting and shape assertions (Guard against empty boxes).
-
-## 4. Phase 4: Model Building & EMA
-**Goal:** Integrate the official RT-DETRv2 source with EMA and Accelerate.
-
-- [ ] **src/ema.py**: Implement `EMAModel` with `store`/`copy_to`/`restore` methods.
-- [ ] **src/model_builder.py**:
-    - Import directly from `rtdetrv2_pytorch/src/zoo/rtdetr`.
-    - Setup parameter groups (backbone vs encoder/decoder).
-    - **Critical:** Register EMA with Accelerator: `accelerator.register_for_checkpointing(ema_model)`.
-    - Apply `SyncBatchNorm` before `accelerator.prepare()`.
-
-## 5. Phase 5: Training Loop & Callbacks
-**Goal:** Implement the HF Accelerate runner.
-
-- [ ] **src/callbacks.py**: Implement lifecycle hooks.
-    - `WandBCallback`: Loss/metric logging + image grids.
-    - `CheckpointCallback`: Best/Last saving.
-    - `EMACallback`: Swap weights for validation.
-    - `DynamicAugCallback`: Trigger augmentation updates.
-- [ ] **src/trainer.py**: The core loop.
-    - `accelerator.autocast()` for forward + loss.
-    - `drop_last=True` for DDP stability.
-    - Callback dispatch at each stage.
-
-## 6. Phase 6: Evaluation & Visualization
-**Goal:** Metrics and visual debugging.
-
-- [ ] **src/visualize.py**:
-    - `rtdetr_output_to_sv_detections()`: Convert raw logits/boxes/masks to `supervision` format.
-    - Side-by-side GT vs Pred grid generation.
-- [ ] **src/evaluate.py**:
-    - Integrate `torchmetrics.detection.MeanAveragePrecision`.
-    - Support COCO mask AP via `pycocotools` or `faster-coco-eval`.
-
-## 7. Phase 7: Integration & Entry Point
-- [ ] **train.py**: The `@hydra.main` entry point.
-    - Orchestrate data prep, config loading, and trainer execution.
+This plan is intentionally **non-breaking first**:
+- keep CLI contracts stable,
+- keep current flow entrypoints runnable,
+- keep exported symbols stable where possible,
+- avoid placeholder/ghost interfaces and empty files.
 
 ---
 
-## Critical Gotchas Memory Map
-1. **Denoising Sync:** `dn_num_group` must be a fixed constant in config and passed to both model and criterion.
-2. **EMA Resumption:** Must call `register_for_checkpointing` BEFORE `prepare()`.
-3. **Coordinate System:** Albumentations list -> Torch stack -> cxcywh normalization [0,1].
-4. **EMA Swap:** Always swap on the `unwrapped_model`.
+## Current Hotspots (from source analysis)
+
+### 1) CLI God Module
+- `cli.py` (~512 LOC) currently mixes:
+  - argument parsing,
+  - config loading/default-resolution,
+  - run layout generation,
+  - subprocess command orchestration for train/eval/inference/export.
+
+**Impact:** hard to test, hard to evolve commands independently, high coupling between parsing and execution.
+
+### 2) Callback God Module
+- `infra/engine/callbacks.py` (~600 LOC) combines unrelated concerns:
+  - lifecycle protocol (`Callback`, `CallbackList`),
+  - experiment tracking (`MLflowCallback`),
+  - checkpointing,
+  - augmentation scheduling,
+  - visualization generation,
+  - YOLO-style metrics/artifact plotting.
+
+**Impact:** violates SRP, large import surface, difficult to reason about changes in one callback without side-effects.
+
+### 3) Runtime Builder Overload
+- `infra/engine/flows/common/runtime.py` combines:
+  - hydra config loading,
+  - data preparation side effects,
+  - data loader construction,
+  - model wrapper/component assembly.
+
+**Impact:** orchestration and construction logic are intertwined; limited composability for alternate execution modes.
+
+### 4) Eval Shared Module Overload
+- `infra/engine/flows/eval/shared.py` (~289 LOC) mixes:
+  - dataset sampling,
+  - inference loop,
+  - visualization writing,
+  - metrics and diagnostics assembly.
+
+**Impact:** difficult to unit test individual concerns and extend evaluation pipeline safely.
+
+---
+
+## Refactor Principles
+
+1. **SRP first:** each module should have one reason to change.
+2. **Stable external API:** preserve current CLI command names, arguments, and outputs.
+3. **No speculative abstractions:** do not add interfaces unless already needed by at least one real consumer.
+4. **No ghost files:** every created file must contain real behavior used by runtime code.
+5. **Incremental migration:** extract in phases; keep compatibility shims only where necessary.
+
+---
+
+## Target Architecture (incremental)
+
+### A) CLI package decomposition
+
+Create a dedicated package under `infra/cli/`:
+
+- `infra/cli/config_defaults.py`
+  - path resolution,
+  - yaml payload loading,
+  - runtime/action defaults derivation,
+  - dataset export defaults helpers.
+
+- `infra/cli/commands.py`
+  - command builders/executors:
+    - train/eval/inference/export-onnx/export-coco-rle.
+
+- `infra/cli/parser.py`
+  - parser registration and argument normalization.
+
+- `infra/cli/run_layout.py`
+  - run directory and `execution.yaml` preparation.
+
+- `infra/cli/main.py`
+  - top-level orchestration (`main()`).
+
+Then keep root `cli.py` as a thin compatibility entrypoint delegating to `infra.cli.main`.
+
+### B) Callback package decomposition
+
+Split callback concerns into separate modules under a new package:
+
+- `infra/engine/callbacks_base.py`
+  - `Callback`, `CallbackList` only.
+
+- `infra/engine/callbacks_tracking.py`
+  - `MLflowCallback`.
+
+- `infra/engine/callbacks_checkpoint.py`
+  - `CheckpointCallback`.
+
+- `infra/engine/callbacks_training.py`
+  - `EMACallback`, `DynamicAugCallback`.
+
+- `infra/engine/callbacks_visualization.py`
+  - `ValidationVisualizationCallback`.
+
+- `infra/engine/callbacks_artifacts.py`
+  - `YoloStyleArtifactsCallback`.
+
+Keep `infra/engine/callbacks.py` as a temporary re-export module during migration.
+
+### C) Runtime builder separation
+
+Extract from `infra/engine/flows/common/runtime.py`:
+
+- `infra/engine/flows/common/config_loader.py`
+  - hydra composition and validation.
+
+- `infra/engine/flows/common/data_runtime.py`
+  - `_prepare_data_if_needed`, loader construction.
+
+- `infra/engine/flows/common/model_runtime.py`
+  - wrapper creation and component assembly.
+
+`runtime.py` becomes orchestration-only.
+
+### D) Evaluation pipeline separation
+
+Split `infra/engine/flows/eval/shared.py` into:
+
+- `eval_sampling.py` (sample + GT extraction),
+- `eval_inference.py` (prediction loop),
+- `eval_reporting.py` (json/vis/diagnostics),
+- `shared.py` (thin composition facade).
+
+---
+
+## Phase Plan
+
+### Phase 1 (safe, immediate)
+1. Decompose `cli.py` into `infra/cli/*` package.
+2. Keep `cli.py` as delegating entrypoint only.
+3. Verify `python cli.py --help` and command parser behavior.
+
+### Phase 2 (medium risk)
+1. Split callback module by concern.
+2. Keep old imports stable through `infra/engine/callbacks.py` re-exports.
+3. Validate train flow callback execution.
+
+### Phase 3 (medium risk)
+1. Split runtime builders into config/data/model construction modules.
+2. Keep `build_flow_runtime(...)` signature unchanged.
+3. Validate train/eval/inference managers.
+
+### Phase 4 (medium-high risk)
+1. Split eval shared pipeline.
+2. Preserve `run_eval_artifacts(...)` external contract.
+3. Validate metric and artifact parity.
+
+---
+
+## Risk Controls
+
+- Preserve all public function signatures used by entrypoints.
+- Add migration via delegation/re-export instead of abrupt renames.
+- Avoid changing config schema and hydra paths during structural refactor.
+- Execute focused smoke checks after each phase.
+
+---
+
+## Validation Strategy
+
+After each phase:
+1. Static check: import key modules and run parser help.
+2. Functional smoke:
+   - `train` parse path,
+   - `eval` parse path,
+   - `inference` parse path.
+3. Regression check on generated run directory and execution config payload.
+
+---
+
+## Definition of Done
+
+- SRP violations reduced in top hotspots (`cli.py`, callbacks, runtime/eval shared).
+- Modules are smaller and concern-focused.
+- Existing CLI and flow behavior remains compatible.
+- No empty placeholder files introduced.

@@ -4,7 +4,7 @@ model:
   # Filesystem root of the concrete model repository implementation.
   source_root: raw_models/RT-DETR/rtdetrv2_pytorch
   # Baseline model recipe used by wrapper/model builder.
-  official_config_path: configs/rtdetrv2/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yml
+  model_config_path: configs/rtdetrv2/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yml
   # Backbone profile variant (affects speed/accuracy/params).
   variant: r18
   # Number of classifier outputs expected from the head.
@@ -18,6 +18,51 @@ model:
   # Enable SyncBatchNorm across devices in distributed setups.
   sync_bn: true
 
+  losses:
+    # Concrete criterion loss-to-coefficient pairing (used for box/cls/dfl reporting groups).
+    # Add/remove per selected model criterion implementation.
+    criterion_pairs:
+      box:
+        - loss: loss_bbox
+          coef: 5.0
+        - loss: loss_giou
+          coef: 2.0
+        - loss: loss_bbox_dn
+          coef: 5.0
+        - loss: loss_giou_dn
+          coef: 5.0
+      cls:
+        - loss: loss_vfl
+          coef: 5.0
+        - loss: loss_focal
+          coef: 5.0
+        - loss: loss_vfl_dn
+          coef: 1.0
+        - loss: loss_focal_dn
+          coef: 1.0
+      dfl:
+        - loss: loss_dfl
+          coef: 1.0
+      custom:
+        # RT-DETRv2 criterion-specific auxiliary and encoder supervision losses.
+        # These are not part of common YOLO-style box/cls/dfl groups.
+        - loss: loss_bbox_aux_
+          coef: 5.0
+        - loss: loss_giou_aux_
+          coef: 2.0
+        - loss: loss_vfl_aux_
+          coef: 5.0
+        - loss: loss_focal_aux_
+          coef: 5.0
+        - loss: loss_bbox_enc_
+          coef: 5.0
+        - loss: loss_giou_enc_
+          coef: 2.0
+        - loss: loss_vfl_enc_
+          coef: 5.0
+        - loss: loss_focal_enc_
+          coef: 5.0
+    
 train:
   # Total training epochs.
   epochs: 120
@@ -202,12 +247,12 @@ runtime:
       # Enable TensorBoard logging for visualizations.
       enabled: true
       log_dir: visualization/tensorboard
-    # wandb logging configuration for visualizations.
-    wandb:
-      # Enable Weights & Biases logging for visualizations.
+    # mlflow logging configuration for visualizations.
+    mlflow:
+      # Enable MLflow logging for visualizations.
       enabled: true
-      # Directory for wandb logs/artifacts for visualizations.
-      wandb_dir: visualization/wandb      
+      # Directory for mlflow tracking/artifacts for visualizations.
+      mlflow_dir: visualization/mlflow
 
   data_preparation:
     # Whether to convert raw Supervisely-like data before training/eval.
@@ -220,8 +265,8 @@ runtime:
     ann_subdir: ann
     img_subdir: img
     # Optional experiment tracking hooks.
-    wandb_project: null
-    wandb_run_name: null
+    mlflow_experiment_name: null
+    mlflow_run_name: null
 
   export:
     # Apply postprocessing in export flow.
