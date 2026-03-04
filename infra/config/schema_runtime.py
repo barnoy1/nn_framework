@@ -20,6 +20,7 @@ class CommonConfig(BaseModel):
     print_flops: bool = False
     print_params: bool = False
     epoches: Optional[int] = None
+    score_threshold: float = 0.3
 
     @field_validator("epoches")
     @classmethod
@@ -27,6 +28,14 @@ class CommonConfig(BaseModel):
         if value is not None and value <= 0:
             raise ValueError("runtime.common.epoches must be > 0 when provided")
         return value
+
+    @field_validator("score_threshold")
+    @classmethod
+    def validate_score_threshold(cls, value: float) -> float:
+        numeric = float(value)
+        if numeric < 0.0 or numeric > 1.0:
+            raise ValueError("runtime.common.score_threshold must be in [0, 1]")
+        return numeric
 
 
 class DataPreparationConfig(BaseModel):

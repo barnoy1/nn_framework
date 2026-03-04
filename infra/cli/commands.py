@@ -67,6 +67,13 @@ def run_train(args: argparse.Namespace) -> None:
         "--model-profile",
         args.model_profile,
     ]
+    if getattr(args, "checkpoint", ""):
+        cmd.extend(["--checkpoint", resolve_checkpoint_path(args.checkpoint)])
+    else:
+        logger.warning(
+            "Training starts without checkpoint initialization. "
+            "Pass --checkpoint or configure runtime.actions.train.checkpoint in the experiment config."
+        )
     overrides = [*args.overrides, f"train.output_dir={run_root}"]
     cmd.extend(["--overrides", *overrides])
     run_process(cmd, extra_env={"NN_FRAMEWORK_RUN_DIR": str(run_root)})

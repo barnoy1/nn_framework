@@ -24,7 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--vis-samples", type=int, default=16)
-    parser.add_argument("--score-thr", type=float, default=0.3)
+    parser.add_argument("--score-thr", type=float, default=None)
     parser.add_argument("--overrides", nargs="*", default=[])
     return parser.parse_args()
 
@@ -83,6 +83,11 @@ def main() -> None:
     device = torch.device(args.device)
     class_id_to_name = runtime.built.class_id_to_name
     diagnostics: Dict[str, object] = {}
+    score_thr = (
+        float(args.score_thr)
+        if args.score_thr is not None
+        else float(runtime.app_config.runtime.common.score_threshold)
+    )
     metrics = run_eval_artifacts(
         app_config=runtime.app_config,
         model=runtime.built.model,
@@ -92,7 +97,7 @@ def main() -> None:
         class_id_to_name=class_id_to_name,
         experiment_name=experiment_name,
         vis_samples=args.vis_samples,
-        score_thr=args.score_thr,
+        score_thr=score_thr,
         image_epoch_suffix=None,
         write_metrics_json=True,
         diagnostics=diagnostics,

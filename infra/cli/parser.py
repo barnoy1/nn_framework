@@ -19,6 +19,7 @@ def add_common_arguments(target_parser: argparse.ArgumentParser, defaults: dict[
 def register_train_parser(subparsers: argparse._SubParsersAction, defaults: dict[str, Any]) -> None:
     train_parser = subparsers.add_parser("train", help="Run training")
     add_common_arguments(train_parser, defaults)
+    train_parser.add_argument("--checkpoint", type=str, default=defaults["checkpoint"])
     train_parser.set_defaults(handler=run_train)
 
 

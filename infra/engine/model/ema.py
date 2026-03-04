@@ -30,6 +30,11 @@ class EMAModel:
         if ema_parameter.device != model_parameter.device:
             self.ema_model.to(model_parameter.device)
 
+    def copy_from(self, model: nn.Module) -> None:
+        with torch.no_grad():
+            self.align_to_model(model)
+            self.ema_model.load_state_dict(model.state_dict(), strict=True)
+
     def update(self, model: nn.Module) -> None:
         with torch.no_grad():
             self.align_to_model(model)

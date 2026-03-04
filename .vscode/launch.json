@@ -13,8 +13,6 @@
         "train",
         "--config",
         "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
-        "--model-profile",
-        "r18",
         "--output-dir",
         "${workspaceFolder}/out"
       ],

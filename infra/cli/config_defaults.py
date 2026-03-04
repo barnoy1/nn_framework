@@ -120,6 +120,14 @@ def build_parser_defaults(config_path: str, action: str) -> dict[str, Any]:
         else:
             defaults[key] = value
 
+    if action == "train":
+        train_checkpoint = str(defaults.get("checkpoint") or "").strip()
+        if not train_checkpoint:
+            eval_cfg = runtime_actions.get("eval", {}) if isinstance(runtime_actions.get("eval", {}), dict) else {}
+            eval_checkpoint = str(eval_cfg.get("checkpoint") or "").strip()
+            if eval_checkpoint:
+                defaults["checkpoint"] = eval_checkpoint
+
     return defaults
 
 

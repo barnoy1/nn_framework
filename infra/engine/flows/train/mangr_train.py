@@ -27,6 +27,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="nn_framework training manager")
     parser.add_argument("--config", required=True)
     parser.add_argument("--model-profile", default="r18", choices=["r18", "r50"])
+    parser.add_argument("--checkpoint", default="")
     parser.add_argument("--overrides", nargs="*", default=[])
     return parser.parse_args()
 
@@ -36,6 +37,13 @@ def main() -> None:
     runtime = build_flow_runtime(model_profile=args.model_profile, overrides=args.overrides, config_path=args.config)
     experiment_name = Path(args.config).stem
     logger = LoguruLoggerAdapter()
+
+    if str(args.checkpoint).strip():
+        state = runtime.wrapper.load_checkpoint_state(str(args.checkpoint))
+        runtime.wrapper.validate_checkpoint_class_compatibility(runtime.built.model, state)
+        loaded, skipped, missing = runtime.wrapper.safe_load_state_dict(runtime.built.model, state)
+        logger.info("Loaded training checkpoint tensors={}, skipped_shape={}, missing={}", loaded, skipped, missing)
+
     profile_train_and_val_dataset_distribution(runtime, logger)
     mlflow_cfg = runtime.app_config.runtime.visualization.mlflow
 

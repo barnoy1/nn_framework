@@ -35,7 +35,7 @@ class Trainer:
         callbacks: CallbackList,
         ema_model=None,
         model_wrapper: Optional[ModelWrapperAdapter] = None,
-        logger_port: Optional[LoggerPort] = None,
+        logger_port=None,
         experiment_name: str = "experiment",
     ) -> None:
         self.app_config = app_config
@@ -74,7 +74,9 @@ class Trainer:
 
         if self.ema_model is not None:
             self.ema_model.to(self.accelerator.device)
-            self.ema_model.align_to_model(self.accelerator.unwrap_model(self.model))
+            unwrapped_model = self.accelerator.unwrap_model(self.model)
+            self.ema_model.align_to_model(unwrapped_model)
+            self.ema_model.copy_from(unwrapped_model)
 
         self.global_step = 0
         self.current_epoch = 0
@@ -105,6 +107,24 @@ class Trainer:
         output_root = self.app_config.ensure_output_dir()
         save_train_batch_visualization(output_root=output_root, images=images, targets=targets, step=step)
 
+    @staticmethod
+    def _targets_have_valid_boxes(targets) -> bool:
+        for target in targets:
+            boxes = target.get("boxes")
+            if boxes is None or not torch.is_tensor(boxes):
+                continue
+            if boxes.numel() == 0:
+                continue
+            if boxes.ndim != 2 or boxes.shape[-1] != 4:
+                return False
+            if not torch.isfinite(boxes).all():
+                return False
+            widths = boxes[:, 2]
+            heights = boxes[:, 3]
+            if (widths <= 0).any() or (heights <= 0).any():
+                return False
+        return True
+
     def _train_one_epoch(self, epoch: int) -> Dict[str, float]:
         self.model.train()
         running_loss = 0.0
@@ -119,6 +139,11 @@ class Trainer:
             images = images.to(self.accelerator.device, non_blocking=True)
             targets = move_targets_to_device(targets, self.accelerator.device)
 
+            if not self._targets_have_valid_boxes(targets):
+                if self.accelerator.is_main_process:
+                    self.logger.warning("Skipping batch with invalid target boxes at epoch={} step={}", epoch, step)
+                continue
+
             if self.model_wrapper is not None:
                 self.model_wrapper.configure_fixed_dn_num_group(
                     model=self.accelerator.unwrap_model(self.model),
@@ -126,10 +151,32 @@ class Trainer:
                     dn_num_group=self.app_config.model.dn_num_group,
                 )
 
-            with self.accelerator.autocast():
-                outputs = self.model(images, targets=targets)
-                loss_dict = self.criterion(outputs, targets)
-                loss = sum(loss_dict.values())
+            try:
+                with self.accelerator.autocast():
+                    outputs = self.model(images, targets=targets)
+                    loss_dict = self.criterion(outputs, targets)
+                    loss = sum(loss_dict.values())
+            except AssertionError as error:
+                if self.accelerator.is_main_process:
+                    self.logger.warning(
+                        "Skipping unstable batch due to matcher assertion at epoch={} step={}: {}",
+                        epoch,
+                        step,
+                        error,
+                    )
+                self.optimizer.zero_grad(set_to_none=True)
+                continue
+
+            if not torch.isfinite(loss):
+                if self.accelerator.is_main_process:
+                    self.logger.warning(
+                        "Skipping non-finite loss at epoch={} step={} value={}",
+                        epoch,
+                        step,
+                        float(loss.detach().item()) if torch.is_tensor(loss) else loss,
+                    )
+                self.optimizer.zero_grad(set_to_none=True)
+                continue
 
             self.optimizer.zero_grad(set_to_none=True)
             self.accelerator.backward(loss)
@@ -181,8 +228,13 @@ class Trainer:
         return epoch_metrics
 
     @torch.no_grad()
-    def validate(self, epoch: int, score_thr: float = 0.0) -> Dict[str, float]:
+    def validate(self, epoch: int, score_thr: Optional[float] = None) -> Dict[str, float]:
         self.model.eval()
+        resolved_score_thr = (
+            float(score_thr)
+            if score_thr is not None
+            else float(self.app_config.runtime.common.score_threshold)
+        )
         unwrapped_model = self.accelerator.unwrap_model(self.model)
         with use_ema_weights_for_eval(self.ema_model, unwrapped_model, self.logger):
             class_id_to_name = {int(key): str(value) for key, value in (self.app_config.data.class_id_to_name or {}).items()}
@@ -196,7 +248,7 @@ class Trainer:
                 class_id_to_name=class_id_to_name,
                 experiment_name=self.experiment_name,
                 vis_samples=int(self.app_config.runtime.visualization.num_samples),
-                score_thr=float(score_thr),
+                score_thr=resolved_score_thr,
                 image_epoch_suffix=epoch + 1,
                 write_metrics_json=True,
                 diagnostics=diagnostics,
@@ -209,9 +261,52 @@ class Trainer:
         self.callbacks.on_validation_end(self, epoch, metrics)
         return metrics
 
+    @torch.no_grad()
+    def run_baseline_eval_sanity(self, epoch: int = -1, score_thr: Optional[float] = None) -> Dict[str, float]:
+        self.model.eval()
+        resolved_score_thr = (
+            float(score_thr)
+            if score_thr is not None
+            else float(self.app_config.runtime.common.score_threshold)
+        )
+        if self.accelerator.is_main_process:
+            self.logger.info(
+                "Pre-training evaluation procedure: running standalone-equivalent eval flow before optimizer updates "
+                "(epoch_tag={}, score_threshold={:.3f})",
+                epoch,
+                resolved_score_thr,
+            )
+        unwrapped_model = self.accelerator.unwrap_model(self.model)
+        class_id_to_name = {int(key): str(value) for key, value in (self.app_config.data.class_id_to_name or {}).items()}
+        diagnostics: Dict[str, object] = {}
+        metrics = run_eval_artifacts(
+            app_config=self.app_config,
+            model=unwrapped_model,
+            postprocessor=self.postprocessor,
+            device=self.accelerator.device,
+            logger=self.logger,
+            class_id_to_name=class_id_to_name,
+            experiment_name=self.experiment_name,
+            vis_samples=int(self.app_config.runtime.visualization.num_samples),
+            score_thr=resolved_score_thr,
+            image_epoch_suffix=epoch + 1,
+            write_metrics_json=True,
+            diagnostics=diagnostics,
+        )
+        self.last_validation_confusion_matrix = diagnostics.get("confusion_matrix")
+        self.last_validation_confusion_labels = diagnostics.get("confusion_labels", [])
+        self.callbacks.on_validation_end(self, epoch, metrics)
+        return metrics
+
     def fit(self) -> None:
         self.callbacks.on_train_start(self)
         try:
+            if self.accelerator.is_main_process:
+                self.logger.info("Running baseline evaluation sanity-check before optimizer updates")
+            baseline_metrics = self.run_baseline_eval_sanity(epoch=-1)
+            if self.accelerator.is_main_process:
+                self.logger.info("baseline metrics={}", {f"val_{k}": v for k, v in baseline_metrics.items()})
+
             first_epoch_in_run = True
             for epoch in range(self.total_epochs):
                 self.current_epoch = epoch

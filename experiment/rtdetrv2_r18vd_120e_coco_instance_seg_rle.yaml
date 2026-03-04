@@ -73,15 +73,15 @@ train:
   # DataLoader worker processes.
   num_workers: 4
   # Base optimizer learning rate.
-  lr: 0.0002
+  lr: 0.00002
   # Multiplier applied to backbone LR relative to base LR.
-  backbone_lr_multiplier: 1.25
+  backbone_lr_multiplier: 0.1
   # L2 regularization strength.
   weight_decay: 0.0001
   # Gradient clipping norm threshold (0 disables).
   grad_clip_norm: 0.1
   # AMP mode (`fp16` reduces memory/latency).
-  mixed_precision: fp16
+  mixed_precision: "no"
   # Root directory for run artifacts.
   output_dir: ./out
   # Logging cadence in training steps.
@@ -238,6 +238,8 @@ runtime:
     print_params: false
     # Runtime epoch override.
     epoches: 120
+    # Shared confidence threshold for evaluation metrics (train validation + eval flow).
+    score_threshold: 0.3
 
   visualization:
     # Number of qualitative visualization samples to save.
@@ -280,7 +282,9 @@ runtime:
 
   actions:
     # Train action parameters (empty uses defaults above).
-    train: {}
+    train: 
+      # Checkpoint used by eval action.
+      checkpoint: /home/ronbar/repo/nn_framework/raw_models/RT-DETR/rtdetrv2_pytorch/weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
 
     eval:
       # Checkpoint used by eval action.
