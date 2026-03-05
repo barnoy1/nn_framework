@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 import argparse
-import os
-import subprocess
-import sys
+import importlib.util
 from pathlib import Path
-from typing import List
+from types import SimpleNamespace
 
 from infra.utils.log import logger
 
 from .config_defaults import load_dataset_export_settings, resolve_experiment_conf_path
-from .constants import MODEL_ROOT, REPO_ROOT
+from .constants import MODEL_ROOT
 
 
 def resolve_checkpoint_path(path: str) -> str:
@@ -26,16 +24,10 @@ def resolve_checkpoint_path(path: str) -> str:
     return path
 
 
-def run_process(cmd: List[str], cwd: Path = REPO_ROOT, extra_env: dict[str, str] | None = None) -> None:
-    logger.info("Executing: {}", " ".join(cmd))
-    subprocess.run(cmd, cwd=str(cwd), check=True)
-
-
 def run_train(args: argparse.Namespace) -> None:
     args.overrides = [*args.overrides, f"train.output_dir={Path(args.run_root)}"]
 
     from infra.engine.flows.train.mangr_train import invoke
-    from types import SimpleNamespace
     args = SimpleNamespace(**dict(
         config=args.config,
         checkpoint=args.checkpoint, 
@@ -49,77 +41,74 @@ def run_eval(args: argparse.Namespace) -> None:
         raise ValueError("--checkpoint is required for eval (can be provided via CLI)")
     run_root = Path(args.run_root)
     checkpoint_path = resolve_checkpoint_path(args.checkpoint)
-    cmd = [
-        sys.executable,
-        str(REPO_ROOT / "infra" / "engine" / "flows" / "eval" / "mangr_eval.py"),
-        "--config",
-        args.config,
-        "--model-profile",
-        args.model_profile,
-        "--checkpoint",
-        checkpoint_path,
-        "--device",
-        args.device,
-    ]
     overrides = [*args.overrides, f"train.output_dir={run_root}"]
-    cmd.extend(["--overrides", *overrides])
-    run_process(cmd)
+
+    from infra.engine.flows.eval.mangr_eval import invoke
+
+    invoke(
+        SimpleNamespace(
+            config=args.config,
+            checkpoint=checkpoint_path,
+            device=args.device,
+            vis_samples=getattr(args, "vis_samples", 16),
+            score_thr=getattr(args, "score_thr", None),
+            overrides=overrides,
+        )
+    )
 
 
 def run_inference(args: argparse.Namespace) -> None:
     run_root = Path(args.run_root)
     inference_dir = run_root / "inference"
-    cmd = [
-        sys.executable,
-        str(REPO_ROOT / "infra" / "engine" / "flows" / "inference" / "mangr_inference.py"),
-        "--config",
-        args.config,
-        "--model-profile",
-        args.model_profile,
-        "--input-dir",
-        args.input_dir,
-        "--output-dir",
-        str(inference_dir),
-        "--device",
-        args.device,
-        "--batch-size",
-        str(args.batch_size),
-        "--num-workers",
-        str(args.num_workers),
-    ]
-
+    checkpoint = ""
     if getattr(args, "checkpoint", ""):
-        cmd.extend(["--checkpoint", resolve_checkpoint_path(args.checkpoint)])
-    if getattr(args, "onnx_model", ""):
-        cmd.extend(["--onnx-model", args.onnx_model])
-    if args.overrides:
-        cmd.extend(["--overrides", *args.overrides])
+        checkpoint = resolve_checkpoint_path(args.checkpoint)
 
-    run_process(cmd)
+    from infra.engine.flows.inference.mangr_inference import invoke
+
+    invoke(
+        SimpleNamespace(
+            config=args.config,
+            model_profile=args.model_profile,
+            checkpoint=checkpoint,
+            onnx_model=getattr(args, "onnx_model", ""),
+            input_dir=args.input_dir,
+            output_dir=str(inference_dir),
+            device=args.device,
+            batch_size=int(args.batch_size),
+            num_workers=int(args.num_workers),
+            score_thr=float(getattr(args, "score_thr", 0.3)),
+            overrides=args.overrides,
+        )
+    )
 
 
 def run_export_onnx(args: argparse.Namespace) -> None:
     if not args.checkpoint or not args.onnx_model:
         raise ValueError("--checkpoint and --onnx-model are required for export-onnx")
-    run_root = Path(args.run_root)
     checkpoint_path = resolve_checkpoint_path(args.checkpoint)
-    cmd = [
-        sys.executable,
-        str(MODEL_ROOT / "tools" / "export_onnx.py"),
-        "-c",
-        str(MODEL_ROOT / "configs" / "rtdetrv2" / "rtdetrv2_r18vd_120e_coco_instance_seg_rle.yml"),
-        "-r",
-        checkpoint_path,
-        "-o",
-        args.onnx_model,
-        "--check",
-        "--simplify",
-    ]
-    run_process(cmd)
+    export_script = MODEL_ROOT / "tools" / "export_onnx.py"
+    spec = importlib.util.spec_from_file_location("rtdetr_export_onnx", str(export_script))
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Cannot load export script module: {export_script}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    module.main(
+        SimpleNamespace(
+            config=str(MODEL_ROOT / "configs" / "rtdetrv2" / "rtdetrv2_r18vd_120e_coco_instance_seg_rle.yml"),
+            resume=checkpoint_path,
+            output_file=args.onnx_model,
+            input_size=640,
+            check=True,
+            simplify=True,
+            update=None,
+        )
+    )
 
 
 def run_export_coco_rle(args: argparse.Namespace) -> None:
-    run_root = Path(args.run_root)
     dataset_conf = args.dataset_conf or args.config
     if not dataset_conf:
         raise ValueError("--dataset-conf (or --config) is required for export-coco-rle")
@@ -135,22 +124,17 @@ def run_export_coco_rle(args: argparse.Namespace) -> None:
     img_subdir = args.img_subdir or default_img_subdir
     experiment_conf = args.experiment_conf or resolve_experiment_conf_path(dataset_conf)
 
-    cmd = [
-        sys.executable,
-        str(REPO_ROOT / "infra" / "tools" / "export_coco_poly_2_rle.py"),
-        "--conf_data",
-        dataset_conf,
-        "--dataset_root",
-        args.dataset_root,
-        "--output_dir",
-        args.output_dir,
-        "--ann_subdir",
-        ann_subdir,
-        "--img_subdir",
-        img_subdir,
-        "--splits",
-        *selected_splits,
-    ]
-    if experiment_conf:
-        cmd.extend(["--experiment_conf", experiment_conf])
-    run_process(cmd)
+    from infra.tools.export_coco_rle.app import invoke
+
+    invoke(
+        SimpleNamespace(
+            conf_data=dataset_conf,
+            dataset_root=args.dataset_root,
+            output_dir=args.output_dir,
+            ann_subdir=ann_subdir,
+            img_subdir=img_subdir,
+            splits=selected_splits,
+            experiment_conf=experiment_conf,
+            logging_level="info",
+        )
+    )

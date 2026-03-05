@@ -16,9 +16,10 @@ def _save_batch_visualization(
     step: int,
     file_prefix: str,
     epoch_suffix: int | None = None,
+    num_samples: int = 4,
 ) -> None:
     panels = []
-    max_images = min(4, int(images.shape[0]))
+    max_images = min(max(1, int(num_samples)), int(images.shape[0]))
     for index in range(max_images):
         image = images[index].detach().cpu().permute(1, 2, 0).contiguous().numpy()
         image = np.clip(image * 255.0, 0, 255).astype(np.uint8)
@@ -57,7 +58,13 @@ def _save_batch_visualization(
     Image.fromarray(canvas).save(output_root / f"{file_prefix}{step}{suffix}.jpg")
 
 
-def save_train_batch_visualization(output_root: Path, images: torch.Tensor, targets, step: int) -> None:
+def save_train_batch_visualization(
+    output_root: Path,
+    images: torch.Tensor,
+    targets,
+    step: int,
+    num_samples: int = 4,
+) -> None:
     _save_batch_visualization(
         output_root=output_root,
         images=images,
@@ -65,6 +72,26 @@ def save_train_batch_visualization(output_root: Path, images: torch.Tensor, targ
         step=step,
         file_prefix="train_batch",
         epoch_suffix=None,
+        num_samples=num_samples,
+    )
+
+
+def save_eval_batch_visualization(
+    output_root: Path,
+    images: torch.Tensor,
+    targets,
+    step: int,
+    epoch_suffix: int | None = None,
+    num_samples: int = 4,
+) -> None:
+    _save_batch_visualization(
+        output_root=output_root,
+        images=images,
+        targets=targets,
+        step=step,
+        file_prefix="eval_batch",
+        epoch_suffix=epoch_suffix,
+        num_samples=num_samples,
     )
 
 
@@ -74,12 +101,13 @@ def save_val_batch_visualization(
     targets,
     step: int,
     epoch_suffix: int | None = None,
+    num_samples: int = 4,
 ) -> None:
-    _save_batch_visualization(
+    save_eval_batch_visualization(
         output_root=output_root,
         images=images,
         targets=targets,
         step=step,
-        file_prefix="val_batch",
         epoch_suffix=epoch_suffix,
+        num_samples=num_samples,
     )

@@ -16,6 +16,25 @@ from .eval_reporting import populate_confusion_diagnostics, write_metrics_json a
 from .eval_sampling import build_eval_samples
 
 
+def _build_eval_metric_payload(metrics: Dict[str, float]) -> Dict[str, float]:
+    payload: Dict[str, float] = {}
+    loss_keys = {"loss", "box_loss", "cls_loss", "dfl_loss", "custom_loss"}
+
+    for key, value in metrics.items():
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            continue
+
+        payload[f"eval/{key}"] = numeric
+        if key in loss_keys or key.startswith("criterion/"):
+            payload[f"evaluation/losses/{key}"] = numeric
+        else:
+            payload[f"evaluation/coco/{key}"] = numeric
+
+    return payload
+
+
 def run_eval_artifacts(
     *,
     app_config: AppConfig,
@@ -32,6 +51,8 @@ def run_eval_artifacts(
     diagnostics: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, float]:
     output_root = Path(app_config.train.output_dir)
+    output_root_resolved = output_root.resolve()
+    shared_tracking_dir = output_root_resolved.parent if "__" in output_root_resolved.name else output_root_resolved
     inference_dir = output_root / "inference"
     inference_dir.mkdir(parents=True, exist_ok=True)
     eval_vis_dir = inference_dir / "eval"
@@ -46,7 +67,7 @@ def run_eval_artifacts(
         tensorboard_port=int(app_config.runtime.visualization.tensorboard.port),
         tensorboard_start_service=bool(app_config.runtime.visualization.tensorboard.start_service),
         mlflow_enabled=bool(app_config.runtime.visualization.mlflow.enabled),
-        mlflow_dir=str(app_config.runtime.visualization.mlflow.mlflow_dir),
+        mlflow_dir=str(shared_tracking_dir),
         mlflow_tracking_backend=str(app_config.runtime.visualization.mlflow.tracking_backend),
         mlflow_sqlite_db_name=str(app_config.runtime.visualization.mlflow.sqlite_db_name),
         mlflow_host=str(app_config.runtime.visualization.mlflow.host),
@@ -97,7 +118,9 @@ def run_eval_artifacts(
         except Exception as error:
             logger.warning("Failed to log metrics.json payload to visualization backends: {}", error)
 
-    vis_logger.log_metrics(metrics={f"eval/{key}": float(value) for key, value in metrics.items()}, step=0)
+    eval_metric_payload = _build_eval_metric_payload(metrics)
+    if eval_metric_payload:
+        vis_logger.log_metrics(metrics=eval_metric_payload, step=0)
 
     diagnostics_payload: Dict[str, Any] = diagnostics if diagnostics is not None else {}
 
@@ -126,6 +149,10 @@ def run_eval_artifacts(
         metrics=metrics,
         confusion_scores=confusion_scores,
         confusion_labels=confusion_labels,
+    )
+    vis_logger.log_metrics(
+        metrics={f"evaluation/{key}": float(value) for key, value in confusion_scores.items()},
+        step=0,
     )
     vis_logger.close()
 

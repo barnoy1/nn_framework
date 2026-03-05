@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 from torch.utils.data import DataLoader
 
-from infra.config import AppConfig
+from infra.config import AppConfig, set_active_app_config
 from infra.engine.model import BuiltComponents, ModelWrapperAdapter
 
 from .config_loader import load_app_config
@@ -22,6 +22,7 @@ class FlowRuntime:
 
 def build_flow_runtime(overrides: List[str], config_path: str, build_loaders: bool = True) -> FlowRuntime:
     config = load_app_config(overrides=overrides, config_path=config_path)
+    set_active_app_config(config)
     if build_loaders:
         config.ensure_output_dir()
     prepare_data_if_needed(config)

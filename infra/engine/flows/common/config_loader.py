@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import List
+from typing import TYPE_CHECKING, List
 
 from hydra import compose, initialize_config_dir
 from omegaconf import OmegaConf
 
-from infra.config import AppConfig
+from infra.config import AppConfig, set_active_app_config, try_get_active_app_config
+
+if TYPE_CHECKING:
+    from .runtime import FlowRuntime
 
 INFRA_ROOT = Path(__file__).resolve().parents[3]
 REPO_ROOT = INFRA_ROOT.parent
@@ -57,3 +60,26 @@ def load_app_config(overrides: List[str], config_path: str) -> AppConfig:
         cfg = compose(config_name=config_name, overrides=overrides)
     payload = OmegaConf.to_container(cfg, resolve=True)
     return AppConfig.model_validate(payload)
+
+
+def get_execution_config(
+    *,
+    runtime: "FlowRuntime | None" = None,
+    config_path: str | None = None,
+    overrides: List[str] | None = None,
+) -> AppConfig:
+    if runtime is not None:
+        return runtime.app_config
+
+    active = try_get_active_app_config()
+    if active is not None:
+        return active
+
+    if not config_path:
+        raise RuntimeError(
+            "Execution config is not available. Pass runtime=... or provide config_path to load config."
+        )
+
+    cfg = load_app_config(overrides=overrides or [], config_path=config_path)
+    set_active_app_config(cfg)
+    return cfg

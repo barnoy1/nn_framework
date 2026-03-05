@@ -78,7 +78,7 @@ def build_parser_defaults(config_path: str, action: str) -> dict[str, Any]:
         "device": device_default,
         "batch_size": int(runtime_common.get("batch_size", train_cfg.get("batch_size", 1))),
         "num_workers": int(runtime_common.get("num_workers", train_cfg.get("num_workers", 2))),
-        "checkpoint": "",
+        "checkpoint": str(runtime_common.get("checkpoint", "")),
         "input_dir": "",
         "onnx_model": "",
         "dataset_conf": str(resolve_config_path(config_path)),

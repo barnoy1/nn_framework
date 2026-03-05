@@ -134,7 +134,7 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
             )
 
         if step % trainer.app_config.train.log_every_n_steps == 0 and trainer.accelerator.is_main_process:
-            trainer.logger.info("epoch={} step={} loss={:.6f}", epoch, step, metrics["train/loss"])
+            trainer.logger.debug("epoch={} step={} loss={:.6f}", epoch, step, metrics["train/loss"])
 
     if pbar is not None:
         pbar.close()

@@ -160,6 +160,27 @@
       },
       "console": "integratedTerminal",
       "justMyCode": true
+    },
+    {
+      "name": "nn_framework: launch mlflow (shared root mlruns)",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/infra/tools/mlflow_server/launch_mlflow.py",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "${workspaceFolder}/out/mlruns",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "5000"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
     }
   ]
 }

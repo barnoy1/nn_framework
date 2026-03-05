@@ -3,10 +3,23 @@ from __future__ import annotations
 from pathlib import Path
 import subprocess
 import sys
+import shutil
+import importlib.util
+import os
 
 from .log_utils import read_log_tail
 from .network_utils import find_available_port, free_port_for_reuse, is_port_in_use, wait_for_service
 from .process_state import get_running_process, register_process
+
+
+def _build_subprocess_env() -> dict[str, str]:
+    env = dict(os.environ)
+    venv_bin = str(Path(sys.executable).resolve().parent)
+    existing_path = env.get("PATH", "")
+    path_entries = [entry for entry in existing_path.split(os.pathsep) if entry]
+    if venv_bin not in path_entries:
+        env["PATH"] = os.pathsep.join([venv_bin, *path_entries]) if path_entries else venv_bin
+    return env
 
 
 def start_mlflow_ui_service(
@@ -19,6 +32,8 @@ def start_mlflow_ui_service(
     sqlite_db_name: str = "mlflow.db",
 ) -> str:
     resolved_tracking_dir = tracking_dir.resolve()
+    artifact_root = (resolved_tracking_dir / "mlruns").resolve()
+    artifact_root.mkdir(parents=True, exist_ok=True)
     backend = str(tracking_backend).strip().lower()
     requested_port = int(port)
     url = f"http://{host}:{requested_port}"
@@ -50,15 +65,27 @@ def start_mlflow_ui_service(
 
     service_log = resolved_tracking_dir / "mlflow_ui.log"
     log_handle = service_log.open("a", encoding="utf-8")
+    launcher_prefix: list[str] = []
+    candidate = Path(sys.executable).resolve().parent / "mlflow"
+    if candidate.exists() and candidate.is_file():
+        launcher_prefix = [str(candidate)]
+    if not launcher_prefix:
+        resolved = shutil.which("mlflow") or ""
+        if resolved:
+            launcher_prefix = [resolved]
+    if not launcher_prefix:
+        mlflow_main_spec = importlib.util.find_spec("mlflow.__main__")
+        if mlflow_main_spec is not None and mlflow_main_spec.origin:
+            launcher_prefix = [sys.executable, str(Path(mlflow_main_spec.origin).resolve())]
+    if not launcher_prefix:
+        raise RuntimeError("Could not find a runnable mlflow launcher in the active environment")
     command = [
-        sys.executable,
-        "-m",
-        "mlflow",
+        *launcher_prefix,
         "ui",
         "--backend-store-uri",
         backend_store_uri,
         "--default-artifact-root",
-        resolved_tracking_dir.as_uri(),
+        artifact_root.as_uri(),
         "--host",
         str(host),
         "--port",
@@ -69,6 +96,7 @@ def start_mlflow_ui_service(
         stdout=log_handle,
         stderr=log_handle,
         cwd=str(resolved_tracking_dir),
+        env=_build_subprocess_env(),
     )
     register_process(service_key, process)
 

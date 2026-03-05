@@ -272,8 +272,11 @@ def log_eval_model_metrics_bundle(
         if artifact_path.exists():
             vis_logger.log_artifact(file_path=artifact_path, artifact_path="model-metrics")
 
-    for val_batch_path in sorted(output_root.glob("val_batch*.jpg")):
-        vis_logger.log_artifact(file_path=val_batch_path, artifact_path="model-metrics")
+    eval_batch_paths = sorted(output_root.glob("eval_batch*.jpg"))
+    if not eval_batch_paths:
+        eval_batch_paths = sorted(output_root.glob("val_batch*.jpg"))
+    for eval_batch_path in eval_batch_paths:
+        vis_logger.log_artifact(file_path=eval_batch_path, artifact_path="model-metrics")
 
     dataset_labels = output_root / "dataset" / "labels.png"
     if dataset_labels.exists():

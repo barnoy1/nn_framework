@@ -16,7 +16,7 @@ def log_yolo_header(logger) -> None:
         "Instances",
         "Size",
     )
-    logger.info("{}", header)
+    logger.info("\n{}", header)
 
 
 def yolo_progress_row(

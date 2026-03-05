@@ -14,8 +14,7 @@ from .config_service import load_data_config
 from .conversion_service import build_coco_for_split, save_coco_json
 
 
-def run() -> None:
-    args = parse_arguments()
+def invoke(args) -> None:
     setup_logger(force=True)
 
     conf_data_path = Path(args.conf_data).expanduser()
@@ -83,3 +82,8 @@ def run() -> None:
     with remap_path.open("w", encoding="utf-8") as file:
         json.dump(remap_report, file, indent=2)
     logger.info("Saved remap report: {}", remap_path)
+
+
+def run() -> None:
+    args = parse_arguments()
+    invoke(args)

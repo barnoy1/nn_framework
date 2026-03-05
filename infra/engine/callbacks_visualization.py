@@ -35,6 +35,12 @@ class ValidationVisualizationCallback(Callback):
         self._last_logged_artifacts: set[Path] = set()
 
     @staticmethod
+    def _iter_files(path: Path) -> List[Path]:
+        if not path.exists() or not path.is_dir():
+            return []
+        return sorted(candidate for candidate in path.rglob("*") if candidate.is_file())
+
+    @staticmethod
     def _to_uint8_rgb(image: np.ndarray) -> np.ndarray:
         if image.ndim == 2:
             image = np.stack([image, image, image], axis=-1)
@@ -111,7 +117,6 @@ class ValidationVisualizationCallback(Callback):
             root / "BoxPR_curve.png",
             root / "confusion_matrix.png",
             root / "confusion_matrix_normalized.png",
-            root / "dataset" / "labels.png",
         ]
 
         for artifact_path in artifact_candidates:
@@ -120,10 +125,76 @@ class ValidationVisualizationCallback(Callback):
                 self._logger.log_artifact(file_path=resolved, artifact_path="training")
                 self._last_logged_artifacts.add(resolved)
 
+    def _log_dataset_artifacts(self) -> None:
+        if self._logger is None:
+            return
+
+        root = self.output_dir
+        dataset_candidates = [
+            root / "labels.png",
+            root / "labels.jpg",
+            root / "dataset" / "labels.png",
+            root / "dataset" / "labels.jpg",
+        ]
+        dataset_candidates.extend(self._iter_files(root / "dataset"))
+
+        for artifact_path in sorted({candidate.resolve() for candidate in dataset_candidates if candidate.exists()}):
+            if artifact_path in self._last_logged_artifacts:
+                continue
+            self._logger.log_artifact(file_path=artifact_path, artifact_path="dataset")
+            self._last_logged_artifacts.add(artifact_path)
+
+    def _log_evaluation_artifacts(self, epoch: int) -> None:
+        if self._logger is None:
+            return
+
+        epoch_prefix = f"evaluation/epoch_{epoch + 1:04d}"
+        eval_dir = self.output_dir / "inference" / "eval"
+        eval_files = self._iter_files(eval_dir)
+
+        root_eval_candidates = [
+            self.output_dir / "results.csv",
+            self.output_dir / "results.png",
+            self.output_dir / "bbox_metrics.png",
+            self.output_dir / "BoxP_curve.png",
+            self.output_dir / "BoxR_curve.png",
+            self.output_dir / "BoxF1_curve.png",
+            self.output_dir / "BoxPR_curve.png",
+            self.output_dir / "confusion_matrix.png",
+            self.output_dir / "confusion_matrix_normalized.png",
+        ]
+        eval_files.extend([candidate for candidate in root_eval_candidates if candidate.exists()])
+
+        filtered_eval_files = [candidate for candidate in eval_files if candidate.name != "detections.json"]
+
+        for artifact_path in sorted({candidate.resolve() for candidate in filtered_eval_files}):
+            self._logger.log_artifact(file_path=artifact_path, artifact_path=epoch_prefix)
+
+    @staticmethod
+    def _build_validation_metric_payload(metrics: Dict[str, float]) -> Dict[str, float]:
+        payload: Dict[str, float] = {}
+        loss_keys = {"loss", "box_loss", "cls_loss", "dfl_loss", "custom_loss"}
+
+        for key, value in metrics.items():
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                continue
+
+            payload[f"val/{key}"] = numeric
+            if key in loss_keys or key.startswith("criterion/"):
+                payload[f"evaluation/losses/{key}"] = numeric
+            else:
+                payload[f"evaluation/coco/{key}"] = numeric
+
+        return payload
+
     def on_train_start(self, trainer: "Trainer") -> None:
         if not trainer.accelerator.is_main_process:
             return
         vis_cfg = trainer.app_config.runtime.visualization
+        output_root_resolved = self.output_dir.resolve()
+        shared_tracking_dir = output_root_resolved.parent if "__" in output_root_resolved.name else output_root_resolved
         self._logger = create_visualization_logger(
             output_root=self.output_dir,
             experiment_name=self.experiment_name,
@@ -133,7 +204,7 @@ class ValidationVisualizationCallback(Callback):
             tensorboard_port=int(vis_cfg.tensorboard.port),
             tensorboard_start_service=bool(vis_cfg.tensorboard.start_service),
             mlflow_enabled=self.mlflow_enabled,
-            mlflow_dir=str(vis_cfg.mlflow.mlflow_dir),
+            mlflow_dir=str(shared_tracking_dir),
             mlflow_tracking_backend=str(vis_cfg.mlflow.tracking_backend),
             mlflow_sqlite_db_name=str(vis_cfg.mlflow.sqlite_db_name),
             mlflow_host=str(vis_cfg.mlflow.host),
@@ -154,10 +225,9 @@ class ValidationVisualizationCallback(Callback):
         if self._logger is None:
             return
 
-        self._logger.log_metrics(
-            metrics={f"val/{key}": float(value) for key, value in metrics.items()},
-            step=epoch + 1,
-        )
+        validation_payload = self._build_validation_metric_payload(metrics)
+        if validation_payload:
+            self._logger.log_metrics(metrics=validation_payload, step=epoch + 1)
 
         matrix = getattr(trainer, "last_validation_confusion_matrix", None)
         labels = list(getattr(trainer, "last_validation_confusion_labels", []) or [])
@@ -165,6 +235,10 @@ class ValidationVisualizationCallback(Callback):
             scores = self._compute_detection_scores(matrix)
             self._logger.log_metrics(
                 metrics={f"val/confusion/{key}": float(value) for key, value in scores.items()},
+                step=epoch + 1,
+            )
+            self._logger.log_metrics(
+                metrics={f"evaluation/{key}": float(value) for key, value in scores.items()},
                 step=epoch + 1,
             )
             self._logger.log_text(
@@ -177,15 +251,15 @@ class ValidationVisualizationCallback(Callback):
         for artifact_name in ("metrics.json", "detections.json"):
             artifact_path = eval_dir / artifact_name
             resolved_artifact = artifact_path.resolve()
-            if resolved_artifact.exists() and resolved_artifact not in self._last_logged_artifacts:
-                self._logger.log_artifact(file_path=resolved_artifact, artifact_path="eval")
+            if resolved_artifact.exists():
                 self._logger.log_text(
                     tag=f"eval/{artifact_name}",
                     text=f"path={resolved_artifact}",
                     step=epoch + 1,
                 )
-                self._last_logged_artifacts.add(resolved_artifact)
 
+        self._log_evaluation_artifacts(epoch)
+        self._log_dataset_artifacts()
         self._log_output_artifacts()
 
         samples = list(getattr(trainer, "last_validation_visual_samples", []) or [])[: self.num_samples]
@@ -211,6 +285,7 @@ class ValidationVisualizationCallback(Callback):
                 continue
         if numeric_metrics:
             self._logger.log_metrics(metrics=numeric_metrics, step=epoch + 1)
+        self._log_dataset_artifacts()
         self._log_output_artifacts()
 
     def on_train_end(self, trainer: "Trainer") -> None:

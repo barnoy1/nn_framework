@@ -11,10 +11,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from infra.utils.log.logger import logger
+from infra.engine.flows.common.config_loader import get_execution_config
 from infra.engine.flows.common.runtime import build_flow_runtime
 from infra.engine.flows.eval.dataset_profile import model_num_classes, profile_dataset_distribution
 from infra.engine.flows.eval.eval_artifacts import run_eval_artifacts
-from infra.engine.training import save_val_batch_visualization
+from infra.engine.training import save_eval_batch_visualization
 from infra.utils.log.logger import logger
 
 def parse_args() -> argparse.Namespace:
@@ -29,30 +30,32 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
-    args = parse_args()
-    runtime = build_flow_runtime(model_profile=args.model_profile, overrides=args.overrides, config_path=args.config)
-    runtime.app_config.train.use_ema = False
-    runtime.app_config.train.mixed_precision = "no"
+def invoke(args: argparse.Namespace) -> None:
+    runtime = build_flow_runtime(overrides=args.overrides, config_path=args.config)
+    app_config = get_execution_config(runtime=runtime)
+    app_config.train.use_ema = False
+    app_config.train.mixed_precision = "no"
     runtime.built.ema_model = None
 
     profile_dataset_distribution(runtime, logger)
 
-    output_root = runtime.app_config.ensure_output_dir()
-    saved_val_batches = 0
+    output_root = app_config.ensure_output_dir()
+    eval_batch_num_samples = int(app_config.runtime.visualization.num_samples)
+    saved_eval_batches = 0
     for step, (images, targets) in enumerate(runtime.val_loader):
         if step >= 3:
             break
-        save_val_batch_visualization(
+        save_eval_batch_visualization(
             output_root=output_root,
             images=images,
             targets=targets,
             step=step,
             epoch_suffix=None,
+            num_samples=eval_batch_num_samples,
         )
-        saved_val_batches += 1
-    if saved_val_batches > 0:
-        logger.info("Saved {} val batch visualizations to {}", saved_val_batches, output_root)
+        saved_eval_batches += 1
+    if saved_eval_batches > 0:
+        logger.info("Saved {} eval batch visualizations to {}", saved_eval_batches, output_root)
 
     state = runtime.wrapper.load_checkpoint_state(args.checkpoint)
     runtime.wrapper.validate_checkpoint_class_compatibility(runtime.built.model, state)
@@ -61,7 +64,7 @@ def main() -> None:
 
     net_classes = model_num_classes(runtime.built.model)
     if net_classes is not None:
-        configured_mapping = runtime.app_config.data.mapping or {}
+        configured_mapping = app_config.data.mapping or {}
         configured_label_ids = sorted({int(label_id) for label_id in configured_mapping.values()})
         if configured_label_ids:
             out_of_range = [label_id for label_id in configured_label_ids if label_id < 0 or label_id >= net_classes]
@@ -85,10 +88,10 @@ def main() -> None:
     score_thr = (
         float(args.score_thr)
         if args.score_thr is not None
-        else float(runtime.app_config.runtime.common.score_threshold)
+        else float(app_config.runtime.common.score_threshold)
     )
     metrics = run_eval_artifacts(
-        app_config=runtime.app_config,
+        app_config=app_config,
         model=runtime.built.model,
         postprocessor=runtime.built.postprocessor,
         device=device,
@@ -105,6 +108,11 @@ def main() -> None:
     logger.info("Evaluation metrics:")
     for key, value in metrics.items():
         logger.info("{}: {}", key, value)
+
+
+def main() -> None:
+    args = parse_args()
+    invoke(args)
 
 
 if __name__ == "__main__":

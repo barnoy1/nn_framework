@@ -9,7 +9,7 @@ logging:
 
   console:
     enabled: true
-    level: "DEBUG"
+    level: "INFO"
 
   file:
     enabled: true

@@ -66,3 +66,10 @@ class ModelWrapperAdapter(Protocol):
 
     def safe_load_state_dict(self, model: nn.Module, state_dict: Dict[str, torch.Tensor]) -> Tuple[int, int, int]:
         ...
+
+
+@dataclass
+class WrapperComponents:
+    model_builder: ModelBuilder
+    checkpoint_adapter: CheckpointAdapter
+    dn_group_configurer: DnGroupConfigurer

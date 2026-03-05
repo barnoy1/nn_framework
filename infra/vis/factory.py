@@ -55,6 +55,7 @@ def create_visualization_logger(
                 experiment_name=experiment_name,
                 run_name=experiment_name,
                 tracking_dir=resolved_mlflow_dir,
+                run_context_dir=output_root,
                 tracking_backend=str(mlflow_tracking_backend),
                 sqlite_db_name=str(mlflow_sqlite_db_name),
                 execution_config=execution_config,

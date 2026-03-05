@@ -5,9 +5,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
-from PIL import Image
 from pycocotools.coco import COCO
 from torch.utils.data import Dataset
+
+from infra.engine.flows.common.image_io import load_rgb_image
 
 class COCODetectionDataset(Dataset):
     def __init__(
@@ -77,7 +78,7 @@ class COCODetectionDataset(Dataset):
         image_meta = self.coco.loadImgs([image_id])[0]
 
         img_path = self.img_dir / image_meta["file_name"]
-        image = np.array(Image.open(img_path).convert("RGB"))
+        image = load_rgb_image(img_path)
         orig_h, orig_w = image.shape[:2]
 
         boxes_xyxy, labels, annotations = self._load_annotations(image_id=image_id, width=orig_w, height=orig_h)
