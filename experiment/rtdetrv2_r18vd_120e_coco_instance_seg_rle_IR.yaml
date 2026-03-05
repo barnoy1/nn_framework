@@ -71,12 +71,12 @@ model:
 train:
   # Total training epochs.
   epochs: 2
-  # Per-step training batch size.
-  batch_size: 8
+  # Per-step training batch size (kept small for 5-6GB GPUs).
+  batch_size: 1
   # Per-step validation batch size.
-  val_batch_size: 8
+  val_batch_size: 1
   # DataLoader worker processes.
-  num_workers: 4
+  num_workers: 2
   # Base optimizer learning rate.
   lr: 0.00002
   # Multiplier applied to backbone LR relative to base LR.
@@ -86,7 +86,7 @@ train:
   # Gradient clipping norm threshold (0 disables).
   grad_clip_norm: 0.1
   # AMP mode (`fp16` reduces memory/latency).
-  mixed_precision: "no"
+  mixed_precision: "fp16"
   # Root directory for run artifacts.
   output_dir: ./out
   # Logging cadence in training steps.
@@ -175,14 +175,14 @@ data:
     # Worker count for train loader.
     num_workers: 2
     # Global intended train batch size (framework-level metadata).
-    total_batch_size: 2
+    total_batch_size: 1
     # Drop final incomplete batch for stable step math.
     drop_last: true
     collate_fn:
       # Batch collation strategy.
       type: BatchImageCollateFunction
-      # Multi-scale training candidate sizes.
-      scales: [480, 512, 544, 576, 608, 640, 640, 640, 672, 704, 736, 768, 800]
+      # Multi-scale training candidate sizes (bounded for VRAM stability).
+      scales: [512, 544, 576, 608, 640]
     
 
   val_dataloader:
@@ -213,7 +213,7 @@ data:
     # Worker count for val loader.
     num_workers: 2
     # Global intended validation batch size (framework-level metadata).
-    total_batch_size: 2
+    total_batch_size: 1
     # Keep tail batch for full-dataset evaluation coverage.
     drop_last: false
     collate_fn:

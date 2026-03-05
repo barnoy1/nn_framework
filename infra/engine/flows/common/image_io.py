@@ -18,8 +18,10 @@ def load_pil_image(image_path: Path) -> Image.Image:
     with Image.open(image_path) as image:
         if image.mode == "P" and isinstance(image.info.get("transparency"), bytes):
             prepared = image.convert("RGBA").convert("RGB")
-        elif image.mode in ("RGB", "L"):
+        elif image.mode == "RGB":
             prepared = image.copy()
+        elif image.mode == "L":
+            prepared = image.convert("RGB")
         elif "A" in image.mode:
             prepared = image.convert("RGBA").convert("RGB")
         else:

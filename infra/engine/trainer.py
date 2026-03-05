@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 from typing import Dict, Optional
 
 import numpy as np
@@ -97,6 +98,23 @@ class Trainer:
     def _train_one_epoch(self, epoch: int) -> Dict[str, float]:
         return train_one_epoch(self, epoch)
 
+    def _cleanup_gpu_memory(self, epoch: int) -> None:
+        if not torch.cuda.is_available():
+            return
+
+        device = self.accelerator.device
+        if not str(device).startswith("cuda"):
+            return
+
+        self.accelerator.wait_for_everyone()
+        gc.collect()
+        torch.cuda.empty_cache()
+        if hasattr(torch.cuda, "ipc_collect"):
+            torch.cuda.ipc_collect()
+
+        if self.accelerator.is_main_process:
+            self.logger.debug("Cleared CUDA cache at end of epoch={}", epoch)
+
     @torch.no_grad()
     def validate(self, epoch: int, score_thr: Optional[float] = None) -> Dict[str, float]:
         return validate_epoch(self, epoch, score_thr=score_thr)
@@ -134,5 +152,7 @@ class Trainer:
 
                 if self.accelerator.is_main_process:
                     self.logger.info("epoch={} metrics={}", epoch, merged_metrics)
+
+                self._cleanup_gpu_memory(epoch)
         finally:
             self.callbacks.on_train_end(self)

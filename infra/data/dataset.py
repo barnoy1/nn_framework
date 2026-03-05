@@ -90,7 +90,8 @@ class COCODetectionDataset(Dataset):
         rle_objects: Optional[List[dict]] = None
         if "segm" in self.iou_types:
             rle_objects = [ann.get("segmentation") for ann in annotations]
-            if self.transforms is not None:
+            needs_decoded_masks = (self.transforms is not None) and (not self.keep_rle)
+            if needs_decoded_masks:
                 masks_np = [self._decode_ann_mask(ann) for ann in annotations if ann.get("segmentation") is not None]
 
         if self.transforms is not None:
@@ -123,6 +124,14 @@ class COCODetectionDataset(Dataset):
 
         if image.ndim == 2:
             image = np.expand_dims(image, axis=-1)
+        if image.ndim != 3:
+            raise ValueError(f"Expected image to be HWC after transforms, got shape={image.shape}")
+
+        channels = int(image.shape[2])
+        if channels == 1:
+            image = np.repeat(image, 3, axis=2)
+        elif channels > 3:
+            image = image[:, :, :3]
 
         image_tensor = torch.from_numpy(image).permute(2, 0, 1).contiguous().float() / 255.0
 
