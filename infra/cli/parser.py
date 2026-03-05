@@ -11,7 +11,6 @@ ActionHandler = Callable[[argparse.Namespace], None]
 
 def add_common_arguments(target_parser: argparse.ArgumentParser, defaults: dict[str, Any]) -> None:
     target_parser.add_argument("--config", type=str, required=True)
-    target_parser.add_argument("--model-profile", default=defaults["model_profile"], choices=["r18", "r50"])
     target_parser.add_argument("--output-dir", type=str, default=defaults["output_dir"])
     target_parser.add_argument("--overrides", nargs="*", default=[])
 

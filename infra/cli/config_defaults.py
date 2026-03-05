@@ -61,7 +61,6 @@ def build_parser_defaults(config_path: str, action: str) -> dict[str, Any]:
         else {}
     )
     train_cfg = payload.get("train", {}) if isinstance(payload.get("train", {}), dict) else {}
-    model_cfg = payload.get("model", {}) if isinstance(payload.get("model", {}), dict) else {}
     data_cfg = payload.get("data", {}) if isinstance(payload.get("data", {}), dict) else {}
 
     device_default = str(runtime_common.get("device", "cuda"))
@@ -73,7 +72,6 @@ def build_parser_defaults(config_path: str, action: str) -> dict[str, Any]:
 
     defaults = {
         "config": str(resolve_config_path(config_path)),
-        "model_profile": str(model_cfg.get("variant", "r18")),
         "output_dir": str(runtime_common.get("output_dir", str(REPO_ROOT / "out"))),
         "device": device_default,
         "batch_size": int(runtime_common.get("batch_size", train_cfg.get("batch_size", 1))),
@@ -89,12 +87,8 @@ def build_parser_defaults(config_path: str, action: str) -> dict[str, Any]:
         "splits": splits_default,
     }
 
-    if "model_profile" in runtime_common:
-        defaults["model_profile"] = str(runtime_common["model_profile"])
-
     for key in (
         "output_dir",
-        "model_profile",
         "device",
         "batch_size",
         "num_workers",

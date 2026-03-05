@@ -11,6 +11,7 @@ from PIL import Image
 
 from infra.core import to_result_list
 from infra.data.preprocess import build_image_preprocess_from_loader
+from infra.engine.flows.common.image_io import load_pil_image
 from infra.utils.viz.visualize import render_prediction_with_yolo_caption
 
 
@@ -47,7 +48,7 @@ def run_eval_inference_loop(
 
     with torch.no_grad():
         for sample in samples:
-            original_image = Image.open(sample["image_path"]).convert("RGB")
+            original_image = load_pil_image(Path(sample["image_path"]))
             batch_tensor = transforms(original_image).unsqueeze(0).to(device)
             orig_sizes = torch.tensor([[original_image.size[0], original_image.size[1]]], device=device)
 
@@ -138,7 +139,7 @@ def run_eval_inference_loop(
 
             if saved_vis < int(vis_samples):
                 rendered = render_prediction_with_yolo_caption(
-                    image=np.asarray(original_image.copy()),
+                    image=np.asarray(original_image.convert("RGB")),
                     prediction=prediction,
                     class_id_to_name=class_id_to_name,
                     confidence_threshold=score_thr,

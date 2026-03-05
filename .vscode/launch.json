@@ -23,6 +23,27 @@
       "justMyCode": true
     },
     {
+      "name": "nn_framework: cli train IR",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/cli.py",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "train",
+        "--config",
+        "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle_IR.yaml",
+        "--output-dir",
+        "${workspaceFolder}/out"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
       "name": "nn_framework: cli eval",
       "type": "debugpy",
       "request": "launch",
@@ -33,7 +54,7 @@
       "args": [
         "eval",
         "--config",
-        "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
+        "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle_1ch.yaml",
         "--model-profile",
         "r18",
         "--output-dir",

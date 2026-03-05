@@ -8,6 +8,24 @@ import torch
 from PIL import Image, ImageDraw
 
 
+def _to_rgb_uint8(image_chw: torch.Tensor) -> np.ndarray:
+    image = image_chw.detach().cpu().permute(1, 2, 0).contiguous().numpy()
+    image = np.clip(image * 255.0, 0, 255).astype(np.uint8)
+
+    if image.ndim == 2:
+        image = np.repeat(image[:, :, None], 3, axis=2)
+    elif image.ndim == 3:
+        channels = image.shape[2]
+        if channels == 1:
+            image = np.repeat(image, 3, axis=2)
+        elif channels > 3:
+            image = image[:, :, :3]
+    else:
+        raise ValueError(f"Unsupported image shape for visualization: {image.shape}")
+
+    return image
+
+
 def _save_batch_visualization(
     *,
     output_root: Path,
@@ -21,8 +39,7 @@ def _save_batch_visualization(
     panels = []
     max_images = min(max(1, int(num_samples)), int(images.shape[0]))
     for index in range(max_images):
-        image = images[index].detach().cpu().permute(1, 2, 0).contiguous().numpy()
-        image = np.clip(image * 255.0, 0, 255).astype(np.uint8)
+        image = _to_rgb_uint8(images[index])
         pil_image = Image.fromarray(image)
         draw = ImageDraw.Draw(pil_image)
 

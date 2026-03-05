@@ -69,7 +69,6 @@ def run_inference(args: argparse.Namespace) -> None:
     invoke(
         SimpleNamespace(
             config=args.config,
-            model_profile=args.model_profile,
             checkpoint=checkpoint,
             onnx_model=getattr(args, "onnx_model", ""),
             input_dir=args.input_dir,

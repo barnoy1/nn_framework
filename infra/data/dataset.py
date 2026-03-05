@@ -121,6 +121,9 @@ class COCODetectionDataset(Dataset):
         if labels_tensor.ndim != 1:
             raise ValueError("Labels MUST be [N] tensor")
 
+        if image.ndim == 2:
+            image = np.expand_dims(image, axis=-1)
+
         image_tensor = torch.from_numpy(image).permute(2, 0, 1).contiguous().float() / 255.0
 
         target: Dict[str, torch.Tensor | List[dict]] = {

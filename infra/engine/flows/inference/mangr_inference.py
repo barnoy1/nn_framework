@@ -17,7 +17,6 @@ from infra.engine.flows.inference.pytorch_backend import run_pytorch
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="nn_framework inference manager")
     parser.add_argument("--config", required=True)
-    parser.add_argument("--model-profile", default="r18", choices=["r18", "r50"])
     parser.add_argument("--checkpoint", default="")
     parser.add_argument("--onnx-model", default="")
     parser.add_argument("--input-dir", required=True)

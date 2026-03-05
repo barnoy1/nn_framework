@@ -5,11 +5,11 @@ from pathlib import Path
 
 import numpy as np
 import torch
-import torchvision.transforms as T
 from PIL import Image
 
-from infra.engine.flows.common.image_io import list_images
+from infra.engine.flows.common.image_io import list_images, load_pil_image
 from infra.engine.flows.common.runtime import build_flow_runtime
+from infra.data.preprocess import build_image_preprocess_from_loader
 from infra.utils.viz.visualize import render_prediction_with_yolo_caption
 
 
@@ -18,7 +18,6 @@ def run_onnx(args, logger) -> None:
         raise ValueError("--onnx-model is required for ONNX inference")
 
     runtime = build_flow_runtime(
-        model_profile=args.model_profile,
         overrides=args.overrides,
         config_path=args.config,
         build_loaders=False,
@@ -33,7 +32,7 @@ def run_onnx(args, logger) -> None:
     session = ort.InferenceSession(args.onnx_model, providers=providers)
     input_name = session.get_inputs()[0].name
 
-    transforms = T.Compose([T.Resize((640, 640)), T.ToTensor()])
+    transforms = build_image_preprocess_from_loader(runtime.app_config.data.val_dataloader, logger=logger, default_size=640)
     image_paths = list_images(args.input_dir)
 
     logger.info("[mangr_inference] backend=onnx device={} images={} input={}", args.device, len(image_paths), args.input_dir)
@@ -45,7 +44,7 @@ def run_onnx(args, logger) -> None:
     processed = 0
     for start in range(0, len(image_paths), args.batch_size):
         batch_paths = image_paths[start : start + args.batch_size]
-        original_images = [Image.open(path).convert("RGB") for path in batch_paths]
+        original_images = [load_pil_image(path) for path in batch_paths]
         batch_tensor = torch.stack([transforms(image) for image in original_images], dim=0)
         orig_sizes = torch.tensor([[image.size[0], image.size[1]] for image in original_images], dtype=torch.int64)
 
@@ -54,7 +53,7 @@ def run_onnx(args, logger) -> None:
 
         for image_path, image, labels, boxes, scores in zip(batch_paths, original_images, labels_batch, boxes_batch, scores_batch):
             rendered = render_prediction_with_yolo_caption(
-                image=np.asarray(image.copy()),
+                image=np.asarray(image.convert("RGB")),
                 prediction={"labels": labels, "boxes": boxes, "scores": scores},
                 class_id_to_name=runtime.built.class_id_to_name,
                 confidence_threshold=args.score_thr,

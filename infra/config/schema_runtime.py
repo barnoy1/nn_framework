@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class CommonConfig(BaseModel):
-    model_profile: str = "r18"
     output_dir: str = "output"
     checkpoint: str = ""
     device: str = "cuda"

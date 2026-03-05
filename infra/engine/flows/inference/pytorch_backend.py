@@ -9,7 +9,7 @@ from PIL import Image
 
 from infra.core import to_result_list
 from infra.data.preprocess import build_image_preprocess_from_loader
-from infra.engine.flows.common.image_io import list_images
+from infra.engine.flows.common.image_io import list_images, load_pil_image
 from infra.engine.flows.common.runtime import build_flow_runtime
 from infra.utils.viz.visualize import render_prediction_with_yolo_caption
 
@@ -19,7 +19,6 @@ def run_pytorch(args, logger) -> None:
         raise ValueError("--checkpoint is required for PyTorch inference")
 
     runtime = build_flow_runtime(
-        model_profile=args.model_profile,
         overrides=args.overrides,
         config_path=args.config,
         build_loaders=False,
@@ -56,7 +55,7 @@ def run_pytorch(args, logger) -> None:
     processed = 0
     for start in range(0, len(image_paths), args.batch_size):
         batch_paths = image_paths[start : start + args.batch_size]
-        original_images = [Image.open(path).convert("RGB") for path in batch_paths]
+        original_images = [load_pil_image(path) for path in batch_paths]
         batch_tensor = torch.stack([transforms(image) for image in original_images], dim=0).to(device)
         orig_sizes = torch.tensor([[image.size[0], image.size[1]] for image in original_images], device=device)
 
@@ -70,7 +69,7 @@ def run_pytorch(args, logger) -> None:
             scores = result["scores"].detach().cpu().numpy()
 
             rendered = render_prediction_with_yolo_caption(
-                image=np.asarray(image.copy()),
+                image=np.asarray(image.convert("RGB")),
                 prediction=result,
                 class_id_to_name=class_id_to_name,
                 confidence_threshold=args.score_thr,

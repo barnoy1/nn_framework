@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -37,10 +37,11 @@ class ModelLossesConfig(BaseModel):
 
 
 class ModelConfig(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     source_root: str
     official_config_path: Optional[str] = None
     model_config_path: Optional[str] = None
-    variant: Literal["r18", "r50"]
     num_classes: int
     num_queries: int
     hidden_dim: int

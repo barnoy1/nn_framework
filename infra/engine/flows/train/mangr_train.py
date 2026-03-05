@@ -28,7 +28,6 @@ from infra.engine.trainer import Trainer
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="nn_framework training manager")
     parser.add_argument("--config", required=True)
-    parser.add_argument("--model-profile", default="r18", choices=["r18", "r50"])
     parser.add_argument("--checkpoint", default="")
     parser.add_argument("--overrides", nargs="*", default=[])
     return parser.parse_args()
@@ -40,7 +39,14 @@ def invoke(args) -> None:
    
     if str(args.checkpoint).strip():
         state = runtime.wrapper.load_checkpoint_state(str(args.checkpoint))
-        runtime.wrapper.validate_checkpoint_class_compatibility(runtime.built.model, state)
+        try:
+            runtime.wrapper.validate_checkpoint_class_compatibility(runtime.built.model, state)
+        except RuntimeError as exc:
+            logger.warning(
+                "Checkpoint compatibility warning during training warm-start: {}. "
+                "Continuing with partial state load (classification heads may be re-initialized).",
+                exc,
+            )
         loaded, skipped, missing = runtime.wrapper.safe_load_state_dict(runtime.built.model, state)
         logger.info("Loaded training checkpoint tensors={}, skipped_shape={}, missing={}", loaded, skipped, missing)
 

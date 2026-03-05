@@ -68,6 +68,11 @@ def build_image_preprocess_from_loader(
             if op_type == "convertpilimage":
                 continue
 
+            if op_type == "togray":
+                num_output_channels = int(op.get("num_output_channels", 1))
+                ops.append(T.Grayscale(num_output_channels=num_output_channels))
+                continue
+
             if op_type == "normalize":
                 mean = op.get("mean")
                 std = op.get("std")

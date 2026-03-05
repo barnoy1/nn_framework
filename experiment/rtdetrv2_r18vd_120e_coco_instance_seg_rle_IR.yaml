@@ -4,11 +4,9 @@ model:
   # Filesystem root of the concrete model repository implementation.
   source_root: raw_models/RT-DETR/rtdetrv2_pytorch
   # Baseline model recipe used by wrapper/model builder.
-  model_config_path: configs/rtdetrv2/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yml
-  # Model-specific backbone variant (wrapper-owned, not framework-agnostic).
-  variant: r18
+  model_config_path: configs/rtdetrv2/rtdetrv2_r18vd_120e_coco_instance_seg_rle_1ch.yml
   # Number of classifier outputs expected from the head.
-  num_classes: 80
+  num_classes: 10
   # Number of object queries decoded per image.
   num_queries: 300
   # Transformer hidden channel width.
@@ -119,7 +117,7 @@ data:
     # IoU tasks to compute metrics for.
     iou_types: [bbox, segm]
   # Declared dataset class space size.
-  num_classes: 80
+  num_classes: 10
   # Compatibility flag for COCO-style category remap paths.
   remap_mscoco_category: true
   mapping:
@@ -127,7 +125,7 @@ data:
     0: 4
 
   # Canonical mapping from class index to class name used by logs/visualization.
-  label2classid: &label2classid {0: person, 1: bicycle, 2: car, 3: motorcycle, 4: airplane, 5: bus, 6: train, 7: truck, 8: boat, 9: traffic light, 10: fire hydrant, 11: stop sign, 12: parking meter, 13: bench, 14: bird, 15: cat, 16: dog, 17: horse, 18: sheep, 19: cow, 20: elephant, 21: bear, 22: zebra, 23: giraffe, 24: backpack, 25: umbrella, 26: handbag, 27: tie, 28: suitcase, 29: frisbee, 30: skis, 31: snowboard, 32: sports ball, 33: kite, 34: baseball bat, 35: baseball glove, 36: skateboard, 37: surfboard, 38: tennis racket, 39: bottle, 40: wine glass, 41: cup, 42: fork, 43: knife, 44: spoon, 45: bowl, 46: banana, 47: apple, 48: sandwich, 49: orange, 50: broccoli, 51: carrot, 52: hot dog, 53: pizza, 54: donut, 55: cake, 56: chair, 57: couch, 58: potted plant, 59: bed, 60: dining table, 61: toilet, 62: tv, 63: laptop, 64: mouse, 65: remote, 66: keyboard, 67: cell phone, 68: microwave, 69: oven, 70: toaster, 71: sink, 72: refrigerator, 73: book, 74: clock, 75: vase, 76: scissors, 77: teddy bear, 78: hair drier, 79: toothbrush}
+  label2classid: &label2classid {0: person, 1: bicycle, 2: car, 3: motorcycle, 4: airplane, 5: bus, 6: train, 7: truck, 8: boat, 9: traffic light}
   # Alias used by visualizers/inference output label rendering.
   class_id_to_name: *label2classid
 
@@ -154,12 +152,18 @@ data:
           - {type: RandomVerticalFlip, p: 0.2}
           # Geometric: rotation in degrees range [-limit, +limit].
           - {type: Rotate, limit: 15, p: 0.3}
-          # Image-only color jitter in HSV space (annotations unchanged).
-          - {type: HueSaturationValue, hue_shift_limit: 12, sat_shift_limit: 24, val_shift_limit: 12, p: 0.3}
-          # Image-only contrast/brightness change.
-          - {type: RandomBrightnessContrast, p: 0.3}
-          # Image-only grayscale conversion (keeps 3 channels).
-          - {type: ToGray, p: 0.2}
+          # Convert VIS RGB input to IR-like single-channel intensity.
+          - {type: ToGray, num_output_channels: 1, p: 1.0}
+          # Local contrast equalization (thermal-like texture emphasis).
+          - {type: CLAHE, clip_limit: 3.0, tile_grid_size: [8, 8], p: 0.6}
+          # Global intensity/contrast variation for emissivity-like shifts.
+          - {type: RandomBrightnessContrast, brightness_limit: 0.15, contrast_limit: 0.25, p: 0.5}
+          # Gamma perturbation to mimic IR response curve changes.
+          - {type: RandomGamma, gamma_limit: [70, 140], p: 0.4}
+          # Sensor-like noise seen in thermal imagery.
+          - {type: GaussNoise, var_limit: [8.0, 40.0], p: 0.35}
+          # Slight optical/sensor blur.
+          - {type: GaussianBlur, blur_limit: [3, 5], p: 0.2}
           # Final spatial normalization to model input size.
           - {type: Resize, size: [640, 640]}
           # Convert image to float tensor-like representation with scaling.
@@ -200,6 +204,8 @@ data:
         ops:
           # Deterministic resize for validation/inference parity.
           - {type: Resize, size: [640, 640]}
+          # Deterministic VIS->IR-like conversion for eval/inference parity.
+          - {type: ToGray, num_output_channels: 1, p: 1.0}
           # Convert image to scaled float representation.
           - {type: ConvertPILImage, dtype: 'float32', scale: true}
     # Keep deterministic order for reproducible eval.

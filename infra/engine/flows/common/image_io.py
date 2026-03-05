@@ -14,10 +14,18 @@ def list_images(folder: str) -> List[Path]:
     return [path for path in sorted(root.iterdir()) if path.suffix.lower() in IMG_EXTS]
 
 
-def load_rgb_image(image_path: Path) -> np.ndarray:
+def load_pil_image(image_path: Path) -> Image.Image:
     with Image.open(image_path) as image:
         if image.mode == "P" and isinstance(image.info.get("transparency"), bytes):
-            image = image.convert("RGBA").convert("RGB")
+            prepared = image.convert("RGBA").convert("RGB")
+        elif image.mode in ("RGB", "L"):
+            prepared = image.copy()
+        elif "A" in image.mode:
+            prepared = image.convert("RGBA").convert("RGB")
         else:
-            image = image.convert("RGB")
-        return np.array(image)
+            prepared = image.convert("RGB")
+        return prepared
+
+
+def load_rgb_image(image_path: Path) -> np.ndarray:
+    return np.array(load_pil_image(image_path))

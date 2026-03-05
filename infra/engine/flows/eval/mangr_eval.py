@@ -21,7 +21,6 @@ from infra.utils.log.logger import logger
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="nn_framework evaluation manager")
     parser.add_argument("--config", required=True)
-    parser.add_argument("--model-profile", default="r18", choices=["r18", "r50"])
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--vis-samples", type=int, default=16)
