@@ -29,7 +29,7 @@ def _resolve_relocated_experiment_path(candidate: Path) -> Path | None:
     return None
 
 
-def load_app_config(model_profile: str, overrides: List[str], config_path: str) -> AppConfig:
+def load_app_config(overrides: List[str], config_path: str) -> AppConfig:
     config_dir = INFRA_ROOT / "config" / "hydra"
 
     config_file = Path(config_path).expanduser()

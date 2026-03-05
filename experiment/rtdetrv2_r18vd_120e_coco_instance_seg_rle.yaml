@@ -72,7 +72,7 @@ model:
     
 train:
   # Total training epochs.
-  epochs: 120
+  epochs: 2
   # Per-step training batch size.
   batch_size: 8
   # Per-step validation batch size.
@@ -164,13 +164,6 @@ data:
           - {type: ConvertPILImage, dtype: 'float32', scale: true}
           # Convert GT boxes to normalized cxcywh expected by model/loss.
           - {type: ConvertBoxes, fmt: 'cxcywh', normalize: true}
-        policy:
-          # Policy trigger type.
-          name: stop_epoch
-          # Epoch to disable listed heavy augmentations.
-          epoch: 71
-          # Augmentations affected by policy.
-          ops: ['RandomVerticalFlip', 'Rotate', 'HueSaturationValue', 'RandomBrightnessContrast']
     # Shuffle training data each epoch.
     shuffle: true
     # Worker count for train loader.
@@ -244,7 +237,7 @@ runtime:
     print_flops: false
     print_params: false
     # Runtime epoch override.
-    epoches: 120
+    epoches: 2
     # Shared confidence threshold for evaluation metrics (train validation + eval flow).
     score_threshold: 0.3
 

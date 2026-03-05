@@ -18,7 +18,6 @@ def main() -> None:
     args = parse_args()
     run_root = prepare_run_layout(args)
     args.run_root = str(run_root)
-    os.environ["NN_FRAMEWORK_RUN_DIR"] = str(run_root)
     setup_logger(force=True)
     logger.info("Run directory: {}", run_root)
     args.handler(args)

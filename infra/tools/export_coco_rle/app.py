@@ -6,8 +6,8 @@ from pathlib import Path
 
 from tabulate import tabulate
 
-from infra.adapters import LoguruLoggerAdapter
 from infra.utils.log import setup_logger
+from infra.utils.log.logger import logger
 
 from .args import parse_arguments
 from .config_service import load_data_config
@@ -17,7 +17,6 @@ from .conversion_service import build_coco_for_split, save_coco_json
 def run() -> None:
     args = parse_arguments()
     setup_logger(force=True)
-    logger = LoguruLoggerAdapter()
 
     conf_data_path = Path(args.conf_data).expanduser()
     if not conf_data_path.is_absolute():

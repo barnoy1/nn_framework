@@ -20,8 +20,8 @@ class FlowRuntime:
     val_loader: Optional[DataLoader]
 
 
-def build_flow_runtime(model_profile: str, overrides: List[str], config_path: str, build_loaders: bool = True) -> FlowRuntime:
-    config = load_app_config(model_profile=model_profile, overrides=overrides, config_path=config_path)
+def build_flow_runtime(overrides: List[str], config_path: str, build_loaders: bool = True) -> FlowRuntime:
+    config = load_app_config(overrides=overrides, config_path=config_path)
     if build_loaders:
         config.ensure_output_dir()
     prepare_data_if_needed(config)

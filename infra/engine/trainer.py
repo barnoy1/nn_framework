@@ -7,7 +7,6 @@ import torch
 from accelerate import Accelerator
 from accelerate.utils import set_seed
 
-from ..adapters import LoguruLoggerAdapter
 from .callbacks import CallbackList
 from ..config import AppConfig
 from .model import ModelWrapperAdapter
@@ -17,7 +16,7 @@ from .training import (
 from .trainer_epoch import train_one_epoch
 from .trainer_eval import run_baseline_eval_sanity, validate_epoch
 from .trainer_utils import compute_validation_loss_components_for_trainer, split_loss_components
-
+from infra.utils.log.logger import logger
 
 class Trainer:
     def __init__(
@@ -48,7 +47,7 @@ class Trainer:
         self.ema_model = ema_model
         self.model_wrapper = model_wrapper
         self.experiment_name = experiment_name
-        self.logger = logger_port or LoguruLoggerAdapter()
+        self.logger = logger_port or logger
 
         set_seed(self.app_config.train.seed)
 
