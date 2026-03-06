@@ -19,24 +19,21 @@ model:
   losses:
     # Concrete criterion loss-to-coefficient pairing (used for optimization + reporting groups).
     # Grouping policy:
-    #   - box / cls / dfl: core detection losses (generic defaults)
-    #   - custom: model-specific losses under test (RT-DETRv2-specific variants)
+    #   - adapter_common: framework-agnostic/common (YOLO-like) losses
+    #   - concrete_model: model-specific (RT-DETRv2) losses
     # Prefix entries (for example: loss_bbox_aux_) match all indexed losses like loss_bbox_aux_0, loss_bbox_aux_1, ...
+    fallback_to_model_default: true
     criterion_pairs:
-      box:
+      adapter_common:
         - loss: loss_bbox
           coef: 5.0
         - loss: loss_giou
           coef: 2.0
-      cls:
         - loss: loss_vfl
           coef: 5.0
         - loss: loss_focal
           coef: 5.0
-      dfl:
-        - loss: loss_dfl
-          coef: 1.0
-      custom:
+      concrete_model:
         # RT-DETRv2-specific auxiliary supervision variants.
         - loss: loss_bbox_aux_
           coef: 5.0

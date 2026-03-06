@@ -102,6 +102,41 @@ class COCODetectionDataset(Dataset):
             if "segm" in self.iou_types and transformed.masks is not None:
                 masks_np = [np.asarray(mask, dtype=np.uint8) for mask in transformed.masks]
 
+        image_h = int(image.shape[0])
+        image_w = int(image.shape[1])
+        clean_boxes: List[List[float]] = []
+        clean_labels: List[int] = []
+        clean_masks: Optional[List[np.ndarray]] = [] if masks_np is not None else None
+
+        count = min(len(boxes_xyxy), len(labels))
+        for item_idx in range(count):
+            box = boxes_xyxy[item_idx]
+            if len(box) < 4:
+                continue
+
+            x1, y1, x2, y2 = float(box[0]), float(box[1]), float(box[2]), float(box[3])
+            if not np.isfinite([x1, y1, x2, y2]).all():
+                continue
+
+            x1 = max(0.0, min(float(image_w), x1))
+            y1 = max(0.0, min(float(image_h), y1))
+            x2 = max(0.0, min(float(image_w), x2))
+            y2 = max(0.0, min(float(image_h), y2))
+            if x2 <= x1 or y2 <= y1:
+                continue
+
+            clean_boxes.append([x1, y1, x2, y2])
+            clean_labels.append(int(labels[item_idx]))
+            if clean_masks is not None and item_idx < len(masks_np):
+                clean_masks.append(np.asarray(masks_np[item_idx], dtype=np.uint8))
+
+        boxes_xyxy = clean_boxes
+        labels = clean_labels
+        masks_np = clean_masks
+
+        if not boxes_xyxy and self.filter_empty_targets:
+            return self[(index + 1) % len(self)]
+
         if len(boxes_xyxy) == 0:
             boxes_tensor_xyxy = torch.zeros((0, 4), dtype=torch.float32)
             boxes_tensor_cxcywh = torch.zeros((0, 4), dtype=torch.float32)
@@ -128,9 +163,7 @@ class COCODetectionDataset(Dataset):
             raise ValueError(f"Expected image to be HWC after transforms, got shape={image.shape}")
 
         channels = int(image.shape[2])
-        if channels == 1:
-            image = np.repeat(image, 3, axis=2)
-        elif channels > 3:
+        if channels > 3:
             image = image[:, :, :3]
 
         image_tensor = torch.from_numpy(image).permute(2, 0, 1).contiguous().float() / 255.0

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import sys
 
 from infra.utils.log import logger, setup_logger
@@ -18,6 +17,6 @@ def main() -> None:
     args = parse_args()
     run_root = prepare_run_layout(args)
     args.run_root = str(run_root)
-    setup_logger(force=True)
+    setup_logger(force=True, run_root=run_root)
     logger.info("Run directory: {}", run_root)
     args.handler(args)

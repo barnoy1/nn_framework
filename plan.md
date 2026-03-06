@@ -353,3 +353,134 @@ Additionally, SOLID acceptance must hold:
 - L: concrete wrappers are interchangeable under the contract.
 - I: interface remains capability-focused and minimal.
 - D: framework code depends only on abstractions, never concrete backend classes.
+
+---
+
+# Dual-Criterion Loss Plan (Agnostic + Concrete)
+
+## Goal
+
+Introduce two coordinated criteria in the training/eval loss path:
+1. an agnostic adapter criterion for YOLO-like/common losses,
+2. a concrete adapter criterion for model-specific losses,
+
+with deterministic fallback behavior:
+- if a loss is not found in experiment config, use model default coefficient.
+
+## Current behavior snapshot
+
+- Framework currently executes a single criterion in trainer paths (`trainer.criterion(outputs, targets)`).
+- RT-DETR wrapper applies coefficient logic through `nn_wrapper/builder_loss_control.py` against one criterion `weight_dict`.
+- Loss splitting/reporting (`box/cls/dfl/custom`) is already centralized in framework (`infra/engine/training/loss_components.py`).
+
+## Target behavior
+
+- Keep trainer call shape unchanged (single callable criterion from framework POV).
+- Internally compose two criterion handlers:
+  - **AgnosticYoloCriterionAdapter**: owns common losses (`loss_bbox`, `loss_giou`, `loss_vfl`/`loss_focal`, optional `loss_dfl`).
+  - **ConcreteCriterionAdapter**: owns model-specific variants (`*_aux_*`, `*_dn_*`, `*_enc_*`, and other backend-specific keys).
+- Merge outputs into one loss dict for backward-compatible logging/metrics/callbacks.
+
+## File structure plan (SOLID-aligned)
+
+Create explicit criterion modules split by responsibility:
+
+- Framework-common (agnostic, reusable):
+  - `infra/engine/training/criteria/common/yolo_common_criterion.py`
+    - implements YOLO-like/common loss handling only.
+  - `infra/engine/training/criteria/common/spec_resolver.py`
+    - resolves configured coefficients + fallback-to-default policy.
+  - `infra/engine/training/criteria/common/composite_criterion.py`
+    - orchestrates multiple criterion adapters and merges results.
+
+- Adapter/concrete (model-specific extension point):
+  - `raw_models/RT-DETR/rtdetrv2_pytorch/nn_wrapper/criteria/concrete_criterion_adapter.py`
+    - applies RT-DETR-specific loss logic and variant keys.
+
+- Optional shared interface contract:
+  - `infra/engine/training/criteria/base.py`
+    - defines criterion adapter protocol/ABC used by common + concrete adapters.
+
+SOLID ownership rules:
+- **S (Single Responsibility):** each criterion file handles one concern (common, concrete, resolver, composite).
+- **O (Open/Closed):** new models add only new concrete adapter files under their wrapper path.
+- **L (Liskov):** all adapters satisfy one criterion adapter contract and are interchangeable in composite.
+- **I (Interface Segregation):** adapter interface exposes only `compute(outputs, targets)` + metadata needed for merge.
+- **D (Dependency Inversion):** composite depends on adapter abstraction, not RT-DETR concrete classes.
+
+## Configuration plan
+
+Extend `model.losses` schema to support explicit dual groups:
+
+- `criterion_pairs.adapter_common`
+  - common/agnostic loss specs
+- `criterion_pairs.concrete_model`
+  - backend-specific loss specs
+- `fallback_to_model_default: true`
+  - when loss key not explicitly configured, resolve to concrete model criterion default (`weight_dict`).
+
+Backward compatibility:
+- keep reading existing `criterion_pairs.{box,cls,dfl,custom}` for one migration window;
+- map legacy groups to the new dual groups deterministically.
+
+## Resolution & precedence policy
+
+For each effective loss key (including indexed suffixes):
+
+1. `concrete_model` explicit match (exact/prefix) wins.
+2. else `adapter_common` explicit match.
+3. else if `fallback_to_model_default=true`, use concrete criterion `weight_dict[key]` or base-key fallback.
+4. else coefficient = `0.0`.
+
+Matching semantics:
+- exact name matches exact key,
+- names ending with `_` are treated as prefix patterns.
+
+## Implementation phases
+
+### Phase 1 — Schema
+- Update `infra/config/schema_model.py` with dual criterion structures and fallback flag.
+- Add validators for finite, non-negative coefficients.
+
+### Phase 2 — Resolver
+- Add a shared loss-spec resolver in framework training/model layer to:
+  - normalize aliases,
+  - resolve coefficient by precedence,
+  - expose debug map: `loss_key -> {source, coef}`.
+
+### Phase 3 — Dual adapters
+- Add `AgnosticYoloCriterionAdapter` in `infra/engine/training/criteria/common/yolo_common_criterion.py`.
+- Add `ConcreteCriterionAdapter` in `raw_models/RT-DETR/rtdetrv2_pytorch/nn_wrapper/criteria/concrete_criterion_adapter.py`.
+- Both return loss dicts with stable key naming.
+
+### Phase 4 — Composite criterion
+- Add `CompositeCriterion` callable in `infra/engine/training/criteria/common/composite_criterion.py` that executes both adapters and returns merged dict.
+- Conflict policy: deterministic (prefer concrete on exact duplicate key).
+
+### Phase 5 — Builder integration
+- In RT-DETR `nn_wrapper/builder.py`, continue building native criterion.
+- Wrap/augment with composite criterion and return through `BuiltComponents.criterion`.
+- Keep trainer/eval code unchanged.
+
+### Phase 6 — Logging/reporting compatibility
+- Preserve existing metric keys (`train/criterion/*`, `val/criterion/*`).
+- Optionally add diagnostic artifact showing resolved source (`common` vs `concrete` vs `default`).
+
+### Phase 7 — Validation tests
+- Add focused tests for:
+  - precedence correctness,
+  - prefix expansion behavior,
+  - fallback-to-default behavior,
+  - merge stability with overlapping keys.
+
+### Phase 8 — YAML migration
+- Update experiment YAML examples to the new structure.
+- Keep legacy format accepted with deprecation warning for migration window.
+
+## Definition of done (for this feature)
+
+- Two-criterion architecture is active behind one trainer criterion call.
+- Agnostic/common and concrete/model-specific losses are both executed.
+- Missing config losses correctly fallback to model defaults.
+- Existing training/eval logging remains backward compatible.
+- New schema + resolver + tests pass and are documented.

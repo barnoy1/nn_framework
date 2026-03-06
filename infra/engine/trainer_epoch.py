@@ -13,6 +13,7 @@ from .trainer_utils import (
     save_train_batch_visualization_for_trainer,
     split_loss_components,
     targets_have_valid_boxes,
+    warn_unmatched_configured_losses,
 )
 
 
@@ -82,6 +83,8 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
                 )
             trainer.optimizer.zero_grad(set_to_none=True)
             continue
+
+        warn_unmatched_configured_losses(trainer, loss_dict)
 
         trainer.optimizer.zero_grad(set_to_none=True)
         trainer.accelerator.backward(loss)

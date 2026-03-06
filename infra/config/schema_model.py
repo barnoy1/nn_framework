@@ -1,28 +1,74 @@
 from __future__ import annotations
 
+import math
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class CriterionLossPair(BaseModel):
     loss: str
     coef: Optional[float] = None
 
+    @field_validator("coef")
+    @classmethod
+    def validate_coef(cls, value: Optional[float]) -> Optional[float]:
+        if value is None:
+            return value
+        numeric = float(value)
+        if not math.isfinite(numeric):
+            raise ValueError("loss coefficient must be finite")
+        if numeric < 0.0:
+            raise ValueError("loss coefficient must be non-negative")
+        return numeric
+
 
 class CriterionLossPairs(BaseModel):
+    # Legacy groups (kept for backward compatibility).
     box: list[CriterionLossPair] = Field(default_factory=list)
     cls: list[CriterionLossPair] = Field(default_factory=list)
     dfl: list[CriterionLossPair] = Field(default_factory=list)
     custom: list[CriterionLossPair] = Field(default_factory=list)
 
+    # New dual-criterion groups.
+    adapter_common: list[CriterionLossPair] = Field(default_factory=list)
+    concrete_model: list[CriterionLossPair] = Field(default_factory=list)
+
     @model_validator(mode="after")
-    def validate_required_groups(self) -> "CriterionLossPairs":
-        if len(self.box) == 0:
-            raise ValueError("model.losses.criterion_pairs.box must include at least one loss")
-        if len(self.cls) == 0:
-            raise ValueError("model.losses.criterion_pairs.cls must include at least one loss")
+    def normalize_dual_groups(self) -> "CriterionLossPairs":
+        if len(self.adapter_common) == 0:
+            self.adapter_common = [*self.box, *self.cls, *self.dfl]
+
+        if len(self.concrete_model) == 0:
+            self.concrete_model = [*self.custom]
+
+        # Keep legacy groups available for existing framework components.
+        if len(self.box) == 0 and len(self.cls) == 0 and len(self.dfl) == 0:
+            for item in self.adapter_common:
+                normalized = str(item.loss).strip().lower()
+                if "dfl" in normalized:
+                    self.dfl.append(item)
+                elif any(token in normalized for token in ("bbox", "giou", "boxes")):
+                    self.box.append(item)
+                elif any(token in normalized for token in ("vfl", "focal", "cls", "label")):
+                    self.cls.append(item)
+
+        if len(self.custom) == 0 and len(self.concrete_model) > 0:
+            self.custom = [*self.concrete_model]
+
+        if len(self.adapter_common) == 0 and len(self.concrete_model) == 0:
+            raise ValueError(
+                "model.losses.criterion_pairs must define losses in legacy groups "
+                "(box/cls/dfl/custom) or new groups (adapter_common/concrete_model)"
+            )
+
         return self
+
+    def iter_adapter_common(self) -> list[CriterionLossPair]:
+        return [*self.adapter_common]
+
+    def iter_concrete_model(self) -> list[CriterionLossPair]:
+        return [*self.concrete_model]
 
 
 class ModelLossesConfig(BaseModel):
@@ -33,6 +79,7 @@ class ModelLossesConfig(BaseModel):
     giou_loss_coef: Optional[float] = None
     dn_cls_loss_coef: Optional[float] = None
     dn_bbox_loss_coef: Optional[float] = None
+    fallback_to_model_default: bool = True
     criterion_pairs: CriterionLossPairs = Field(default_factory=CriterionLossPairs)
 
 

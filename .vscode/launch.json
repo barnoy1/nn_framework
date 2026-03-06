@@ -55,8 +55,6 @@
         "eval",
         "--config",
         "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle_1ch.yaml",
-        "--model-profile",
-        "r18",
         "--output-dir",
         "${workspaceFolder}/out",
         "--checkpoint",
@@ -82,8 +80,6 @@
         "inference",
         "--config",
         "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
-        "--model-profile",
-        "r18",
         "--checkpoint",
         "${workspaceFolder}/weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth",
         "--input-dir",
@@ -92,10 +88,6 @@
         "${workspaceFolder}/out",
         "--device",
         "cuda",
-        "--batch-size",
-        "1",
-        "--num-workers",
-        "2"
       ],
       "env": {
         "PYTHONUNBUFFERED": "1"
@@ -124,11 +116,7 @@
         "--output-dir",
         "${workspaceFolder}/out",
         "--device",
-        "cuda",
-        "--batch-size",
-        "1",
-        "--num-workers",
-        "2"
+        "cuda"
       ],
       "env": {
         "PYTHONUNBUFFERED": "1"

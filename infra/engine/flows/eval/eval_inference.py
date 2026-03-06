@@ -51,9 +51,14 @@ def run_eval_inference_loop(
             original_image = load_pil_image(Path(sample["image_path"]))
             batch_tensor = transforms(original_image).unsqueeze(0).to(device)
             orig_sizes = torch.tensor([[original_image.size[0], original_image.size[1]]], device=device)
+            transformed_sizes = torch.tensor(
+                [[int(batch_tensor.shape[-1]), int(batch_tensor.shape[-2])]],
+                device=device,
+            )
 
             outputs = model_eval(batch_tensor)
             prediction = to_result_list(outputs, post_eval, orig_sizes)[0]
+            prediction_for_vis = to_result_list(outputs, post_eval, transformed_sizes)[0]
 
             raw_pred = {
                 "labels": prediction["labels"].detach().cpu().long(),
@@ -138,9 +143,19 @@ def run_eval_inference_loop(
                     confusion_events.append((None, int(pred_labels[pred_idx].item())))
 
             if saved_vis < int(vis_samples):
+                vis_tensor = batch_tensor[0].detach().cpu()
+                if vis_tensor.ndim != 3:
+                    raise ValueError(f"Expected CHW tensor for visualization, got shape={tuple(vis_tensor.shape)}")
+
+                if int(vis_tensor.shape[0]) == 1:
+                    vis_tensor = vis_tensor.repeat(3, 1, 1)
+                elif int(vis_tensor.shape[0]) > 3:
+                    vis_tensor = vis_tensor[:3]
+
+                vis_image = (vis_tensor.clamp(0.0, 1.0).permute(1, 2, 0).numpy() * 255.0).astype(np.uint8)
                 rendered = render_prediction_with_yolo_caption(
-                    image=np.asarray(original_image.convert("RGB")),
-                    prediction=prediction,
+                    image=vis_image,
+                    prediction=prediction_for_vis,
                     class_id_to_name=class_id_to_name,
                     confidence_threshold=score_thr,
                 )

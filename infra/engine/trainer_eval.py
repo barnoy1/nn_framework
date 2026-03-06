@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Dict, Optional
 
 from .flows.eval.eval_artifacts import run_eval_artifacts
-from .trainer_utils import compute_validation_loss_components_for_trainer
+from .trainer_utils import compute_validation_loss_components_for_trainer, save_eval_batch_visualizations_for_trainer
 from .training import use_ema_weights_for_eval
 
 
@@ -31,6 +31,7 @@ def validate_epoch(trainer, epoch: int, score_thr: Optional[float] = None) -> Di
             image_epoch_suffix=epoch + 1,
             write_metrics_json=True,
             diagnostics=diagnostics,
+            use_deploy_model=False,
         )
         val_loss_metrics = compute_validation_loss_components_for_trainer(trainer)
         metrics = metrics | val_loss_metrics
@@ -55,6 +56,11 @@ def run_baseline_eval_sanity(trainer, epoch: int = -1, score_thr: Optional[float
             epoch,
             resolved_score_thr,
         )
+        save_eval_batch_visualizations_for_trainer(
+            trainer,
+            epoch_suffix=None,
+            max_batches=3,
+        )
     unwrapped_model = trainer.accelerator.unwrap_model(trainer.model)
     class_id_to_name = {int(key): str(value) for key, value in (trainer.app_config.data.class_id_to_name or {}).items()}
     diagnostics: Dict[str, object] = {}
@@ -71,6 +77,7 @@ def run_baseline_eval_sanity(trainer, epoch: int = -1, score_thr: Optional[float
         image_epoch_suffix=epoch + 1,
         write_metrics_json=True,
         diagnostics=diagnostics,
+        use_deploy_model=False,
     )
     trainer.last_validation_confusion_matrix = diagnostics.get("confusion_matrix")
     trainer.last_validation_confusion_labels = diagnostics.get("confusion_labels", [])

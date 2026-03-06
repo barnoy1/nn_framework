@@ -20,6 +20,10 @@ class LossComponentSplitter:
             "dfl": [canonical_loss_alias(str(item.loss)) for item in configured_pairs.dfl],
             "custom": [canonical_loss_alias(str(item.loss)) for item in configured_pairs.custom],
         }
+
+        if not terms["custom"]:
+            terms["custom"] = [canonical_loss_alias(str(item.loss)) for item in configured_pairs.iter_concrete_model()]
+
         return cls(terms=terms)
 
     @staticmethod

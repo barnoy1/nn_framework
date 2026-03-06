@@ -251,25 +251,30 @@ class MLflowCallback(Callback):
 
     def on_batch_end(self, trainer: "Trainer", epoch: int, step: int, metrics: Dict[str, float]) -> None:
         if self._active and trainer.accelerator.is_main_process:
+            log_every = max(1, int(trainer.app_config.train.log_every_n_steps))
+            if step % log_every != 0:
+                return
             current_step = self._step(trainer.global_step)
-            mlflow.log_metric("epoch", float(epoch), step=current_step)
-            mlflow.log_metric("step", float(step), step=current_step)
+            payload = {"epoch": float(epoch), "step": float(step)}
             for key, value in metrics.items():
-                mlflow.log_metric(key, float(value), step=current_step)
+                payload[key] = float(value)
+            mlflow.log_metrics(payload, step=current_step)
 
     def on_validation_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
         if self._active and trainer.accelerator.is_main_process:
             current_step = self._step(trainer.global_step)
-            mlflow.log_metric("epoch", float(epoch), step=current_step)
+            payload = {"epoch": float(epoch)}
             for key, value in metrics.items():
-                mlflow.log_metric(f"val/{key}", float(value), step=current_step)
+                payload[f"val/{key}"] = float(value)
+            mlflow.log_metrics(payload, step=current_step)
 
     def on_epoch_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
         if self._active and trainer.accelerator.is_main_process:
             current_step = self._step(trainer.global_step)
-            mlflow.log_metric("epoch", float(epoch), step=current_step)
+            payload = {"epoch": float(epoch)}
             for key, value in metrics.items():
-                mlflow.log_metric(str(key), float(value), step=current_step)
+                payload[str(key)] = float(value)
+            mlflow.log_metrics(payload, step=current_step)
 
     def on_train_end(self, trainer: "Trainer") -> None:
         if self._active and self._owns_run:

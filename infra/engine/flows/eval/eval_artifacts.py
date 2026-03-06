@@ -49,6 +49,7 @@ def run_eval_artifacts(
     image_epoch_suffix: Optional[int] = None,
     write_metrics_json: bool = True,
     diagnostics: Optional[Dict[str, Any]] = None,
+    use_deploy_model: bool = True,
 ) -> Dict[str, float]:
     output_root = Path(app_config.train.output_dir)
     output_root_resolved = output_root.resolve()
@@ -77,8 +78,8 @@ def run_eval_artifacts(
         logger_port=logger,
     )
 
-    model_eval = model.deploy() if hasattr(model, "deploy") else model
-    post_eval = postprocessor.deploy() if hasattr(postprocessor, "deploy") else postprocessor
+    model_eval = model.deploy() if use_deploy_model and hasattr(model, "deploy") else model
+    post_eval = postprocessor.deploy() if use_deploy_model and hasattr(postprocessor, "deploy") else postprocessor
     model_eval = model_eval.to(device).eval()
 
     samples = build_eval_samples(app_config.data.val_sets, app_config.data.mapping or {})

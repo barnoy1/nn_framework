@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 from typing import Any, Optional
@@ -50,7 +49,11 @@ def _resolve_log_path(raw_path: str, root: Path) -> str:
     return str((root / raw_path).resolve())
 
 
-def setup_logger(config_path: Optional[str | Path] = None, force: bool = False) -> None:
+def setup_logger(
+    config_path: Optional[str | Path] = None,
+    force: bool = False,
+    run_root: Optional[str | Path] = None,
+) -> None:
     global _CONFIGURED
     if _CONFIGURED and not force:
         return
@@ -85,8 +88,7 @@ def setup_logger(config_path: Optional[str | Path] = None, force: bool = False) 
     file_cfg = config.get("file", {})
     if file_cfg.get("enabled", True):
         configured_path = str(file_cfg.get("path", "logs/{time:YYYY-MM-DD__HH-mm-ss}.log"))
-        run_root = os.environ.get("NN_FRAMEWORK_RUN_DIR", "").strip()
-        if run_root:
+        if run_root is not None and str(run_root).strip():
             file_path = _resolve_log_path(configured_path, Path(run_root).resolve())
         else:
             file_path = _resolve_log_path(configured_path, root)
