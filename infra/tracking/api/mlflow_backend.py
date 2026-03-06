@@ -33,9 +33,9 @@ def _sanitize_param_value(value: str, max_len: int = 490) -> str:
 class MlflowVisualizationLogger:
     @staticmethod
     def _resolve_run_folder_name(tracking_dir: Path) -> str:
-        tracking_parts = tracking_dir.name.split("__", 1)
-        if len(tracking_parts) == 2 and tracking_parts[1].strip():
-            return tracking_parts[1].strip()
+        run_folder_name = tracking_dir.name.strip()
+        if run_folder_name:
+            return run_folder_name
 
         parent_parts = tracking_dir.parent.name.split("__", 1)
         if len(parent_parts) == 2 and parent_parts[1].strip():

@@ -9,16 +9,13 @@ class CommonConfig(BaseModel):
     output_dir: str = "output"
     checkpoint: str = ""
     device: str = "cuda"
-    batch_size: int = 1
-    num_workers: int = 2
+    batch_size: Optional[int] = None
+    num_workers: Optional[int] = None
     use_gpu: bool = True
     use_xpu: bool = False
     use_mlu: bool = False
     use_npu: bool = False
     log_iter: int = 20
-    snapshot_epoch: int = 1
-    print_flops: bool = False
-    print_params: bool = False
     epoches: Optional[int] = None
     score_threshold: float = 0.3
 
@@ -37,6 +34,20 @@ class CommonConfig(BaseModel):
             raise ValueError("runtime.common.score_threshold must be in [0, 1]")
         return numeric
 
+    @field_validator("batch_size")
+    @classmethod
+    def validate_batch_size(cls, value: Optional[int]) -> Optional[int]:
+        if value is not None and int(value) <= 0:
+            raise ValueError("runtime.common.batch_size must be > 0 when provided")
+        return value
+
+    @field_validator("num_workers")
+    @classmethod
+    def validate_num_workers(cls, value: Optional[int]) -> Optional[int]:
+        if value is not None and int(value) < 0:
+            raise ValueError("runtime.common.num_workers must be >= 0 when provided")
+        return value
+
 
 class DataPreparationConfig(BaseModel):
     prepare_data: bool = False
@@ -45,7 +56,6 @@ class DataPreparationConfig(BaseModel):
     ann_subdir: str = "ann"
     img_subdir: str = "img"
     mlflow_experiment_name: Optional[str] = None
-    mlflow_run_name: Optional[str] = None
 
 
 class ExportConfig(BaseModel):
@@ -80,6 +90,7 @@ class VisualizationConfig(BaseModel):
 
 
 class RuntimeConfig(BaseModel):
+    description: Optional[str] = None
     common: CommonConfig = Field(default_factory=CommonConfig)
     visualization: VisualizationConfig = Field(default_factory=VisualizationConfig)
     data_preparation: DataPreparationConfig = Field(default_factory=DataPreparationConfig)
@@ -111,16 +122,12 @@ class RuntimeConfig(BaseModel):
         return self.common.output_dir
 
     @property
-    def snapshot_epoch(self) -> int:
-        return self.common.snapshot_epoch
+    def batch_size(self) -> Optional[int]:
+        return self.common.batch_size
 
     @property
-    def print_flops(self) -> bool:
-        return self.common.print_flops
-
-    @property
-    def print_params(self) -> bool:
-        return self.common.print_params
+    def num_workers(self) -> Optional[int]:
+        return self.common.num_workers
 
     @property
     def epoches(self) -> Optional[int]:
@@ -149,7 +156,3 @@ class RuntimeConfig(BaseModel):
     @property
     def mlflow_experiment_name(self) -> Optional[str]:
         return self.data_preparation.mlflow_experiment_name
-
-    @property
-    def mlflow_run_name(self) -> Optional[str]:
-        return self.data_preparation.mlflow_run_name

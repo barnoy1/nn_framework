@@ -218,6 +218,7 @@ data:
       type: BatchImageCollateFunction
 
 runtime:
+  description: null
   common:
     # Runtime default output root.
     output_dir: out
@@ -225,10 +226,6 @@ runtime:
     checkpoint: /home/ronbar/repo/nn_framework/raw_models/RT-DETR/rtdetrv2_pytorch/weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
     # Execution device.
     device: cuda
-    # Generic runtime batch size used by utility flows.
-    batch_size: 1
-    # Generic runtime worker count.
-    num_workers: 2
     # Hardware backend toggles.
     use_gpu: true
     use_xpu: false
@@ -236,11 +233,6 @@ runtime:
     use_npu: false
     # Iteration logging interval for runtime tools.
     log_iter: 20
-    # Snapshot/checkpoint interval (runtime layer).
-    snapshot_epoch: 1
-    # Debug flags for model complexity reporting.
-    print_flops: false
-    print_params: false
     # Runtime epoch override.
     epoches: 2
     # Shared confidence threshold for evaluation metrics (train validation + eval flow).
@@ -273,7 +265,6 @@ runtime:
     img_subdir: img
     # Optional experiment tracking hooks.
     mlflow_experiment_name: null
-    mlflow_run_name: null
 
   export:
     # Apply postprocessing in export flow.

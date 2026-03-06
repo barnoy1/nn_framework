@@ -9,6 +9,16 @@ from .tb_backend import TensorBoardVisualizationLogger
 from ..service_launchers import start_mlflow_ui_service, start_tensorboard_service
 
 
+def _resolve_mlflow_run_base_name(experiment_name: str, execution_config: Dict[str, Any] | None) -> str:
+    if isinstance(execution_config, dict):
+        runtime_cfg = execution_config.get("runtime")
+        if isinstance(runtime_cfg, dict):
+            description = str(runtime_cfg.get("description") or "").strip()
+            if description:
+                return description
+    return str(experiment_name)
+
+
 def create_visualization_logger(
     *,
     output_root: Path,
@@ -52,9 +62,13 @@ def create_visualization_logger(
     if mlflow_enabled:
         try:
             resolved_mlflow_dir = (output_root / mlflow_dir).resolve()
+            run_base_name = _resolve_mlflow_run_base_name(
+                experiment_name=experiment_name,
+                execution_config=execution_config,
+            )
             mlflow_logger = MlflowVisualizationLogger(
                 experiment_name=experiment_name,
-                run_name=experiment_name,
+                run_name=run_base_name,
                 tracking_dir=resolved_mlflow_dir,
                 run_context_dir=output_root,
                 tracking_backend=str(mlflow_tracking_backend),

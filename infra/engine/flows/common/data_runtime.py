@@ -66,7 +66,12 @@ def build_loaders(config: AppConfig) -> tuple[DataLoader, DataLoader]:
     val_dataset = val_datasets[0] if len(val_datasets) == 1 else ConcatDataset(val_datasets)
 
     collate_fn = DetectionCollateFn()
-    worker_count = int(config.train.num_workers)
+    runtime_worker_count = config.runtime.num_workers
+    worker_count = int(runtime_worker_count) if runtime_worker_count is not None else int(config.train.num_workers)
+    runtime_batch_size = config.runtime.batch_size
+    train_batch_size = int(runtime_batch_size) if runtime_batch_size is not None else int(config.train.batch_size)
+    val_batch_size = int(runtime_batch_size) if runtime_batch_size is not None else int(config.train.val_batch_size)
+
     loader_worker_kwargs = {}
     if worker_count > 0:
         loader_worker_kwargs = {
@@ -76,7 +81,7 @@ def build_loaders(config: AppConfig) -> tuple[DataLoader, DataLoader]:
 
     train_loader = DataLoader(
         train_dataset,
-        batch_size=config.train.batch_size,
+        batch_size=train_batch_size,
         shuffle=True,
         num_workers=worker_count,
         drop_last=True,
@@ -86,7 +91,7 @@ def build_loaders(config: AppConfig) -> tuple[DataLoader, DataLoader]:
     )
     val_loader = DataLoader(
         val_dataset,
-        batch_size=config.train.val_batch_size,
+        batch_size=val_batch_size,
         shuffle=False,
         num_workers=worker_count,
         drop_last=False,

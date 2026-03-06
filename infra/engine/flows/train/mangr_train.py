@@ -69,7 +69,7 @@ def invoke(args) -> None:
                 enabled=bool(mlflow_cfg.enabled),
                 tracking_dir=shared_tracking_dir,
                 experiment_name=app_config.runtime.mlflow_experiment_name or experiment_name,
-                run_name=app_config.runtime.mlflow_run_name or experiment_name,
+                run_name=app_config.runtime.description or experiment_name,
                 tracking_backend=str(mlflow_cfg.tracking_backend),
                 sqlite_db_name=str(mlflow_cfg.sqlite_db_name),
                 ui_host=str(mlflow_cfg.host),

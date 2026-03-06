@@ -43,9 +43,9 @@ def normalize_registered_model_name(value: str) -> str:
 
 def resolve_run_folder_name(run_output_dir: Path, tracking_dir: Path) -> str:
     resolved_output_dir = run_output_dir.resolve()
-    output_parts = resolved_output_dir.name.split("__", 1)
-    if len(output_parts) == 2 and output_parts[1].strip():
-        return output_parts[1].strip()
+    output_name = resolved_output_dir.name.strip()
+    if output_name:
+        return output_name
 
     parent_parts = resolved_output_dir.parent.name.split("__", 1)
     if len(parent_parts) == 2 and parent_parts[1].strip():
