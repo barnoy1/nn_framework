@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[4]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from infra.utils.log.logger import logger
+from infra.common.logging.logger import logger
 
 from infra.engine.flows.common.config_loader import get_execution_config
 from infra.engine.flows.common.runtime import build_flow_runtime

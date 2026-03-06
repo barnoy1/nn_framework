@@ -12,7 +12,7 @@ from PIL import Image
 from infra.core import to_result_list
 from infra.data.preprocess import build_image_preprocess_from_loader
 from infra.engine.flows.common.image_io import load_pil_image
-from infra.utils.viz.visualize import render_prediction_with_yolo_caption
+from infra.common.rendering.visualize import render_prediction_with_yolo_caption
 
 
 def run_eval_inference_loop(

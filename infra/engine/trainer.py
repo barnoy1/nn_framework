@@ -14,10 +14,14 @@ from .model import ModelWrapperAdapter
 from .training import (
     LossComponentSplitter,
 )
-from .trainer_epoch import train_one_epoch
-from .trainer_eval import run_baseline_eval_sanity, validate_epoch
-from .trainer_utils import compute_validation_loss_components_for_trainer, split_loss_components
-from infra.utils.log.logger import logger
+from .training_loop import (
+    compute_validation_loss_components_for_trainer,
+    run_baseline_eval_sanity,
+    split_loss_components,
+    train_one_epoch,
+    validate_epoch,
+)
+from infra.common.logging.logger import logger
 
 class Trainer:
     def __init__(

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 
-from infra.utils.log import logger, setup_logger
+from infra.common.logging import logger, setup_logger
 
 from .constants import REPO_ROOT
 from .parser import parse_args

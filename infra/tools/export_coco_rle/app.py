@@ -6,8 +6,8 @@ from pathlib import Path
 
 from tabulate import tabulate
 
-from infra.utils.log import setup_logger
-from infra.utils.log.logger import logger
+from infra.common.logging import setup_logger
+from infra.common.logging.logger import logger
 
 from .args import parse_arguments
 from .config_service import load_data_config

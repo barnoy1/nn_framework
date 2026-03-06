@@ -7,7 +7,7 @@ import torch
 from PIL import Image
 
 from infra.core import to_result_list
-from infra.utils.viz.visualize import render_prediction_with_yolo_caption
+from infra.common.rendering.visualize import render_prediction_with_yolo_caption
 
 
 @torch.no_grad()

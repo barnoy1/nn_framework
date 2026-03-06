@@ -8,7 +8,7 @@ from typing import Dict, List, Sequence
 import numpy as np
 from pycocotools import mask as mask_utils
 
-from infra.utils.log import logger
+from infra.common.logging import logger
 
 
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff")

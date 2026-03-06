@@ -5,7 +5,7 @@ import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
 
-from infra.utils.log import logger
+from infra.common.logging import logger
 
 from .config_defaults import load_dataset_export_settings, resolve_experiment_conf_path
 from .constants import MODEL_ROOT

@@ -8,7 +8,7 @@ import torch
 
 from infra.config import AppConfig
 from infra.engine.evaluate import evaluate_predictions
-from infra.vis import create_visualization_logger
+from infra.tracking import create_visualization_logger
 
 from .eval_inference import run_eval_inference_loop
 from .eval_model_metrics import generate_eval_model_metrics_bundle, log_eval_model_metrics_bundle

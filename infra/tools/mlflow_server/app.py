@@ -7,8 +7,8 @@ import webbrowser
 from argparse import Namespace
 from pathlib import Path
 
-from infra.utils.log import logger
-from infra.vis.service_launchers.network_utils import (
+from infra.common.logging import logger
+from infra.tracking.service_launchers.shared.network_utils import (
     find_available_port,
     free_port_for_reuse,
     is_port_in_use,

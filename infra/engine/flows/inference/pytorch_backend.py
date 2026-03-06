@@ -11,7 +11,7 @@ from infra.core import to_result_list
 from infra.data.preprocess import build_image_preprocess_from_loader
 from infra.engine.flows.common.image_io import list_images, load_pil_image
 from infra.engine.flows.common.runtime import build_flow_runtime
-from infra.utils.viz.visualize import render_prediction_with_yolo_caption
+from infra.common.rendering.visualize import render_prediction_with_yolo_caption
 
 
 def run_pytorch(args, logger) -> None:

@@ -6,7 +6,7 @@ from typing import Dict, Optional, Tuple
 import torch
 from torch import nn
 
-from infra.utils.log import logger
+from infra.common.logging import logger
 
 
 def resolve_checkpoint_path(path: str) -> Path:

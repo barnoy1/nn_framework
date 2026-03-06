@@ -10,13 +10,13 @@ ROOT = Path(__file__).resolve().parents[4]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from infra.utils.log.logger import logger
+from infra.common.logging.logger import logger
 from infra.engine.flows.common.config_loader import get_execution_config
 from infra.engine.flows.common.runtime import build_flow_runtime
 from infra.engine.flows.eval.dataset_profile import model_num_classes, profile_dataset_distribution
 from infra.engine.flows.eval.eval_artifacts import run_eval_artifacts
 from infra.engine.training import save_eval_batch_visualization
-from infra.utils.log.logger import logger
+from infra.common.logging.logger import logger
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="nn_framework evaluation manager")

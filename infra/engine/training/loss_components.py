@@ -4,7 +4,7 @@ from typing import Dict
 
 import torch
 
-from infra.utils.loss_aliases import canonical_loss_alias
+from infra.common.loss_aliases import canonical_loss_alias
 
 
 class LossComponentSplitter:
