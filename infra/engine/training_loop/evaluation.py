@@ -4,7 +4,11 @@ from typing import Dict, Optional
 
 from ..flows.eval.eval_artifacts import run_eval_artifacts
 from ..training import use_ema_weights_for_eval
-from .utils import compute_validation_loss_components_for_trainer, save_eval_batch_visualizations_for_trainer
+from .utils import (
+    compute_validation_loss_components_for_trainer,
+    save_eval_batch_visualizations_for_trainer,
+    save_val_batch_visualizations_for_trainer,
+)
 
 
 def validate_epoch(trainer, epoch: int, score_thr: Optional[float] = None) -> Dict[str, float]:
@@ -16,6 +20,11 @@ def validate_epoch(trainer, epoch: int, score_thr: Optional[float] = None) -> Di
     )
     unwrapped_model = trainer.accelerator.unwrap_model(trainer.model)
     with use_ema_weights_for_eval(trainer.ema_model, unwrapped_model, trainer.logger):
+        save_val_batch_visualizations_for_trainer(
+            trainer,
+            epoch_suffix=None,
+            max_batches=3,
+        )
         class_id_to_name = {int(key): str(value) for key, value in (trainer.app_config.data.class_id_to_name or {}).items()}
         diagnostics: Dict[str, object] = {}
         metrics = run_eval_artifacts(

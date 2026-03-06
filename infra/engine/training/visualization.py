@@ -120,11 +120,12 @@ def save_val_batch_visualization(
     epoch_suffix: int | None = None,
     num_samples: int = 4,
 ) -> None:
-    save_eval_batch_visualization(
+    _save_batch_visualization(
         output_root=output_root,
         images=images,
         targets=targets,
         step=step,
+        file_prefix="val_batch",
         epoch_suffix=epoch_suffix,
         num_samples=num_samples,
     )

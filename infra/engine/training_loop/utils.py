@@ -6,7 +6,12 @@ import torch
 
 from ...core import move_targets_to_device
 from infra.common.loss_aliases import canonical_loss_alias
-from ..training import compute_validation_loss_components, save_eval_batch_visualization, save_train_batch_visualization
+from ..training import (
+    compute_validation_loss_components,
+    save_eval_batch_visualization,
+    save_train_batch_visualization,
+    save_val_batch_visualization,
+)
 
 
 def split_loss_components(trainer, loss_dict: Dict[str, torch.Tensor]) -> Dict[str, float]:
@@ -102,6 +107,36 @@ def save_eval_batch_visualizations_for_trainer(
 
     if saved > 0:
         trainer.logger.info("Saved {} eval batch visualizations to {}", saved, output_root)
+
+
+def save_val_batch_visualizations_for_trainer(
+    trainer,
+    *,
+    epoch_suffix: int | None = None,
+    max_batches: int = 3,
+) -> None:
+    if not trainer.accelerator.is_main_process:
+        return
+
+    output_root = trainer.app_config.ensure_output_dir()
+    num_samples = int(trainer.app_config.runtime.visualization.num_samples)
+    saved = 0
+
+    for step, (images, targets) in enumerate(trainer.val_loader):
+        if step >= max_batches:
+            break
+        save_val_batch_visualization(
+            output_root=output_root,
+            images=images,
+            targets=targets,
+            step=step,
+            epoch_suffix=epoch_suffix,
+            num_samples=num_samples,
+        )
+        saved += 1
+
+    if saved > 0:
+        trainer.logger.info("Saved {} val batch visualizations to {}", saved, output_root)
 
 
 def move_batch_to_device(trainer, images, targets):

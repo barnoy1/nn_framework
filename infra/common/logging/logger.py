@@ -35,7 +35,7 @@ def _configure_level_colors(overrides: Optional[dict[str, str]] = None) -> None:
 
 
 def _framework_root() -> Path:
-	return Path(__file__).resolve().parents[2]
+	return Path(__file__).resolve().parents[3]
 
 
 def _default_config_path() -> Path:
@@ -86,12 +86,9 @@ def setup_logger(
 		)
 
 	file_cfg = config.get("file", {})
-	if file_cfg.get("enabled", True):
+	if file_cfg.get("enabled", True) and run_root is not None and str(run_root).strip():
 		configured_path = str(file_cfg.get("path", "logs/{time:YYYY-MM-DD__HH-mm-ss}.log"))
-		if run_root is not None and str(run_root).strip():
-			file_path = _resolve_log_path(configured_path, Path(run_root).resolve())
-		else:
-			file_path = _resolve_log_path(configured_path, root)
+		file_path = _resolve_log_path(configured_path, Path(run_root).resolve())
 		Path(file_path).parent.mkdir(parents=True, exist_ok=True)
 		_base_logger.add(
 			file_path,
@@ -106,12 +103,12 @@ def setup_logger(
 
 
 def get_logger(**bind: Any):
-	setup_logger()
+	if not _CONFIGURED:
+		setup_logger()
 	return _base_logger.bind(**bind) if bind else _base_logger
 
 
-setup_logger()
-logger = get_logger()
+logger = _base_logger
 
 
 __all__ = ["logger", "setup_logger", "get_logger"]
