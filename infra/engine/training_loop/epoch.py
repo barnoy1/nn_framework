@@ -28,10 +28,11 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
     last_size = "-"
     component_sums: Dict[str, float] = {}
     num_steps = 0
+    dfl_enabled = bool(getattr(trainer._loss_splitter, "has_dfl_terms", lambda: True)())
 
     is_main_process = bool(trainer.accelerator.is_main_process)
     if is_main_process:
-        log_yolo_header(trainer.logger)
+        log_yolo_header(trainer.logger, dfl_enabled=dfl_enabled)
 
     train_iterable = trainer.train_loader
     pbar = None
@@ -130,6 +131,7 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
                     box_loss=float(parts["box_loss"]),
                     cls_loss=float(parts["cls_loss"]),
                     dfl_loss=float(parts["dfl_loss"]),
+                    dfl_enabled=dfl_enabled,
                     instances=int(current_instances),
                     image_size=current_size,
                 ),
@@ -164,6 +166,7 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
                 box_loss=float(epoch_metrics["box_loss"]),
                 cls_loss=float(epoch_metrics["cls_loss"]),
                 dfl_loss=float(epoch_metrics["dfl_loss"]),
+                dfl_enabled=dfl_enabled,
                 instances=int(round(avg_instances)),
                 image_size=last_size,
             ),

@@ -11,6 +11,9 @@ class LossComponentSplitter:
     def __init__(self, terms: Dict[str, list[str]]) -> None:
         self._terms = terms
 
+    def has_dfl_terms(self) -> bool:
+        return any(str(term).strip() for term in self._terms.get("dfl", []))
+
     @classmethod
     def from_config(cls, app_config) -> "LossComponentSplitter":
         configured_pairs = app_config.model.losses.criterion_pairs

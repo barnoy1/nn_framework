@@ -25,14 +25,20 @@ model:
     fallback_to_model_default: true
     criterion_pairs:
       adapter_common:
+        # Model-agnostic defaults aligned with YOLO-style gains where RT-DETR terms exist:
+        #   - box ~= 7.5  -> loss_bbox
+        #   - cls ~= 0.5  -> loss_vfl/loss_focal
+        #   - dfl ~= 1.5  -> loss_dfl (requires a model DFL provider to produce non-zero values)
         - loss: loss_bbox
-          coef: 5.0
+          coef: 7.5
         - loss: loss_giou
           coef: 2.0
         - loss: loss_vfl
-          coef: 5.0
+          coef: 0.5
         - loss: loss_focal
-          coef: 5.0
+          coef: 0.5
+        - loss: loss_dfl
+          coef: 1.5
       concrete_model:
         # RT-DETRv2-specific auxiliary supervision variants.
         - loss: loss_bbox_aux_
@@ -72,8 +78,6 @@ train:
   batch_size: 8
   # Per-step validation batch size.
   val_batch_size: 8
-  # DataLoader worker processes.
-  num_workers: 4
   # Base optimizer learning rate.
   lr: 0.00002
   # Multiplier applied to backbone LR relative to base LR.
@@ -163,8 +167,6 @@ data:
           - {type: ConvertBoxes, fmt: 'cxcywh', normalize: true}
     # Shuffle training data each epoch.
     shuffle: true
-    # Worker count for train loader.
-    num_workers: 2
     # Drop final incomplete batch for stable step math.
     drop_last: true
     collate_fn:
@@ -197,8 +199,6 @@ data:
           - {type: ConvertPILImage, dtype: 'float32', scale: true}
     # Keep deterministic order for reproducible eval.
     shuffle: false
-    # Worker count for val loader.
-    num_workers: 2
     # Keep tail batch for full-dataset evaluation coverage.
     drop_last: false
     collate_fn:

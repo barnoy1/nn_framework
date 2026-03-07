@@ -23,6 +23,14 @@ class CriterionLossPair(BaseModel):
         return numeric
 
 
+def default_yolov11_criterion_pairs() -> "CriterionLossPairs":
+    return CriterionLossPairs(
+        box=[CriterionLossPair(loss="loss_bbox", coef=7.5)],
+        cls=[CriterionLossPair(loss="loss_cls", coef=0.5)],
+        dfl=[CriterionLossPair(loss="loss_dfl", coef=1.5)],
+    )
+
+
 class CriterionLossPairs(BaseModel):
     # Legacy groups (kept for backward compatibility).
     box: list[CriterionLossPair] = Field(default_factory=list)
@@ -80,7 +88,7 @@ class ModelLossesConfig(BaseModel):
     dn_cls_loss_coef: Optional[float] = None
     dn_bbox_loss_coef: Optional[float] = None
     fallback_to_model_default: bool = True
-    criterion_pairs: CriterionLossPairs = Field(default_factory=CriterionLossPairs)
+    criterion_pairs: CriterionLossPairs = Field(default_factory=default_yolov11_criterion_pairs)
 
 
 class ModelConfig(BaseModel):

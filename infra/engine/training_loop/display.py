@@ -1,18 +1,26 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from tqdm.auto import tqdm
 
 _HEADER_FORMAT = "%11s" * 7
-_ROW_FORMAT = "%11s%11s%11.5f%11.5f%11.5f%11d%11s"
+_ROW_FORMAT = "%11s%11s%11s%11s%11s%11d%11s"
 
 
-def log_yolo_header(logger) -> None:
+def _format_loss_value(value: Optional[float], enabled: bool) -> str:
+    if not enabled or value is None:
+        return "N/A"
+    return f"{float(value):.5f}"
+
+
+def log_yolo_header(logger, *, dfl_enabled: bool = True) -> None:
     header = _HEADER_FORMAT % (
         "Epoch",
         "GPU_mem",
         "box_loss",
         "cls_loss",
-        "dfl_loss",
+        "dfl_loss" if dfl_enabled else "dfl(N/A)",
         "Instances",
         "Size",
     )
@@ -26,16 +34,17 @@ def yolo_progress_row(
     gpu_mem_gb: float,
     box_loss: float,
     cls_loss: float,
-    dfl_loss: float,
+    dfl_loss: Optional[float],
+    dfl_enabled: bool,
     instances: int,
     image_size: str,
 ) -> str:
     return _ROW_FORMAT % (
         f"{epoch_index + 1}/{total_epochs}",
         f"{gpu_mem_gb:.3f}G",
-        float(box_loss),
-        float(cls_loss),
-        float(dfl_loss),
+        _format_loss_value(box_loss, True),
+        _format_loss_value(cls_loss, True),
+        _format_loss_value(dfl_loss, dfl_enabled),
         int(instances),
         str(image_size),
     )

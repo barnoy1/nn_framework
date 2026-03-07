@@ -25,14 +25,20 @@ model:
     fallback_to_model_default: true
     criterion_pairs:
       adapter_common:
+        # Model-agnostic defaults aligned with YOLO-style gains where RT-DETR terms exist:
+        #   - box ~= 7.5  -> loss_bbox
+        #   - cls ~= 0.5  -> loss_vfl/loss_focal
+        #   - dfl ~= 1.5  -> loss_dfl (requires a model DFL provider to produce non-zero values)
         - loss: loss_bbox
-          coef: 5.0
+          coef: 7.5
         - loss: loss_giou
           coef: 2.0
         - loss: loss_vfl
-          coef: 5.0
+          coef: 0.5
         - loss: loss_focal
-          coef: 5.0
+          coef: 0.5
+        - loss: loss_dfl
+          coef: 1.5
       concrete_model:
         # RT-DETRv2-specific auxiliary supervision variants.
         - loss: loss_bbox_aux_
@@ -67,13 +73,11 @@ model:
     
 train:
   # Total training epochs.
-  epochs: 2
-  # Per-step training batch size (kept small for 5-6GB GPUs).
-  batch_size: 1
+  epochs: 10
+  # Per-step training batch size.
+  batch_size: 8
   # Per-step validation batch size.
-  val_batch_size: 1
-  # DataLoader worker processes.
-  num_workers: 2
+  val_batch_size: 8
   # Base optimizer learning rate.
   lr: 0.00002
   # Multiplier applied to backbone LR relative to base LR.
@@ -83,7 +87,7 @@ train:
   # Gradient clipping norm threshold (0 disables).
   grad_clip_norm: 0.1
   # AMP mode (`fp16` reduces memory/latency).
-  mixed_precision: "fp16"
+  mixed_precision: "no"
   # Root directory for run artifacts.
   output_dir: ./out
   # Logging cadence in training steps.
@@ -122,7 +126,7 @@ data:
     0: 4
 
   # Canonical mapping from class index to class name used by logs/visualization.
-  label2classid: &label2classid {0: person, 1: bicycle, 2: car, 3: motorcycle, 4: airplane, 5: bus, 6: train, 7: truck, 8: boat, 9: traffic light}
+  label2classid: &label2classid {0: person, 1: bicycle, 2: car, 3: motorcycle, 4: airplane, 5: bus, 6: train, 7: truck, 8: boat, 9: traffic light, 10: fire hydrant, 11: stop sign, 12: parking meter, 13: bench, 14: bird, 15: cat, 16: dog, 17: horse, 18: sheep, 19: cow, 20: elephant, 21: bear, 22: zebra, 23: giraffe, 24: backpack, 25: umbrella, 26: handbag, 27: tie, 28: suitcase, 29: frisbee, 30: skis, 31: snowboard, 32: sports ball, 33: kite, 34: baseball bat, 35: baseball glove, 36: skateboard, 37: surfboard, 38: tennis racket, 39: bottle, 40: wine glass, 41: cup, 42: fork, 43: knife, 44: spoon, 45: bowl, 46: banana, 47: apple, 48: sandwich, 49: orange, 50: broccoli, 51: carrot, 52: hot dog, 53: pizza, 54: donut, 55: cake, 56: chair, 57: couch, 58: potted plant, 59: bed, 60: dining table, 61: toilet, 62: tv, 63: laptop, 64: mouse, 65: remote, 66: keyboard, 67: cell phone, 68: microwave, 69: oven, 70: toaster, 71: sink, 72: refrigerator, 73: book, 74: clock, 75: vase, 76: scissors, 77: teddy bear, 78: hair drier, 79: toothbrush}
   # Alias used by visualizers/inference output label rendering.
   class_id_to_name: *label2classid
 
@@ -149,18 +153,12 @@ data:
           - {type: RandomVerticalFlip, p: 0.2}
           # Geometric: rotation in degrees range [-limit, +limit].
           - {type: Rotate, limit: 15, p: 0.3}
-          # Convert VIS RGB input to IR-like single-channel intensity.
-          - {type: ToGray, num_output_channels: 1, p: 1.0}
-          # Local contrast equalization (thermal-like texture emphasis).
-          - {type: CLAHE, clip_limit: 3.0, tile_grid_size: [8, 8], p: 0.6}
-          # Global intensity/contrast variation for emissivity-like shifts.
-          - {type: RandomBrightnessContrast, brightness_limit: 0.15, contrast_limit: 0.25, p: 0.5}
-          # Gamma perturbation to mimic IR response curve changes.
-          - {type: RandomGamma, gamma_limit: [70, 140], p: 0.4}
-          # Sensor-like noise seen in thermal imagery.
-          - {type: GaussNoise, var_limit: [8.0, 40.0], p: 0.35}
-          # Slight optical/sensor blur.
-          - {type: GaussianBlur, blur_limit: [3, 5], p: 0.2}
+          # Image-only grayscale conversion (keeps 3 channels).
+          - {type: ToGray, p: 1.0}
+          # Image-only color jitter in HSV space (annotations unchanged).
+          - {type: HueSaturationValue, hue_shift_limit: 12, sat_shift_limit: 24, val_shift_limit: 12, p: 0.3}
+          # Image-only contrast/brightness change.
+          - {type: RandomBrightnessContrast, p: 0.3}
           # Final spatial normalization to model input size.
           - {type: Resize, size: [640, 640]}
           # Convert image to float tensor-like representation with scaling.
@@ -169,15 +167,13 @@ data:
           - {type: ConvertBoxes, fmt: 'cxcywh', normalize: true}
     # Shuffle training data each epoch.
     shuffle: true
-    # Worker count for train loader.
-    num_workers: 2
     # Drop final incomplete batch for stable step math.
     drop_last: true
     collate_fn:
       # Batch collation strategy.
       type: BatchImageCollateFunction
-      # Multi-scale training candidate sizes (bounded for VRAM stability).
-      scales: [512, 544, 576, 608, 640]
+      # Multi-scale training candidate sizes.
+      scales: [480, 512, 544, 576, 608, 640, 640, 640, 672, 704, 736, 768, 800]
     
 
   val_dataloader:
@@ -199,14 +195,10 @@ data:
         ops:
           # Deterministic resize for validation/inference parity.
           - {type: Resize, size: [640, 640]}
-          # Deterministic VIS->IR-like conversion for eval/inference parity.
-          - {type: ToGray, num_output_channels: 1, p: 1.0}
           # Convert image to scaled float representation.
           - {type: ConvertPILImage, dtype: 'float32', scale: true}
     # Keep deterministic order for reproducible eval.
     shuffle: false
-    # Worker count for val loader.
-    num_workers: 2
     # Keep tail batch for full-dataset evaluation coverage.
     drop_last: false
     collate_fn:
@@ -214,7 +206,7 @@ data:
       type: BatchImageCollateFunction
 
 runtime:
-  description: null
+  description: drone_fine_tune_rtdetrv2_r18vd_120e_coco_IR
   common:
     # Runtime default output root.
     output_dir: out
@@ -230,10 +222,13 @@ runtime:
     # Iteration logging interval for runtime tools.
     log_iter: 20
     # Runtime epoch override.
-    epoches: 2
+    epoches: 100
     # Shared confidence threshold for evaluation metrics (train validation + eval flow).
-    score_threshold: 0.3
-
+    score_threshold: 0.35
+    # Generic runtime batch size used by utility flows.
+    batch_size: 8
+    # Generic runtime worker count.
+    num_workers: 2
   visualization:
     # Number of qualitative visualization samples to save.
     num_samples: 4

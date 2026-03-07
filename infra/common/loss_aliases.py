@@ -8,8 +8,14 @@ def normalize_loss_name(loss_name: str) -> str:
 def canonical_loss_alias(loss_name: str) -> str:
 	normalized = normalize_loss_name(loss_name)
 	aliases = {
+		"box": "loss_bbox",
 		"boxes": "loss_bbox",
+		"bbox": "loss_bbox",
 		"giou": "loss_giou",
+		"cls": "loss_cls",
+		"class": "loss_cls",
+		"classification": "loss_cls",
+		"dfl": "loss_dfl",
 		"vfl": "loss_vfl",
 		"focal": "loss_focal",
 		"loss_boxes": "loss_bbox",
