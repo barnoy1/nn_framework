@@ -7,7 +7,11 @@ import numpy as np
 import torch
 from PIL import Image
 
-from infra.core import to_result_list
+from infra.core import (
+    build_label_id_remap_from_config_and_annotations,
+    normalize_prediction_labels_for_metrics,
+    to_result_list,
+)
 from infra.data.preprocess import build_image_preprocess_from_loader
 from infra.engine.flows.common.image_io import list_images, load_pil_image
 from infra.engine.flows.common.runtime import build_flow_runtime
@@ -44,6 +48,11 @@ def run_pytorch(args, logger) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     transforms = build_image_preprocess_from_loader(runtime.app_config.data.val_dataloader, logger=logger, default_size=640)
+    label_id_remap = build_label_id_remap_from_config_and_annotations(
+        remap_mscoco_category=bool(runtime.app_config.data.remap_mscoco_category),
+        class_id_to_name={int(k): str(v) for k, v in (runtime.app_config.data.class_id_to_name or {}).items()},
+        annotation_files=[str(dataset_pair.ann_file) for dataset_pair in runtime.app_config.data.val_sets],
+    )
     image_paths = list_images(args.input_dir)
 
     logger.info("[mangr_inference] backend=pytorch device={} images={} input={}", args.device, len(image_paths), args.input_dir)
@@ -62,6 +71,10 @@ def run_pytorch(args, logger) -> None:
         with torch.no_grad():
             outputs = model(batch_tensor)
             results = to_result_list(outputs, postprocessor, orig_sizes)
+            results = normalize_prediction_labels_for_metrics(
+                results,
+                label_id_remap=label_id_remap,
+            )
 
         for image_path, image, result in zip(batch_paths, original_images, results):
             labels = result["labels"].detach().cpu().numpy()

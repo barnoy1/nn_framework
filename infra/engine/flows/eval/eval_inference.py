@@ -9,7 +9,11 @@ import torch
 import torchvision
 from PIL import Image
 
-from infra.core import to_result_list
+from infra.core import (
+    build_label_id_remap_from_config_and_annotations,
+    normalize_prediction_labels_for_metrics,
+    to_result_list,
+)
 from infra.data.preprocess import build_image_preprocess_from_loader
 from infra.engine.flows.common.image_io import load_pil_image
 from infra.common.rendering.visualize import render_prediction_with_yolo_caption
@@ -31,6 +35,11 @@ def run_eval_inference_loop(
     logger,
 ) -> Dict[str, object]:
     transforms = build_image_preprocess_from_loader(app_config.data.val_dataloader, logger=logger, default_size=640)
+    label_id_remap = build_label_id_remap_from_config_and_annotations(
+        remap_mscoco_category=bool(app_config.data.remap_mscoco_category),
+        class_id_to_name={int(k): str(v) for k, v in (app_config.data.class_id_to_name or {}).items()},
+        annotation_files=[str(dataset_pair.ann_file) for dataset_pair in app_config.data.val_sets],
+    )
 
     all_predictions: List[Dict[str, torch.Tensor]] = []
     all_targets_for_metric: List[Dict[str, torch.Tensor]] = []
@@ -59,6 +68,12 @@ def run_eval_inference_loop(
             outputs = model_eval(batch_tensor)
             prediction = to_result_list(outputs, post_eval, orig_sizes)[0]
             prediction_for_vis = to_result_list(outputs, post_eval, transformed_sizes)[0]
+            normalized_results = normalize_prediction_labels_for_metrics(
+                [prediction, prediction_for_vis],
+                label_id_remap=label_id_remap,
+            )
+            prediction = normalized_results[0]
+            prediction_for_vis = normalized_results[1]
 
             raw_pred = {
                 "labels": prediction["labels"].detach().cpu().long(),

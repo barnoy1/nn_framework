@@ -5,8 +5,6 @@ model:
   source_root: raw_models/RT-DETR/rtdetrv2_pytorch
   # Baseline model recipe used by wrapper/model builder.
   model_config_path: configs/rtdetrv2/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yml
-  # Model-specific backbone variant (wrapper-owned, not framework-agnostic).
-  variant: r18
   # Number of classifier outputs expected from the head.
   num_classes: 80
   # Number of object queries decoded per image.
@@ -69,7 +67,7 @@ model:
     
 train:
   # Total training epochs.
-  epochs: 2
+  epochs: 10
   # Per-step training batch size.
   batch_size: 8
   # Per-step validation batch size.
@@ -167,8 +165,6 @@ data:
     shuffle: true
     # Worker count for train loader.
     num_workers: 2
-    # Global intended train batch size (framework-level metadata).
-    total_batch_size: 2
     # Drop final incomplete batch for stable step math.
     drop_last: true
     collate_fn:
@@ -203,8 +199,6 @@ data:
     shuffle: false
     # Worker count for val loader.
     num_workers: 2
-    # Global intended validation batch size (framework-level metadata).
-    total_batch_size: 2
     # Keep tail batch for full-dataset evaluation coverage.
     drop_last: false
     collate_fn:
@@ -228,9 +222,9 @@ runtime:
     # Iteration logging interval for runtime tools.
     log_iter: 20
     # Runtime epoch override.
-    epoches: 2
+    epoches: 100
     # Shared confidence threshold for evaluation metrics (train validation + eval flow).
-    score_threshold: 0.3
+    score_threshold: 0.35
     # Generic runtime batch size used by utility flows.
     batch_size: 8
     # Generic runtime worker count.
@@ -274,11 +268,6 @@ runtime:
     fuse_conv_bn: false
 
   actions:
-    # Train action parameters (empty uses defaults above).
-    train: {}
-
-    eval: {}
-
     inference:
       # Input directory for image inference.
       input_dir: /home/ronbar/repo/nn_framework/input_data

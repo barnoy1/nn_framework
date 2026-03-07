@@ -171,8 +171,6 @@ data:
     shuffle: true
     # Worker count for train loader.
     num_workers: 2
-    # Global intended train batch size (framework-level metadata).
-    total_batch_size: 1
     # Drop final incomplete batch for stable step math.
     drop_last: true
     collate_fn:
@@ -209,8 +207,6 @@ data:
     shuffle: false
     # Worker count for val loader.
     num_workers: 2
-    # Global intended validation batch size (framework-level metadata).
-    total_batch_size: 1
     # Keep tail batch for full-dataset evaluation coverage.
     drop_last: false
     collate_fn:
@@ -277,11 +273,6 @@ runtime:
     fuse_conv_bn: false
 
   actions:
-    # Train action parameters (empty uses defaults above).
-    train: {}
-
-    eval: {}
-
     inference:
       # Input directory for image inference.
       input_dir: /home/ronbar/repo/nn_framework/input_data
