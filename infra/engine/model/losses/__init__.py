@@ -1,7 +1,7 @@
 from .adapters import ConcreteCriterionAdapter, ModelAgnosticDetCriterion
-from .base import CriterionSpecResolver, DFLossProvider, LossCriterionAdapter, ResolvedLossTarget
-from .composite_criterion import CompositeCriterion
-from .spec_resolver import ConfiguredLossSpec, DualCriterionSpecResolver
+from .criterion_spec_resolver import ConfiguredLossSpec, DualCriterionSpecResolver
+from .contracts import CriterionSpecResolver, DFLossProvider, LossCriterionAdapter, ResolvedLossTarget
+from .orchestrator import CompositeCriterion, prepare_base_criterion_for_agnostic_flow
 
 __all__ = [
     "CompositeCriterion",
@@ -12,5 +12,6 @@ __all__ = [
     "DualCriterionSpecResolver",
     "LossCriterionAdapter",
     "ModelAgnosticDetCriterion",
+    "prepare_base_criterion_for_agnostic_flow",
     "ResolvedLossTarget",
 ]

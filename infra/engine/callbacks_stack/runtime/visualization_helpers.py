@@ -117,11 +117,50 @@ def log_dataset_artifacts(*, output_dir: Path, logger, logged_artifacts: set[Pat
         logged_artifacts.add(artifact_path)
 
 
-def log_evaluation_artifacts(*, output_dir: Path, epoch: int, logger) -> None:
+def log_batch_artifacts(*, output_dir: Path, logger, logged_artifacts: set[Path]) -> None:
+    batch_roots = [
+        (output_dir, "training/train_batches", "train_batch*.jpg"),
+        (output_dir, "training/validation_batches", "val_batch*.jpg"),
+        (output_dir, "training/eval_batches", "eval_batch*.jpg"),
+        (output_dir / "inference" / "validation", "training/validation_grids", "val_epoch_*.jpg"),
+    ]
+
+    for root_dir, artifact_path, pattern in batch_roots:
+        if not root_dir.exists():
+            continue
+        for candidate in sorted(root_dir.glob(pattern)):
+            resolved = candidate.resolve()
+            if resolved in logged_artifacts:
+                continue
+            logger.log_artifact(file_path=resolved, artifact_path=artifact_path)
+            logged_artifacts.add(resolved)
+
+
+def log_evaluation_artifacts(*, output_dir: Path, epoch: int, logger, logged_artifacts: set[Path]) -> None:
     epoch_prefix = f"evaluation/epoch_{epoch + 1:04d}"
     eval_dir = output_dir / "inference" / "eval"
-    eval_files = iter_files(eval_dir)
-    root_eval_candidates = [
+    epoch_token = f"__epoch_{epoch + 1:04d}.png"
+
+    epoch_candidates = [candidate for candidate in iter_files(eval_dir) if candidate.name.endswith(epoch_token)]
+    for artifact_path in epoch_candidates:
+        resolved = artifact_path.resolve()
+        if resolved in logged_artifacts:
+            continue
+        logger.log_artifact(file_path=resolved, artifact_path=epoch_prefix)
+        logged_artifacts.add(resolved)
+
+    best_dir = output_dir / "best"
+    for artifact_path in iter_files(best_dir):
+        resolved = artifact_path.resolve()
+        if resolved in logged_artifacts:
+            continue
+        logger.log_artifact(file_path=resolved, artifact_path="evaluation/best")
+        logged_artifacts.add(resolved)
+
+
+def log_accumulated_eval_history_artifacts(*, output_dir: Path, logger) -> None:
+    history_candidates = [
+        output_dir / "metrics.json",
         output_dir / "results.csv",
         output_dir / "results.png",
         output_dir / "bbox_metrics.png",
@@ -131,9 +170,9 @@ def log_evaluation_artifacts(*, output_dir: Path, epoch: int, logger) -> None:
         output_dir / "BoxPR_curve.png",
         output_dir / "confusion_matrix.png",
         output_dir / "confusion_matrix_normalized.png",
+        output_dir / "best_epoch.json",
     ]
-    eval_files.extend([candidate for candidate in root_eval_candidates if candidate.exists()])
-    filtered_eval_files = [candidate for candidate in eval_files if candidate.name != "detections.json"]
-
-    for artifact_path in sorted({candidate.resolve() for candidate in filtered_eval_files}):
-        logger.log_artifact(file_path=artifact_path, artifact_path=epoch_prefix)
+    for artifact_path in history_candidates:
+        resolved = artifact_path.resolve()
+        if resolved.exists() and resolved.is_file():
+            logger.log_artifact(file_path=resolved, artifact_path="evaluation/history")

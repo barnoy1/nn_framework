@@ -77,12 +77,6 @@ class YoloLossAdapterBase:
 
 
 class ModelAgnosticDetCriterionAdapterBase(YoloLossAdapterBase):
-    """Model-agnostic adapter API aligned with DetCriterion structure.
-
-    The adapter consumes criterion-produced losses and applies deterministic
-    key-based ownership + scaling so weighted terms remain differentiable.
-    """
-
     losses = ("boxes", "vfl", "focal", "dfl")
 
     def transform(self, loss_dict, default_weight_dict: Dict[str, float], resolver: CriterionSpecResolver) -> Dict[str, object]:

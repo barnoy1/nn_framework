@@ -13,6 +13,8 @@ from .visualization_helpers import (
     build_validation_metric_payload,
     compose_grid,
     compute_detection_scores,
+    log_accumulated_eval_history_artifacts,
+    log_batch_artifacts,
     log_dataset_artifacts,
     log_evaluation_artifacts,
     log_output_artifacts,
@@ -100,19 +102,30 @@ class ValidationVisualizationCallback(Callback):
                 step=epoch + 1,
             )
 
-        eval_dir = self.output_dir / "inference" / "eval"
-        for artifact_name in ("metrics.json", "detections.json"):
-            artifact_path = eval_dir / artifact_name
-            resolved_artifact = artifact_path.resolve()
-            if resolved_artifact.exists():
-                self._logger.log_text(
-                    tag=f"eval/{artifact_name}",
-                    text=f"path={resolved_artifact}",
-                    step=epoch + 1,
-                )
+        metrics_path = (self.output_dir / "metrics.json").resolve()
+        if metrics_path.exists():
+            self._logger.log_text(
+                tag="eval/metrics.json",
+                text=f"path={metrics_path}",
+                step=epoch + 1,
+            )
 
-        log_evaluation_artifacts(output_dir=self.output_dir, epoch=epoch, logger=self._logger)
+        log_evaluation_artifacts(
+            output_dir=self.output_dir,
+            epoch=epoch,
+            logger=self._logger,
+            logged_artifacts=self._last_logged_artifacts,
+        )
+        log_accumulated_eval_history_artifacts(
+            output_dir=self.output_dir,
+            logger=self._logger,
+        )
         log_dataset_artifacts(
+            output_dir=self.output_dir,
+            logger=self._logger,
+            logged_artifacts=self._last_logged_artifacts,
+        )
+        log_batch_artifacts(
             output_dir=self.output_dir,
             logger=self._logger,
             logged_artifacts=self._last_logged_artifacts,
@@ -147,6 +160,11 @@ class ValidationVisualizationCallback(Callback):
         if numeric_metrics:
             self._logger.log_metrics(metrics=numeric_metrics, step=epoch + 1)
         log_dataset_artifacts(
+            output_dir=self.output_dir,
+            logger=self._logger,
+            logged_artifacts=self._last_logged_artifacts,
+        )
+        log_batch_artifacts(
             output_dir=self.output_dir,
             logger=self._logger,
             logged_artifacts=self._last_logged_artifacts,

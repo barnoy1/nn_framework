@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict
 
-from .agnostic_yolo import AgnosticYoloCriterionAdapter
+from .common_adapter import AgnosticYoloCriterionAdapter
 
 
 class ConcreteCriterionAdapter(AgnosticYoloCriterionAdapter):

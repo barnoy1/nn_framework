@@ -13,6 +13,7 @@ def build_eval_samples(val_sets, label_mapping: Dict[int, int]) -> List[Dict]:
 
     for dataset_pair in val_sets:
         coco = COCO(str(dataset_pair.ann_file))
+        dataset_name = str(Path(dataset_pair.ann_file).resolve().parent.name)
         image_ids = sorted(coco.getImgIds())
         categories = sorted(coco.loadCats(coco.getCatIds()), key=lambda cat: cat["id"])
         category_id_to_contiguous = {cat["id"]: idx for idx, cat in enumerate(categories)}
@@ -58,6 +59,7 @@ def build_eval_samples(val_sets, label_mapping: Dict[int, int]) -> List[Dict]:
 
             samples.append(
                 {
+                    "dataset_name": dataset_name,
                     "image_id": int(image_id),
                     "image_path": image_path,
                     "file_name": str(image_meta["file_name"]),

@@ -52,7 +52,7 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
             continue
 
         if trainer.model_wrapper is not None:
-            trainer.model_wrapper.configure_fixed_dn_num_group(
+            trainer.model_wrapper.apply_architecture_specifics(
                 model=trainer.accelerator.unwrap_model(trainer.model),
                 targets=targets,
                 dn_num_group=trainer.app_config.model.dn_num_group,

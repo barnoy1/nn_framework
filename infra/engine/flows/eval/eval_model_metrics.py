@@ -74,7 +74,7 @@ def _save_confusion_matrix_normalized_plot(output_root: Path, matrix: np.ndarray
     plt.close()
 
 
-def _write_results_csv(output_root: Path, metrics: Dict[str, float], scores: Dict[str, float]) -> Path:
+def _write_results_csv(output_root: Path, metrics: Dict[str, float], scores: Dict[str, float], epoch: int) -> Path:
     results_csv = output_root / "results.csv"
     fieldnames = [
         "epoch",
@@ -89,8 +89,8 @@ def _write_results_csv(output_root: Path, metrics: Dict[str, float], scores: Dic
         "val/bbox_mar_100",
     ]
     row = {
-        "epoch": 1.0,
-        "time": 1.0,
+        "epoch": float(epoch),
+        "time": float(epoch),
         "metrics/precision(B)": float(scores.get("precision", 0.0)),
         "metrics/recall(B)": float(scores.get("recall", 0.0)),
         "metrics/F1(B)": float(scores.get("f1", 0.0)),
@@ -224,10 +224,11 @@ def generate_eval_model_metrics_bundle(
     metrics: Dict[str, float],
     confusion_matrix: np.ndarray | None,
     confusion_labels: List[str],
+    epoch: int = 1,
 ) -> Dict[str, float]:
     output_root.mkdir(parents=True, exist_ok=True)
     scores = compute_detection_scores(confusion_matrix)
-    _write_results_csv(output_root=output_root, metrics=metrics, scores=scores)
+    _write_results_csv(output_root=output_root, metrics=metrics, scores=scores, epoch=int(epoch))
     _plot_bbox_metrics(output_root=output_root, metrics=metrics)
     _plot_box_curves(output_root=output_root, scores=scores)
     _plot_results(output_root=output_root, metrics=metrics, scores=scores)
@@ -270,13 +271,13 @@ def log_eval_model_metrics_bundle(
     ]
     for artifact_path in artifact_candidates:
         if artifact_path.exists():
-            vis_logger.log_artifact(file_path=artifact_path, artifact_path="model-metrics")
+            vis_logger.log_artifact(file_path=artifact_path, artifact_path="evaluation/history")
 
     eval_batch_paths = sorted(output_root.glob("eval_batch*.jpg"))
     if not eval_batch_paths:
         eval_batch_paths = sorted(output_root.glob("val_batch*.jpg"))
     for eval_batch_path in eval_batch_paths:
-        vis_logger.log_artifact(file_path=eval_batch_path, artifact_path="model-metrics")
+        vis_logger.log_artifact(file_path=eval_batch_path, artifact_path="evaluation/history")
 
     dataset_labels = output_root / "dataset" / "labels.png"
     if dataset_labels.exists():

@@ -370,7 +370,7 @@ with deterministic fallback behavior:
 ## Current behavior snapshot
 
 - Framework currently executes a single criterion in trainer paths (`trainer.criterion(outputs, targets)`).
-- RT-DETR wrapper applies coefficient logic through `nn_wrapper/builder_loss_control.py` against one criterion `weight_dict`.
+- Criterion preparation/coefficient enablement is framework-owned via `prepare_base_criterion_for_agnostic_flow(...)` in `infra/engine/model/losses/composite_criterion.py`.
 - Loss splitting/reporting (`box/cls/dfl/custom`) is already centralized in framework (`infra/engine/training/loss_components.py`).
 
 ## Target behavior

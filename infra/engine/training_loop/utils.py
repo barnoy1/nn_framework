@@ -55,7 +55,7 @@ def warn_unmatched_configured_losses(trainer, loss_dict: Dict[str, torch.Tensor]
     ]
 
     if unmatched and trainer.accelerator.is_main_process:
-        trainer.logger.warning(
+        trainer.logger.debug(
             "Configured losses not produced by model criterion (treated as zero in grouped metrics): {}",
             ", ".join(sorted(set(unmatched))),
         )

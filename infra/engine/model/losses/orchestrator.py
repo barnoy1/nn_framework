@@ -7,6 +7,45 @@ from torch import nn
 from .adapters import ModelAgnosticDetCriterion
 
 
+def prepare_base_criterion_for_agnostic_flow(base_criterion: nn.Module, resolver) -> None:
+    losses = getattr(base_criterion, "losses", None)
+    if losses is None:
+        return
+    if not isinstance(losses, list):
+        losses = list(losses) if isinstance(losses, tuple) else []
+
+    payload = getattr(base_criterion, "weight_dict", {})
+    if not isinstance(payload, dict):
+        payload = {}
+
+    normalized_weight_dict = {str(key).strip().lower(): float(value) for key, value in payload.items()}
+
+    def _enabled(loss_key: str) -> bool:
+        return float(resolver.resolve(loss_key, normalized_weight_dict).coef) > 0.0
+
+    wants_boxes = _enabled("loss_bbox") or _enabled("loss_giou")
+    wants_vfl = _enabled("loss_vfl")
+    wants_focal = _enabled("loss_focal")
+
+    if wants_boxes and "boxes" not in losses:
+        losses.append("boxes")
+    if wants_vfl and "vfl" not in losses:
+        losses.append("vfl")
+    if wants_focal and "focal" not in losses:
+        losses.append("focal")
+
+    if wants_boxes:
+        normalized_weight_dict.setdefault("loss_bbox", 1.0)
+        normalized_weight_dict.setdefault("loss_giou", 1.0)
+    if wants_vfl:
+        normalized_weight_dict.setdefault("loss_vfl", 1.0)
+    if wants_focal:
+        normalized_weight_dict.setdefault("loss_focal", 1.0)
+
+    base_criterion.losses = losses
+    base_criterion.weight_dict = normalized_weight_dict
+
+
 class CompositeCriterion(nn.Module):
     def __init__(self, base_criterion: nn.Module, adapters: Iterable, resolver, dfl_provider=None) -> None:
         super().__init__()

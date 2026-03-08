@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 import torchvision
 
-from ..base import DFLossProvider
+from ..contracts import DFLossProvider
 
 
 class ModelAgnosticDetCriterion:

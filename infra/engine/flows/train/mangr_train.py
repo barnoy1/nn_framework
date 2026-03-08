@@ -33,6 +33,10 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 def invoke(args) -> None:
+    config_path = Path(str(args.config)).expanduser()
+    if not config_path.is_absolute():
+        config_path = (ROOT / config_path).resolve()
+
     runtime = build_flow_runtime(overrides=args.overrides, config_path=args.config)
     app_config = get_execution_config(runtime=runtime)
     experiment_name = Path(args.config).stem
@@ -100,6 +104,7 @@ def invoke(args) -> None:
         ema_model=runtime.built.ema_model,
         model_wrapper=runtime.wrapper,
         experiment_name=experiment_name,
+        experiment_config_path=config_path if config_path.exists() else None,
     )
     trainer.fit()
 

@@ -120,8 +120,21 @@ class MLflowCallback(Callback):
                     for key, value in items[index : index + chunk_size]
                 }
                 mlflow.log_params(chunk)
-        config_yaml = yaml.safe_dump(execution_config, sort_keys=True, allow_unicode=True)
-        mlflow.log_text(config_yaml, artifact_file="config/config.yaml")
+        experiment_config_path = getattr(trainer, "experiment_config_path", None)
+        if experiment_config_path is not None:
+            resolved_config_path = Path(experiment_config_path).resolve()
+            if resolved_config_path.exists() and resolved_config_path.is_file():
+                mlflow.log_artifact(str(resolved_config_path), artifact_path="config")
+            else:
+                config_yaml = yaml.safe_dump(execution_config, sort_keys=True, allow_unicode=True)
+                mlflow.log_text(config_yaml, artifact_file="config/experiment.yaml")
+        else:
+            config_yaml = yaml.safe_dump(execution_config, sort_keys=True, allow_unicode=True)
+            mlflow.log_text(config_yaml, artifact_file="config/experiment.yaml")
+
+        execution_dump_path = Path(trainer.app_config.train.output_dir) / "configs" / "execution.yaml"
+        if execution_dump_path.exists() and execution_dump_path.is_file():
+            mlflow.log_artifact(str(execution_dump_path.resolve()), artifact_path="config")
         self._active = True
 
     def _step(self, raw_step: int) -> int:

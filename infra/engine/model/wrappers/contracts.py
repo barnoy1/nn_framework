@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from typing import Dict, List, Protocol, Tuple
 
 import torch
 from torch import nn
 
-from .ema import EMAModel
+from ..ema import EMAModel
 
 
 @dataclass
@@ -26,10 +26,8 @@ class ModelBuilder(ABC):
     def build(self) -> BuiltComponents:
         raise NotImplementedError
 
-
-class DnGroupConfigurer(Protocol):
-    def __call__(self, model: nn.Module, targets: List[Dict], dn_num_group: int) -> None:
-        ...
+    def apply_architecture_specifics(self, model: nn.Module, targets: List[Dict], *, dn_num_group: int) -> None:
+        return
 
 
 class CheckpointAdapter(Protocol):
@@ -51,7 +49,7 @@ class ModelWrapperAdapter(Protocol):
     def build_components(self) -> BuiltComponents:
         ...
 
-    def configure_fixed_dn_num_group(self, model: nn.Module, targets: List[Dict], dn_num_group: int) -> None:
+    def apply_architecture_specifics(self, model: nn.Module, targets: List[Dict], *, dn_num_group: int) -> None:
         ...
 
     def load_checkpoint_state(self, path: str) -> Dict[str, torch.Tensor]:
@@ -71,5 +69,3 @@ class ModelWrapperAdapter(Protocol):
 @dataclass
 class WrapperComponents:
     model_builder: ModelBuilder
-    checkpoint_adapter: CheckpointAdapter
-    dn_group_configurer: DnGroupConfigurer

@@ -1,6 +1,5 @@
-from .agnostic_yolo import AgnosticYoloCriterionAdapter
-from .concrete import ConcreteCriterionAdapter
-from .model_agnostic_det_criterion import ModelAgnosticDetCriterion
+from .concrete_adapter import ConcreteCriterionAdapter
+from .agnostic_criterion import ModelAgnosticDetCriterion
 
 __all__ = [
     "ConcreteCriterionAdapter",

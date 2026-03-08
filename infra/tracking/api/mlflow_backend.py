@@ -7,7 +7,6 @@ from typing import Any, Dict
 
 import numpy as np
 from PIL import Image
-import yaml
 
 
 def _flatten_mapping(payload: Dict[str, Any], prefix: str = "") -> Dict[str, str]:
@@ -159,9 +158,6 @@ class MlflowVisualizationLogger:
                     for key, value in items[index : index + 100]
                 }
                 self._mlflow.log_params(chunk)
-
-        config_yaml = yaml.safe_dump(execution_config, sort_keys=True, allow_unicode=True)
-        self._mlflow.log_text(config_yaml, artifact_file="config/config.yaml")
 
     def close(self) -> None:
         if self._run is not None and self._owns_run:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import gc
+from pathlib import Path
 from typing import Dict, Optional
 
 import numpy as np
@@ -39,6 +40,7 @@ class Trainer:
         model_wrapper: Optional[ModelWrapperAdapter] = None,
         logger_port=None,
         experiment_name: str = "experiment",
+        experiment_config_path: Optional[Path] = None,
     ) -> None:
         self.app_config = app_config
         self.model = model
@@ -52,6 +54,7 @@ class Trainer:
         self.ema_model = ema_model
         self.model_wrapper = model_wrapper
         self.experiment_name = experiment_name
+        self.experiment_config_path = experiment_config_path
         self.logger = logger_port or logger
 
         set_seed(self.app_config.train.seed)

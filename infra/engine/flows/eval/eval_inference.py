@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import random
+import re
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -17,6 +19,11 @@ from infra.core import (
 from infra.data.preprocess import build_image_preprocess_from_loader
 from infra.engine.flows.common.image_io import load_pil_image
 from infra.common.rendering.visualize import render_prediction_with_yolo_caption
+
+
+def _safe_token(value: str) -> str:
+    token = re.sub(r"[^A-Za-z0-9._-]+", "_", str(value)).strip("_")
+    return token or "unknown"
 
 
 def run_eval_inference_loop(
@@ -43,20 +50,24 @@ def run_eval_inference_loop(
 
     all_predictions: List[Dict[str, torch.Tensor]] = []
     all_targets_for_metric: List[Dict[str, torch.Tensor]] = []
-    detection_records: List[Dict] = []
-
     gt_total = 0
     gt_matched_iou50 = 0
     images_with_predictions = 0
     saved_vis = 0
     confusion_events: List[tuple[Optional[int], Optional[int]]] = []
 
-    suffix = ""
-    if image_epoch_suffix is not None:
-        suffix = f"_{int(image_epoch_suffix):04d}"
+    max_visualizations = max(0, int(vis_samples))
+    visualization_indices: set[int] = set()
+    if max_visualizations > 0 and len(samples) > 0:
+        rng_seed = int(image_epoch_suffix) if image_epoch_suffix is not None else random.randrange(1 << 30)
+        rng = random.Random(rng_seed)
+        selected_count = min(max_visualizations, len(samples))
+        visualization_indices = set(rng.sample(range(len(samples)), selected_count))
+
+    resolved_epoch = int(image_epoch_suffix) if image_epoch_suffix is not None else 0
 
     with torch.no_grad():
-        for sample in samples:
+        for sample_index, sample in enumerate(samples):
             original_image = load_pil_image(Path(sample["image_path"]))
             batch_tensor = transforms(original_image).unsqueeze(0).to(device)
             orig_sizes = torch.tensor([[original_image.size[0], original_image.size[1]]], device=device)
@@ -80,15 +91,6 @@ def run_eval_inference_loop(
                 "boxes": prediction["boxes"].detach().cpu(),
                 "scores": prediction["scores"].detach().cpu(),
             }
-
-            detection_records.append(
-                {
-                    "image": sample["file_name"],
-                    "labels": raw_pred["labels"].tolist(),
-                    "boxes": raw_pred["boxes"].tolist(),
-                    "scores": raw_pred["scores"].tolist(),
-                }
-            )
 
             pred_for_metric = {
                 "boxes": raw_pred["boxes"],
@@ -157,7 +159,7 @@ def run_eval_inference_loop(
                 for pred_idx in range(pred_labels.numel()):
                     confusion_events.append((None, int(pred_labels[pred_idx].item())))
 
-            if saved_vis < int(vis_samples):
+            if sample_index in visualization_indices:
                 vis_tensor = batch_tensor[0].detach().cpu()
                 if vis_tensor.ndim != 3:
                     raise ValueError(f"Expected CHW tensor for visualization, got shape={tuple(vis_tensor.shape)}")
@@ -174,8 +176,13 @@ def run_eval_inference_loop(
                     class_id_to_name=class_id_to_name,
                     confidence_threshold=score_thr,
                 )
-                image_name = f"eval_{saved_vis:05d}{suffix}.jpg"
-                Image.fromarray(rendered).save(eval_vis_dir / image_name)
+                dataset_name = _safe_token(str(sample.get("dataset_name", "dataset")))
+                image_id = int(sample.get("image_id", -1))
+                image_stem = _safe_token(Path(str(sample.get("file_name", "image"))).stem)
+                image_folder = eval_vis_dir / f"{dataset_name}__image_id_{image_id}"
+                image_folder.mkdir(parents=True, exist_ok=True)
+                image_name = f"{dataset_name}__{image_stem}__epoch_{resolved_epoch:04d}.png"
+                Image.fromarray(rendered).save(image_folder / image_name)
                 vis_logger.log_image(tag="eval/visualization", image=rendered, step=saved_vis)
                 saved_vis += 1
 
@@ -190,14 +197,10 @@ def run_eval_inference_loop(
             gt_matched_iou50 / float(gt_total),
         )
 
-    detections_path = eval_vis_dir / "detections.json"
-    with detections_path.open("w", encoding="utf-8") as file:
-        json.dump(detection_records, file, indent=2)
-    logger.info("Saved eval detections JSON to {}", detections_path)
     vis_logger.log_text(
         tag="eval/detections_summary",
-        text=f"records={len(detection_records)} path={detections_path}",
-        step=0,
+        text=f"visualized_samples={saved_vis} epoch={resolved_epoch}",
+        step=resolved_epoch,
     )
 
     return {

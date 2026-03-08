@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..base import ModelAgnosticDetCriterionAdapterBase
+from ..contracts import ModelAgnosticDetCriterionAdapterBase
 
 
 class AgnosticYoloCriterionAdapter(ModelAgnosticDetCriterionAdapterBase):

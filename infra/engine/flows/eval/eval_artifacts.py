@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -12,8 +13,127 @@ from infra.tracking import create_visualization_logger
 
 from .eval_inference import run_eval_inference_loop
 from .eval_model_metrics import generate_eval_model_metrics_bundle, log_eval_model_metrics_bundle
-from .eval_reporting import populate_confusion_diagnostics, write_metrics_json as write_metrics_json_file
+from .eval_reporting import populate_confusion_diagnostics
 from .eval_sampling import build_eval_samples
+
+
+EVAL_RESULTS_FIELDNAMES = [
+    "epoch",
+    "time",
+    "metrics/precision(B)",
+    "metrics/recall(B)",
+    "metrics/F1(B)",
+    "metrics/accuracy(B)",
+    "metrics/mAP50(B)",
+    "metrics/mAP50-95(B)",
+    "val/bbox_map_75",
+    "val/bbox_mar_100",
+]
+
+
+def _prune_eval_non_image_files(eval_root_dir: Path) -> None:
+    if not eval_root_dir.exists():
+        return
+    image_suffixes = {".png", ".jpg", ".jpeg", ".webp"}
+    for candidate in eval_root_dir.rglob("*"):
+        if not candidate.is_file():
+            continue
+        if candidate.suffix.lower() in image_suffixes:
+            continue
+        candidate.unlink(missing_ok=True)
+
+
+def _build_eval_results_row(*, epoch: int, metrics: Dict[str, float], confusion_scores: Dict[str, float]) -> Dict[str, float]:
+    return {
+        "epoch": float(epoch),
+        "time": float(epoch),
+        "metrics/precision(B)": float(confusion_scores.get("precision", 0.0)),
+        "metrics/recall(B)": float(confusion_scores.get("recall", 0.0)),
+        "metrics/F1(B)": float(confusion_scores.get("f1", 0.0)),
+        "metrics/accuracy(B)": float(confusion_scores.get("accuracy", 0.0)),
+        "metrics/mAP50(B)": float(metrics.get("bbox_map_50", 0.0)),
+        "metrics/mAP50-95(B)": float(metrics.get("bbox_map", metrics.get("map", 0.0))),
+        "val/bbox_map_75": float(metrics.get("bbox_map_75", 0.0)),
+        "val/bbox_mar_100": float(metrics.get("bbox_mar_100", 0.0)),
+    }
+
+
+def _load_eval_results_history(results_csv: Path) -> Dict[int, Dict[str, float]]:
+    rows_by_epoch: Dict[int, Dict[str, float]] = {}
+    if not results_csv.exists():
+        return rows_by_epoch
+
+    with results_csv.open("r", encoding="utf-8", newline="") as file:
+        reader = csv.DictReader(file)
+        for raw_row in reader:
+            try:
+                epoch = int(float(raw_row.get("epoch", 0.0)))
+            except (TypeError, ValueError):
+                continue
+            row: Dict[str, float] = {}
+            for field in EVAL_RESULTS_FIELDNAMES:
+                try:
+                    row[field] = float(raw_row.get(field, 0.0))
+                except (TypeError, ValueError):
+                    row[field] = 0.0
+            rows_by_epoch[epoch] = row
+
+    return rows_by_epoch
+
+
+def _write_eval_results_history(results_csv: Path, rows_by_epoch: Dict[int, Dict[str, float]]) -> None:
+    ordered_epochs = sorted(rows_by_epoch.keys())
+    with results_csv.open("w", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=EVAL_RESULTS_FIELDNAMES)
+        writer.writeheader()
+        for epoch in ordered_epochs:
+            writer.writerow(rows_by_epoch[epoch])
+
+
+def _update_eval_history_files(
+    *,
+    eval_root_dir: Path,
+    epoch: int,
+    metrics: Dict[str, float],
+    confusion_scores: Dict[str, float],
+) -> None:
+    eval_root_dir.mkdir(parents=True, exist_ok=True)
+
+    history_json = eval_root_dir / "metrics.json"
+    history_entries: Dict[int, Dict[str, float]] = {}
+    if history_json.exists():
+        try:
+            loaded = json.loads(history_json.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                loaded = [loaded]
+            if isinstance(loaded, list):
+                for item in loaded:
+                    if not isinstance(item, dict):
+                        continue
+                    try:
+                        item_epoch = int(float(item.get("epoch", 0.0)))
+                    except (TypeError, ValueError):
+                        continue
+                    history_entries[item_epoch] = item
+        except Exception:
+            history_entries = {}
+
+    entry = {"epoch": int(epoch)}
+    entry.update({key: float(value) for key, value in metrics.items()})
+    entry.update({f"confusion_{key}": float(value) for key, value in confusion_scores.items()})
+    history_entries[int(epoch)] = entry
+
+    ordered_entries = [history_entries[current_epoch] for current_epoch in sorted(history_entries.keys())]
+    history_json.write_text(json.dumps(ordered_entries, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    results_csv = eval_root_dir / "results.csv"
+    rows_by_epoch = _load_eval_results_history(results_csv)
+    rows_by_epoch[int(epoch)] = _build_eval_results_row(
+        epoch=int(epoch),
+        metrics=metrics,
+        confusion_scores=confusion_scores,
+    )
+    _write_eval_results_history(results_csv, rows_by_epoch)
 
 
 def _build_eval_metric_payload(metrics: Dict[str, float]) -> Dict[str, float]:
@@ -58,6 +178,8 @@ def run_eval_artifacts(
     inference_dir.mkdir(parents=True, exist_ok=True)
     eval_vis_dir = inference_dir / "eval"
     eval_vis_dir.mkdir(parents=True, exist_ok=True)
+    _prune_eval_non_image_files(eval_vis_dir)
+    log_step = int(image_epoch_suffix) if image_epoch_suffix is not None else 0
 
     vis_logger = create_visualization_logger(
         output_root=output_root,
@@ -104,24 +226,9 @@ def run_eval_artifacts(
         iou_types=app_config.data.iou_types,
     )
 
-    if write_metrics_json:
-        write_metrics_json_file(eval_vis_dir=eval_vis_dir, metrics=metrics, logger=logger)
-        try:
-            metrics_json_path = eval_vis_dir / "metrics.json"
-            loaded_metrics = json.loads(metrics_json_path.read_text(encoding="utf-8"))
-            vis_logger.log_artifact(file_path=metrics_json_path, artifact_path="eval")
-            vis_logger.log_text(
-                tag="eval/metrics_json",
-                text=json.dumps(loaded_metrics, indent=2, ensure_ascii=False),
-                step=0,
-            )
-            logger.info("Logged metrics.json payload to visualization backends from {}", metrics_json_path)
-        except Exception as error:
-            logger.warning("Failed to log metrics.json payload to visualization backends: {}", error)
-
     eval_metric_payload = _build_eval_metric_payload(metrics)
     if eval_metric_payload:
-        vis_logger.log_metrics(metrics=eval_metric_payload, step=0)
+        vis_logger.log_metrics(metrics=eval_metric_payload, step=log_step)
 
     diagnostics_payload: Dict[str, Any] = diagnostics if diagnostics is not None else {}
 
@@ -142,18 +249,25 @@ def run_eval_artifacts(
         metrics=metrics,
         confusion_matrix=confusion_matrix,
         confusion_labels=confusion_labels,
+        epoch=max(1, log_step),
+    )
+    _update_eval_history_files(
+        eval_root_dir=output_root,
+        epoch=max(1, log_step),
+        metrics=metrics,
+        confusion_scores=confusion_scores,
     )
     log_eval_model_metrics_bundle(
         output_root=output_root,
         vis_logger=vis_logger,
-        step=0,
+        step=log_step,
         metrics=metrics,
         confusion_scores=confusion_scores,
         confusion_labels=confusion_labels,
     )
     vis_logger.log_metrics(
         metrics={f"evaluation/{key}": float(value) for key, value in confusion_scores.items()},
-        step=0,
+        step=log_step,
     )
     vis_logger.close()
 

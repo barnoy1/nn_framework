@@ -5,7 +5,7 @@ from typing import Dict, Iterable, Optional
 
 from infra.common.loss_aliases import canonical_loss_alias
 
-from .base import ResolvedLossTarget
+from .contracts import ResolvedLossTarget
 
 
 @dataclass(frozen=True)
