@@ -7,7 +7,7 @@ from .wrappers import (
     WrapperComponents,
 )
 from .ema import EMAModel
-from .wrappers import create_model_builder, create_model_wrapper
+from .wrappers import create_model_wrapper
 
 __all__ = [
     "FrameworkModelAdapter",
@@ -17,6 +17,5 @@ __all__ = [
     "ModelWrapperAdapter",
     "WrapperComponents",
     "EMAModel",
-    "create_model_builder",
     "create_model_wrapper",
 ]
