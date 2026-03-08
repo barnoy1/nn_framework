@@ -88,7 +88,7 @@ class MLflowCallback(Callback):
                 )
                 if experiment is not None:
                     experiment_url = f"{mlflow_url}/#/experiments/{experiment.experiment_id}"
-                    webbrowser.open_new_tab(experiment_url)
+                    webbrowser.open(experiment_url, new=0)
                     trainer.logger.info("MLflow experiment URL: {}", experiment_url)
             except Exception as error:
                 trainer.logger.warning("MLflow UI service startup failed: {}", error)

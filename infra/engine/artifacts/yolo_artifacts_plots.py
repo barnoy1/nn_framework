@@ -112,8 +112,8 @@ def render_training_artifact_plots(*, output_root: Path, rows: List[Dict[str, fl
         plt.ylabel("loss")
         plt.title(f"{prefix}_common_loss_components")
         plt.grid(True, alpha=0.3)
-        plt.legend(fontsize=8)
-        plt.tight_layout()
+        plt.legend(loc="center right", bbox_to_anchor=(-0.18, 0.5), fontsize=8)
+        plt.tight_layout(rect=(0.18, 0.0, 1.0, 1.0))
         plt.savefig(output_root / f"{prefix}_common_loss_components.png", dpi=180)
         plt.close()
 
@@ -128,8 +128,8 @@ def render_training_artifact_plots(*, output_root: Path, rows: List[Dict[str, fl
             plt.ylabel("loss")
             plt.title(f"{prefix}_concreate_loss_components")
             plt.grid(True, alpha=0.3)
-            plt.legend(fontsize=8)
-            plt.tight_layout()
+            plt.legend(loc="center right", bbox_to_anchor=(-0.18, 0.5), fontsize=8)
+            plt.tight_layout(rect=(0.18, 0.0, 1.0, 1.0))
             plt.savefig(output_root / f"{prefix}_concreate_loss_components.png", dpi=180)
             plt.close()
 

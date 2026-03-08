@@ -78,7 +78,7 @@ def run(args: Namespace) -> None:
         logger.info("Open: {}", url)
         if not args.no_open_browser:
             try:
-                webbrowser.open_new_tab(url)
+                webbrowser.open(url, new=0)
                 logger.info("Browser opened: {}", url)
             except Exception as error:
                 logger.warning("Failed to open browser automatically: {}", error)
