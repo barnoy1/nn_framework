@@ -85,7 +85,7 @@ train:
   # Gradient clipping norm threshold (0 disables).
   grad_clip_norm: 0.1
   # AMP mode (`fp16` reduces memory/latency).
-  mixed_precision: "no"
+  mixed_precision: "fp16"
   # Root directory for run artifacts.
   output_dir: ./out
   # Logging cadence in training steps.
@@ -152,7 +152,7 @@ data:
           # Geometric: rotation in degrees range [-limit, +limit].
           - {type: Rotate, limit: 15, p: 0.3}
           # Image-only grayscale conversion (keeps 3 channels).
-          - {type: ToGray, p: 1.0}
+          - {type: ToGray, p: 1.0, num_output_channels: 1}
           # Image-only color jitter in HSV space (annotations unchanged).
           - {type: HueSaturationValue, hue_shift_limit: 12, sat_shift_limit: 24, val_shift_limit: 12, p: 0.3}
           # Image-only contrast/brightness change.
@@ -171,7 +171,7 @@ data:
       # Batch collation strategy.
       type: BatchImageCollateFunction
       # Multi-scale training candidate sizes.
-      scales: [480, 512, 544, 576, 608, 640, 640, 640, 672, 704, 736, 768, 800]
+      scales: [480, 512, 544, 576, 608, 640]
     
 
   val_dataloader:
@@ -224,7 +224,7 @@ runtime:
     # Shared confidence threshold for evaluation metrics (train validation + eval flow).
     score_threshold: 0.35
     # Generic runtime batch size used by utility flows.
-    batch_size: 8
+    batch_size: 2
     # Generic runtime worker count.
     num_workers: 2
   visualization:

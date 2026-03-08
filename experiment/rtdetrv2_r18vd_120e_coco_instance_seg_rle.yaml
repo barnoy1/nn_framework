@@ -85,7 +85,7 @@ train:
   # Gradient clipping norm threshold (0 disables).
   grad_clip_norm: 0.1
   # AMP mode (`fp16` reduces memory/latency).
-  mixed_precision: "no"
+  mixed_precision: "fp16"
   # Root directory for run artifacts.
   output_dir: ./out
   # Logging cadence in training steps.
@@ -171,7 +171,7 @@ data:
       # Batch collation strategy.
       type: BatchImageCollateFunction
       # Multi-scale training candidate sizes.
-      scales: [480, 512, 544, 576, 608, 640, 640, 640, 672, 704, 736, 768, 800]
+      scales: [480, 512, 544, 576, 608, 640]
     
 
   val_dataloader:

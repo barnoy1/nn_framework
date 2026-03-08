@@ -139,6 +139,7 @@ class Trainer:
             baseline_metrics = self.run_baseline_eval_sanity(epoch=-1)
             if self.accelerator.is_main_process:
                 self.logger.info("baseline metrics={}", {f"val_{k}": v for k, v in baseline_metrics.items()})
+            self._cleanup_gpu_memory(epoch=-1)
 
             first_epoch_in_run = True
             for epoch in range(self.total_epochs):
