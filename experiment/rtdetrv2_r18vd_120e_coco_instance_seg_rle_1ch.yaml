@@ -192,7 +192,7 @@ data:
         type: Compose
         ops:
           # Deterministic resize for validation/inference parity.
-          - {type: Resize, size: [640, 640]}
+          - {type: LetterBox, size: [640, 640], fill_value: 114}
           # Convert image to scaled float representation.
           - {type: ConvertPILImage, dtype: 'float32', scale: true}
     # Keep deterministic order for reproducible eval.
@@ -220,7 +220,7 @@ runtime:
     # Iteration logging interval for runtime tools.
     log_iter: 20
     # Runtime epoch override.
-    epoches: 100
+    epoches: 20
     # Shared confidence threshold for evaluation metrics (train validation + eval flow).
     score_threshold: 0.35
     # Generic runtime batch size used by utility flows.

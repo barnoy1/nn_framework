@@ -49,6 +49,15 @@ def build_albumentations_from_loader(
                 ops.append(A.Resize(height=resize_h, width=resize_w, p=_prob(op, 1.0)))
                 continue
 
+            if op_type == "letterbox":
+                resize_h, resize_w = _extract_resize_hw(op, default_size=default_size)
+                fill_value = op.get("fill_value", 114)
+                ops.append(A.LongestMaxSize(max_size=max(resize_h, resize_w), p=_prob(op, 1.0)))
+                ops.append(
+                    A.PadIfNeeded(min_height=resize_h, min_width=resize_w, border_mode=cv2.BORDER_CONSTANT, fill=fill_value, fill_mask=0, p=1.0)
+                )
+                continue
+
             if op_type == "randomhorizontalflip":
                 ops.append(A.HorizontalFlip(p=_prob(op, 0.5)))
                 continue

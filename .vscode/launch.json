@@ -23,7 +23,7 @@
       "justMyCode": true
     },
     {
-      "name": "nn_framework: cli train IR",
+      "name": "nn_framework: cli train 1 channel",
       "type": "debugpy",
       "request": "launch",
       "subProcess": false,
@@ -33,7 +33,7 @@
       "args": [
         "train",
         "--config",
-        "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle_IR.yaml",
+        "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle_1ch.yaml",
         "--output-dir",
         "${workspaceFolder}/out"
       ],
