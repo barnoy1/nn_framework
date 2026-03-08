@@ -144,7 +144,11 @@ class MlflowVisualizationLogger:
     def log_artifact(self, file_path: Path, artifact_path: str = "artifacts") -> None:
         resolved = Path(file_path).resolve()
         if resolved.exists():
-            self._mlflow.log_artifact(str(resolved), artifact_path=artifact_path)
+            normalized_path = str(artifact_path).strip()
+            if normalized_path in {"", "."}:
+                self._mlflow.log_artifact(str(resolved))
+            else:
+                self._mlflow.log_artifact(str(resolved), artifact_path=normalized_path)
 
     def log_execution_config(self, execution_config: Dict[str, Any]) -> None:
         if not execution_config:

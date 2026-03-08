@@ -176,3 +176,25 @@ def log_accumulated_eval_history_artifacts(*, output_dir: Path, logger) -> None:
         resolved = artifact_path.resolve()
         if resolved.exists() and resolved.is_file():
             logger.log_artifact(file_path=resolved, artifact_path="evaluation/history")
+
+
+def sync_execution_tree_artifacts(*, output_dir: Path, logger, artifact_mtimes: dict[Path, int]) -> None:
+    if not output_dir.exists():
+        return
+    for candidate in sorted(output_dir.rglob("*")):
+        if not candidate.is_file():
+            continue
+        try:
+            mtime_ns = candidate.stat().st_mtime_ns
+        except OSError:
+            continue
+        resolved = candidate.resolve()
+        previous_mtime = artifact_mtimes.get(resolved)
+        if previous_mtime is not None and previous_mtime == mtime_ns:
+            continue
+
+        relative_path = resolved.relative_to(output_dir.resolve())
+        parent = relative_path.parent.as_posix()
+        artifact_path = "" if parent == "." else parent
+        logger.log_artifact(file_path=resolved, artifact_path=artifact_path)
+        artifact_mtimes[resolved] = mtime_ns

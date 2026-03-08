@@ -18,6 +18,7 @@ from .visualization_helpers import (
     log_dataset_artifacts,
     log_evaluation_artifacts,
     log_output_artifacts,
+    sync_execution_tree_artifacts,
 )
 
 if TYPE_CHECKING:
@@ -43,6 +44,7 @@ class ValidationVisualizationCallback(Callback):
         self._logger = None
         self._save_dir = self.output_dir / "inference" / "validation"
         self._last_logged_artifacts: set[Path] = set()
+        self._artifact_mtimes: dict[Path, int] = {}
 
     def on_train_start(self, trainer: "Trainer") -> None:
         if not trainer.accelerator.is_main_process:
@@ -135,6 +137,11 @@ class ValidationVisualizationCallback(Callback):
             logger=self._logger,
             logged_artifacts=self._last_logged_artifacts,
         )
+        sync_execution_tree_artifacts(
+            output_dir=self.output_dir,
+            logger=self._logger,
+            artifact_mtimes=self._artifact_mtimes,
+        )
 
         samples = list(getattr(trainer, "last_validation_visual_samples", []) or [])[: self.num_samples]
         if not samples:
@@ -174,8 +181,18 @@ class ValidationVisualizationCallback(Callback):
             logger=self._logger,
             logged_artifacts=self._last_logged_artifacts,
         )
+        sync_execution_tree_artifacts(
+            output_dir=self.output_dir,
+            logger=self._logger,
+            artifact_mtimes=self._artifact_mtimes,
+        )
 
     def on_train_end(self, trainer: "Trainer") -> None:
         if self._logger is not None:
+            sync_execution_tree_artifacts(
+                output_dir=self.output_dir,
+                logger=self._logger,
+                artifact_mtimes=self._artifact_mtimes,
+            )
             self._logger.close()
             self._logger = None
