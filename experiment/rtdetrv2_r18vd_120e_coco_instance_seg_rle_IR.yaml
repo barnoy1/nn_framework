@@ -72,8 +72,6 @@ model:
       
     
 train:
-  # Total training epochs.
-  epochs: 10
   # Per-step training batch size.
   batch_size: 8
   # Per-step validation batch size.

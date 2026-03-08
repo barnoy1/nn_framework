@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, Dict, List
 
 from torch.utils.data import ConcatDataset, DataLoader
 
@@ -8,6 +9,49 @@ from infra.config import AppConfig
 from infra.data.dataset import COCODetectionDataset, DetectionCollateFn
 from infra.data.prep import convert_dataset
 from infra.data.transforms import build_albumentations_from_loader
+
+
+def _extract_dataset_entries(loader_cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
+    dataset_cfg = loader_cfg.get("dataset") if isinstance(loader_cfg, dict) else None
+    if not isinstance(dataset_cfg, dict):
+        return []
+    datasets = dataset_cfg.get("datasets")
+    if not isinstance(datasets, list):
+        return []
+    return [entry for entry in datasets if isinstance(entry, dict)]
+
+
+def _resolve_dataset_transforms(
+    *,
+    loader_cfg: Dict[str, Any],
+    use_masks: bool,
+    default_size: int,
+    dataset_count: int,
+) -> List[Any]:
+    global_transforms = build_albumentations_from_loader(
+        loader_cfg=loader_cfg,
+        use_masks=use_masks,
+        default_size=default_size,
+    )
+    entries = _extract_dataset_entries(loader_cfg)
+    if not entries:
+        return [global_transforms for _ in range(dataset_count)]
+
+    resolved: List[Any] = []
+    for index in range(dataset_count):
+        entry = entries[index] if index < len(entries) else {}
+        entry_transforms = entry.get("transforms") if isinstance(entry, dict) else None
+        if isinstance(entry_transforms, dict):
+            scoped_loader_cfg = {"dataset": {"transforms": entry_transforms}}
+            transforms = build_albumentations_from_loader(
+                loader_cfg=scoped_loader_cfg,
+                use_masks=use_masks,
+                default_size=default_size,
+            )
+            resolved.append(transforms)
+        else:
+            resolved.append(global_transforms)
+    return resolved
 
 
 def prepare_data_if_needed(config: AppConfig) -> None:
@@ -26,40 +70,42 @@ def prepare_data_if_needed(config: AppConfig) -> None:
 
 def build_loaders(config: AppConfig) -> tuple[DataLoader, DataLoader]:
     use_masks = "segm" in config.data.iou_types
-    train_transforms = build_albumentations_from_loader(
+    train_transforms_per_dataset = _resolve_dataset_transforms(
         loader_cfg=config.data.train_dataloader,
         use_masks=use_masks,
         default_size=640,
+        dataset_count=len(config.data.train_sets),
     )
-    val_transforms = build_albumentations_from_loader(
+    val_transforms_per_dataset = _resolve_dataset_transforms(
         loader_cfg=config.data.val_dataloader,
         use_masks=use_masks,
         default_size=640,
+        dataset_count=len(config.data.val_sets),
     )
 
     train_datasets = [
         COCODetectionDataset(
             img_dir=dataset_pair.img_dir,
             ann_file=dataset_pair.ann_file,
-            transforms=train_transforms,
+            transforms=train_transforms_per_dataset[index],
             iou_types=config.data.iou_types,
             keep_rle=config.data.keep_rle_in_targets,
             filter_empty_targets=config.data.filter_empty_targets,
             label_mapping=config.data.mapping,
         )
-        for dataset_pair in config.data.train_sets
+        for index, dataset_pair in enumerate(config.data.train_sets)
     ]
     val_datasets = [
         COCODetectionDataset(
             img_dir=dataset_pair.img_dir,
             ann_file=dataset_pair.ann_file,
-            transforms=val_transforms,
+            transforms=val_transforms_per_dataset[index],
             iou_types=config.data.iou_types,
             keep_rle=config.data.keep_rle_in_targets,
             filter_empty_targets=False,
             label_mapping=config.data.mapping,
         )
-        for dataset_pair in config.data.val_sets
+        for index, dataset_pair in enumerate(config.data.val_sets)
     ]
 
     train_dataset = train_datasets[0] if len(train_datasets) == 1 else ConcatDataset(train_datasets)

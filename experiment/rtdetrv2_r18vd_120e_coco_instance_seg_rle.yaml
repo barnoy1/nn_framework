@@ -221,6 +221,8 @@ runtime:
     log_iter: 20
     # Runtime epoch override.
     epoches: 100
+    # Runtime seed used by evaluation visualization sampling and runtime stochastic behavior.
+    seed: 42
     # Shared confidence threshold for evaluation metrics (train validation + eval flow).
     score_threshold: 0.35
     # Generic runtime batch size used by utility flows.

@@ -10,7 +10,6 @@ import yaml
 from ...artifacts.mlflow_tracking_helpers import (
     artifact_root,
     flatten_payload,
-    register_current_model,
     resolve_run_folder_name,
     trim_param,
 )
@@ -104,12 +103,6 @@ class MLflowCallback(Callback):
         trainer.logger.info("MLflow tracking dir: {}", tracking_dir)
         trainer.logger.info("MLflow artifact root: {}", mlflow_artifact_root)
         execution_config = trainer.app_config.model_dump(mode="json")
-        register_current_model(
-            trainer=trainer,
-            client=client,
-            experiment_name=experiment_name,
-            execution_config=execution_config,
-        )
         flattened = flatten_payload(execution_config)
         if flattened:
             items = list(flattened.items())
@@ -121,20 +114,21 @@ class MLflowCallback(Callback):
                 }
                 mlflow.log_params(chunk)
         experiment_config_path = getattr(trainer, "experiment_config_path", None)
+        config_dir = Path(trainer.app_config.train.output_dir) / "configs"
+        config_dir.mkdir(parents=True, exist_ok=True)
+
         if experiment_config_path is not None:
             resolved_config_path = Path(experiment_config_path).resolve()
             if resolved_config_path.exists() and resolved_config_path.is_file():
-                mlflow.log_artifact(str(resolved_config_path), artifact_path="config")
+                target = config_dir / "experiment.yaml"
+                if target.resolve() != resolved_config_path:
+                    target.write_text(resolved_config_path.read_text(encoding="utf-8"), encoding="utf-8")
             else:
                 config_yaml = yaml.safe_dump(execution_config, sort_keys=True, allow_unicode=True)
-                mlflow.log_text(config_yaml, artifact_file="config/experiment.yaml")
+                (config_dir / "experiment.yaml").write_text(config_yaml, encoding="utf-8")
         else:
             config_yaml = yaml.safe_dump(execution_config, sort_keys=True, allow_unicode=True)
-            mlflow.log_text(config_yaml, artifact_file="config/experiment.yaml")
-
-        execution_dump_path = Path(trainer.app_config.train.output_dir) / "configs" / "execution.yaml"
-        if execution_dump_path.exists() and execution_dump_path.is_file():
-            mlflow.log_artifact(str(execution_dump_path.resolve()), artifact_path="config")
+            (config_dir / "experiment.yaml").write_text(config_yaml, encoding="utf-8")
         self._active = True
 
     def _step(self, raw_step: int) -> int:

@@ -59,7 +59,11 @@ def run_eval_inference_loop(
     max_visualizations = max(0, int(vis_samples))
     visualization_indices: set[int] = set()
     if max_visualizations > 0 and len(samples) > 0:
-        rng_seed = int(image_epoch_suffix) if image_epoch_suffix is not None else random.randrange(1 << 30)
+        configured_seed = app_config.runtime.common.seed
+        try:
+            rng_seed = int(configured_seed)
+        except (TypeError, ValueError):
+            rng_seed = 42
         rng = random.Random(rng_seed)
         selected_count = min(max_visualizations, len(samples))
         visualization_indices = set(rng.sample(range(len(samples)), selected_count))

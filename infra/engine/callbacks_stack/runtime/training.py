@@ -16,7 +16,9 @@ class EMACallback(Callback):
 
 class DynamicAugCallback(Callback):
     def on_epoch_start(self, trainer: "Trainer", epoch: int) -> None:
-        dataset = trainer.train_loader.dataset
-        transforms = getattr(dataset, "transforms", None)
-        if transforms is not None and hasattr(transforms, "update_augmentation"):
-            transforms.update_augmentation(epoch=epoch, total_epochs=trainer.total_epochs)
+        root_dataset = trainer.train_loader.dataset
+        datasets = list(getattr(root_dataset, "datasets", []) or [root_dataset])
+        for dataset in datasets:
+            transforms = getattr(dataset, "transforms", None)
+            if transforms is not None and hasattr(transforms, "update_augmentation"):
+                transforms.update_augmentation(epoch=epoch, total_epochs=trainer.total_epochs)

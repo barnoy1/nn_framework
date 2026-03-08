@@ -18,6 +18,7 @@ class CommonConfig(BaseModel):
     log_iter: int = 20
     epoches: Optional[int] = None
     score_threshold: float = 0.3
+    seed: int = 42
 
     @field_validator("epoches")
     @classmethod
@@ -47,6 +48,11 @@ class CommonConfig(BaseModel):
         if value is not None and int(value) < 0:
             raise ValueError("runtime.common.num_workers must be >= 0 when provided")
         return value
+
+    @field_validator("seed")
+    @classmethod
+    def validate_seed(cls, value: int) -> int:
+        return int(value)
 
 
 class DataPreparationConfig(BaseModel):
@@ -132,6 +138,10 @@ class RuntimeConfig(BaseModel):
     @property
     def epoches(self) -> Optional[int]:
         return self.common.epoches
+
+    @property
+    def seed(self) -> int:
+        return self.common.seed
 
     @property
     def prepare_data(self) -> bool:

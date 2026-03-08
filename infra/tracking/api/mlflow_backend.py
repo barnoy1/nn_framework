@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 from typing import Any, Dict
 
 import numpy as np
-from PIL import Image
 
 
 def _flatten_mapping(payload: Dict[str, Any], prefix: str = "") -> Dict[str, str]:
@@ -69,6 +67,7 @@ class MlflowVisualizationLogger:
         self._tracking_dir = tracking_dir.resolve()
         self._tracking_dir.mkdir(parents=True, exist_ok=True)
         resolved_run_context = (run_context_dir or self._tracking_dir).resolve()
+        self._run_context_dir = resolved_run_context
         resolved_run_name = self._compose_run_name(run_name, resolved_run_context)
         artifact_root = (self._tracking_dir / "mlruns").resolve()
         artifact_root.mkdir(parents=True, exist_ok=True)
@@ -123,13 +122,6 @@ class MlflowVisualizationLogger:
 
     def log_image(self, tag: str, image: np.ndarray, step: int) -> None:
         self._monotonic_step(step)
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-            temp_path = Path(tmp.name)
-        try:
-            Image.fromarray(image).save(temp_path)
-            self._mlflow.log_artifact(str(temp_path), artifact_path="images")
-        finally:
-            temp_path.unlink(missing_ok=True)
 
     def log_metrics(self, metrics: Dict[str, float], step: int) -> None:
         resolved_step = self._monotonic_step(step)
@@ -137,18 +129,23 @@ class MlflowVisualizationLogger:
             self._mlflow.log_metric(key, float(value), step=resolved_step)
 
     def log_text(self, tag: str, text: str, step: int) -> None:
-        safe_tag = str(tag).replace("/", "_")
-        artifact_file = f"text/{safe_tag}_{int(step):06d}.txt"
-        self._mlflow.log_text(str(text), artifact_file=artifact_file)
+        self._monotonic_step(step)
 
     def log_artifact(self, file_path: Path, artifact_path: str = "artifacts") -> None:
         resolved = Path(file_path).resolve()
-        if resolved.exists():
-            normalized_path = str(artifact_path).strip()
-            if normalized_path in {"", "."}:
-                self._mlflow.log_artifact(str(resolved))
-            else:
-                self._mlflow.log_artifact(str(resolved), artifact_path=normalized_path)
+        if not resolved.exists() or not resolved.is_file():
+            return
+
+        try:
+            relative = resolved.relative_to(self._run_context_dir)
+        except ValueError:
+            return
+
+        parent = relative.parent.as_posix()
+        if parent in {"", "."}:
+            self._mlflow.log_artifact(str(resolved))
+            return
+        self._mlflow.log_artifact(str(resolved), artifact_path=parent)
 
     def log_execution_config(self, execution_config: Dict[str, Any]) -> None:
         if not execution_config:
