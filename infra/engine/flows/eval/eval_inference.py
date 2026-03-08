@@ -25,7 +25,6 @@ def _safe_token(value: str) -> str:
     token = re.sub(r"[^A-Za-z0-9._-]+", "_", str(value)).strip("_")
     return token or "unknown"
 
-
 def run_eval_inference_loop(
     *,
     app_config,
@@ -47,7 +46,6 @@ def run_eval_inference_loop(
         class_id_to_name={int(k): str(v) for k, v in (app_config.data.class_id_to_name or {}).items()},
         annotation_files=[str(dataset_pair.ann_file) for dataset_pair in app_config.data.val_sets],
     )
-
     all_predictions: List[Dict[str, torch.Tensor]] = []
     all_targets_for_metric: List[Dict[str, torch.Tensor]] = []
     gt_total = 0
@@ -55,7 +53,6 @@ def run_eval_inference_loop(
     images_with_predictions = 0
     saved_vis = 0
     confusion_events: List[tuple[Optional[int], Optional[int]]] = []
-
     max_visualizations = max(0, int(vis_samples))
     visualization_indices: set[int] = set()
     if max_visualizations > 0 and len(samples) > 0:
@@ -67,9 +64,7 @@ def run_eval_inference_loop(
         rng = random.Random(rng_seed)
         selected_count = min(max_visualizations, len(samples))
         visualization_indices = set(rng.sample(range(len(samples)), selected_count))
-
     resolved_epoch = int(image_epoch_suffix) if image_epoch_suffix is not None else 0
-
     with torch.no_grad():
         for sample_index, sample in enumerate(samples):
             original_image = load_pil_image(Path(sample["image_path"]))
@@ -79,7 +74,6 @@ def run_eval_inference_loop(
                 [[int(batch_tensor.shape[-1]), int(batch_tensor.shape[-2])]],
                 device=device,
             )
-
             outputs = model_eval(batch_tensor)
             prediction = to_result_list(outputs, post_eval, orig_sizes)[0]
             prediction_for_vis = to_result_list(outputs, post_eval, transformed_sizes)[0]
@@ -89,7 +83,6 @@ def run_eval_inference_loop(
             )
             prediction = normalized_results[0]
             prediction_for_vis = normalized_results[1]
-
             raw_pred = {
                 "labels": prediction["labels"].detach().cpu().long(),
                 "boxes": prediction["boxes"].detach().cpu(),
@@ -110,7 +103,6 @@ def run_eval_inference_loop(
                 pred_for_metric["masks"] = prediction["masks"].detach().cpu().bool()
                 if score_thr > 0.0:
                     pred_for_metric["masks"] = pred_for_metric["masks"][keep]
-
             all_predictions.append(pred_for_metric)
             target_for_metric = {
                 "boxes": sample["gt_boxes"],
@@ -120,7 +112,6 @@ def run_eval_inference_loop(
 
             if pred_for_metric["labels"].numel() > 0:
                 images_with_predictions += 1
-
             gt_total += int(sample["gt_labels"].numel())
             if sample["gt_labels"].numel() > 0 and pred_for_metric["labels"].numel() > 0:
                 ious = torchvision.ops.box_iou(pred_for_metric["boxes"], sample["gt_boxes"])
@@ -186,12 +177,12 @@ def run_eval_inference_loop(
                 image_folder = eval_vis_dir / f"{dataset_name}__image_id_{image_id}"
                 image_folder.mkdir(parents=True, exist_ok=True)
                 image_name = f"{dataset_name}__{image_stem}__epoch_{resolved_epoch:04d}.png"
-                Image.fromarray(rendered).save(image_folder / image_name)
+                rendered_image = Image.fromarray(rendered)
+                rendered_image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+                rendered_image.save(image_folder / image_name, optimize=True)
                 vis_logger.log_image(tag="eval/visualization", image=rendered, step=saved_vis)
                 saved_vis += 1
-
     logger.info("Saved {} eval visualizations to {}", saved_vis, eval_vis_dir)
-
     if gt_total > 0:
         logger.info(
             "Eval diagnostic: images_with_predictions={} gt_total={} gt_matched_iou50={} recall50={:.4f}",
@@ -200,15 +191,5 @@ def run_eval_inference_loop(
             gt_matched_iou50,
             gt_matched_iou50 / float(gt_total),
         )
-
-    vis_logger.log_text(
-        tag="eval/detections_summary",
-        text=f"visualized_samples={saved_vis} epoch={resolved_epoch}",
-        step=resolved_epoch,
-    )
-
-    return {
-        "all_predictions": all_predictions,
-        "all_targets_for_metric": all_targets_for_metric,
-        "confusion_events": confusion_events,
-    }
+    vis_logger.log_text(tag="eval/detections_summary", text=f"visualized_samples={saved_vis} epoch={resolved_epoch}", step=resolved_epoch)
+    return {"all_predictions": all_predictions, "all_targets_for_metric": all_targets_for_metric, "confusion_events": confusion_events}

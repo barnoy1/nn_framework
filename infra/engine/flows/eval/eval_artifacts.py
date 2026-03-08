@@ -226,10 +226,6 @@ def run_eval_artifacts(
         iou_types=app_config.data.iou_types,
     )
 
-    eval_metric_payload = _build_eval_metric_payload(metrics)
-    if eval_metric_payload:
-        vis_logger.log_metrics(metrics=eval_metric_payload, step=log_step)
-
     diagnostics_payload: Dict[str, Any] = diagnostics if diagnostics is not None else {}
 
     populate_confusion_diagnostics(
@@ -264,10 +260,6 @@ def run_eval_artifacts(
         metrics=metrics,
         confusion_scores=confusion_scores,
         confusion_labels=confusion_labels,
-    )
-    vis_logger.log_metrics(
-        metrics={f"evaluation/{key}": float(value) for key, value in confusion_scores.items()},
-        step=log_step,
     )
     vis_logger.close()
 

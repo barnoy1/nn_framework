@@ -247,10 +247,6 @@ def log_eval_model_metrics_bundle(
     confusion_scores: Dict[str, float],
     confusion_labels: List[str],
 ) -> None:
-    vis_logger.log_metrics(
-        metrics={f"eval/confusion/{key}": float(value) for key, value in confusion_scores.items()},
-        step=step,
-    )
     if confusion_labels:
         vis_logger.log_text(
             tag="eval/confusion_labels",

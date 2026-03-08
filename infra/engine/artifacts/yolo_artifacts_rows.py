@@ -7,18 +7,18 @@ from typing import Dict, List
 RESULTS_FIELDNAMES = [
     "epoch",
     "time",
+    "train/total_loss",
     "train/box_loss",
     "train/cls_loss",
     "train/dfl_loss",
-    "train/custom_loss",
     "metrics/precision(B)",
     "metrics/recall(B)",
     "metrics/mAP50(B)",
     "metrics/mAP50-95(B)",
+    "val/total_loss",
     "val/box_loss",
     "val/cls_loss",
     "val/dfl_loss",
-    "val/custom_loss",
     "val_map",
     "lr/pg0",
     "lr/pg1",
@@ -35,23 +35,23 @@ def build_epoch_row(*, epoch: int, metrics: Dict[str, float], optimizer_lrs: Lis
     lr1 = optimizer_lrs[1] if len(optimizer_lrs) > 1 else lr0
     lr2 = optimizer_lrs[2] if len(optimizer_lrs) > 2 else lr1
 
-    return {
+    row = {
         "epoch": float(epoch + 1),
         "time": float(epoch + 1),
-        "train/box_loss": float(metrics.get("train_loss", 0.0)),
+        "train/total_loss": float(metrics.get("train_loss", 0.0)),
+        "train/box_loss": float(metrics.get("train_box_loss", 0.0)),
         "train/cls_loss": float(metrics.get("train_cls_loss", 0.0)),
         "train/dfl_loss": float(metrics.get("train_dfl_loss", 0.0)),
-        "train/custom_loss": float(metrics.get("train_custom_loss", 0.0)),
         "metrics/precision(B)": float(precision),
         "metrics/recall(B)": float(recall),
         "metrics/F1(B)": float(f1),
         "metrics/accuracy(B)": float(accuracy),
         "metrics/mAP50(B)": float(metrics.get("val_bbox_map_50", 0.0)),
         "metrics/mAP50-95(B)": float(metrics.get("val_bbox_map", metrics.get("val_map", 0.0))),
+        "val/total_loss": float(metrics.get("val_loss", 0.0)),
         "val/box_loss": float(metrics.get("val_box_loss", 0.0)),
         "val/cls_loss": float(metrics.get("val_cls_loss", 0.0)),
         "val/dfl_loss": float(metrics.get("val_dfl_loss", 0.0)),
-        "val/custom_loss": float(metrics.get("val_custom_loss", 0.0)),
         "val_map": float(metrics.get("val_map", metrics.get("val_bbox_map", 0.0))),
         "lr/pg0": float(lr0),
         "lr/pg1": float(lr1),
@@ -60,10 +60,23 @@ def build_epoch_row(*, epoch: int, metrics: Dict[str, float], optimizer_lrs: Lis
         "val/bbox_mar_100": float(metrics.get("val_bbox_mar_100", 0.0)),
     }
 
+    for key, value in metrics.items():
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            continue
+        if key.startswith("train_criterion/"):
+            row[f"train/criterion/{key.removeprefix('train_criterion/')}"] = numeric
+        elif key.startswith("val_criterion/"):
+            row[f"val/criterion/{key.removeprefix('val_criterion/')}"] = numeric
+    return row
+
 
 def write_results_csv(csv_path: Path, rows: List[Dict[str, float]]) -> None:
+    extra_fields = sorted({key for row in rows for key in row.keys() if key not in RESULTS_FIELDNAMES})
+    fieldnames = [*RESULTS_FIELDNAMES, *extra_fields]
     with csv_path.open("w", encoding="utf-8", newline="") as file:
-        writer = csv.DictWriter(file, fieldnames=RESULTS_FIELDNAMES)
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         for row in rows:
             writer.writerow(row)

@@ -138,31 +138,30 @@ class MLflowCallback(Callback):
         self._last_step = step
         return step
 
+    @staticmethod
+    def _extract_epoch_loss_metrics(metrics: Dict[str, float]) -> Dict[str, float]:
+        payload: Dict[str, float] = {}
+        for source_key, target_key in (("train_loss", "train/total_loss"), ("val_loss", "val/total_loss")):
+            value = metrics.get(source_key)
+            if value is None:
+                continue
+            try:
+                payload[target_key] = float(value)
+            except (TypeError, ValueError):
+                continue
+        return payload
+
     def on_batch_end(self, trainer: "Trainer", epoch: int, step: int, metrics: Dict[str, float]) -> None:
-        if self._active and trainer.accelerator.is_main_process:
-            log_every = max(1, int(trainer.app_config.train.log_every_n_steps))
-            if step % log_every != 0:
-                return
-            current_step = self._step(trainer.global_step)
-            payload = {"epoch": float(epoch), "step": float(step)}
-            for key, value in metrics.items():
-                payload[key] = float(value)
-            mlflow.log_metrics(payload, step=current_step)
+        return
 
     def on_validation_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
-        if self._active and trainer.accelerator.is_main_process:
-            current_step = self._step(trainer.global_step)
-            payload = {"epoch": float(epoch)}
-            for key, value in metrics.items():
-                payload[f"val/{key}"] = float(value)
-            mlflow.log_metrics(payload, step=current_step)
+        return
 
     def on_epoch_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
         if self._active and trainer.accelerator.is_main_process:
             current_step = self._step(trainer.global_step)
-            payload = {"epoch": float(epoch)}
-            for key, value in metrics.items():
-                payload[str(key)] = float(value)
+            payload = self._extract_epoch_loss_metrics(metrics)
+            payload["epoch"] = float(epoch)
             mlflow.log_metrics(payload, step=current_step)
 
     def on_train_end(self, trainer: "Trainer") -> None:
