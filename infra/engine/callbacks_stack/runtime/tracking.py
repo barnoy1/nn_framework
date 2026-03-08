@@ -160,8 +160,12 @@ class MLflowCallback(Callback):
     def on_epoch_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
         if self._active and trainer.accelerator.is_main_process:
             current_step = self._step(trainer.global_step)
-            payload = self._extract_epoch_loss_metrics(metrics)
-            payload["epoch"] = float(epoch)
+            payload = {"epoch": float(epoch)}
+            for key, value in metrics.items():
+                try:
+                    payload[str(key)] = float(value)
+                except (TypeError, ValueError):
+                    continue
             mlflow.log_metrics(payload, step=current_step)
 
     def on_train_end(self, trainer: "Trainer") -> None:

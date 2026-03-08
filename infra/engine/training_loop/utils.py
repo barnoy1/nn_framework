@@ -7,6 +7,7 @@ import torch
 from ...core import move_targets_to_device
 from infra.common.loss_aliases import canonical_loss_alias
 from ..training import (
+    align_images_to_model_input_channels,
     compute_validation_loss_components,
     save_eval_batch_visualization,
     save_train_batch_visualization,
@@ -141,6 +142,7 @@ def save_val_batch_visualizations_for_trainer(
 
 def move_batch_to_device(trainer, images, targets):
     images = images.to(trainer.accelerator.device, non_blocking=True)
+    images = align_images_to_model_input_channels(images=images, model=trainer.model)
     targets = move_targets_to_device(targets, trainer.accelerator.device)
     return images, targets
 

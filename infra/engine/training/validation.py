@@ -6,6 +6,7 @@ from typing import Dict
 import torch
 
 from ...core import move_targets_to_device
+from .input_channels import align_images_to_model_input_channels
 
 
 @contextmanager
@@ -53,6 +54,7 @@ def compute_validation_loss_components(
 
     for images, targets in val_loader:
         images = images.to(accelerator.device, non_blocking=True)
+        images = align_images_to_model_input_channels(images=images, model=model)
         targets = move_targets_to_device(targets, accelerator.device)
 
         with accelerator.autocast():

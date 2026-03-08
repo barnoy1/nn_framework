@@ -128,9 +128,6 @@ class ValidationVisualizationCallback(Callback):
     def on_epoch_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
         if not trainer.accelerator.is_main_process or self._logger is None:
             return
-        numeric_metrics = self._extract_epoch_loss_metrics(metrics)
-        if numeric_metrics:
-            self._logger.log_metrics(metrics=numeric_metrics, step=epoch + 1)
         log_dataset_artifacts(output_dir=self.output_dir, logger=self._logger, logged_artifacts=self._last_logged_artifacts)
         log_batch_artifacts(output_dir=self.output_dir, logger=self._logger, logged_artifacts=self._last_logged_artifacts)
         log_output_artifacts(output_dir=self.output_dir, logger=self._logger, logged_artifacts=self._last_logged_artifacts)

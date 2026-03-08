@@ -54,6 +54,8 @@ def run_eval_inference_loop(
     saved_vis = 0
     confusion_events: List[tuple[Optional[int], Optional[int]]] = []
     max_visualizations = max(0, int(vis_samples))
+    first_conv_weight = next((parameter for parameter in model_eval.parameters() if getattr(parameter, "ndim", 0) == 4), None)
+    expected_channels = int(first_conv_weight.shape[1]) if first_conv_weight is not None else None
     visualization_indices: set[int] = set()
     if max_visualizations > 0 and len(samples) > 0:
         configured_seed = app_config.runtime.common.seed
@@ -70,10 +72,14 @@ def run_eval_inference_loop(
             original_image = load_pil_image(Path(sample["image_path"]))
             batch_tensor = transforms(original_image).unsqueeze(0).to(device)
             orig_sizes = torch.tensor([[original_image.size[0], original_image.size[1]]], device=device)
-            transformed_sizes = torch.tensor(
-                [[int(batch_tensor.shape[-1]), int(batch_tensor.shape[-2])]],
-                device=device,
-            )
+            transformed_sizes = torch.tensor([[int(batch_tensor.shape[-1]), int(batch_tensor.shape[-2])]], device=device)
+            if expected_channels and int(batch_tensor.shape[1]) != expected_channels:
+                if expected_channels == 1:
+                    batch_tensor = batch_tensor.mean(dim=1, keepdim=True)
+                elif int(batch_tensor.shape[1]) == 1:
+                    batch_tensor = batch_tensor.repeat(1, expected_channels, 1, 1)
+                else:
+                    batch_tensor = batch_tensor[:, :expected_channels, :, :]
             outputs = model_eval(batch_tensor)
             prediction = to_result_list(outputs, post_eval, orig_sizes)[0]
             prediction_for_vis = to_result_list(outputs, post_eval, transformed_sizes)[0]
@@ -158,12 +164,10 @@ def run_eval_inference_loop(
                 vis_tensor = batch_tensor[0].detach().cpu()
                 if vis_tensor.ndim != 3:
                     raise ValueError(f"Expected CHW tensor for visualization, got shape={tuple(vis_tensor.shape)}")
-
                 if int(vis_tensor.shape[0]) == 1:
                     vis_tensor = vis_tensor.repeat(3, 1, 1)
                 elif int(vis_tensor.shape[0]) > 3:
                     vis_tensor = vis_tensor[:3]
-
                 vis_image = (vis_tensor.clamp(0.0, 1.0).permute(1, 2, 0).numpy() * 255.0).astype(np.uint8)
                 rendered = render_prediction_with_yolo_caption(
                     image=vis_image,

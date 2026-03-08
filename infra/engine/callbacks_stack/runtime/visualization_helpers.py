@@ -63,28 +63,16 @@ def compute_detection_scores(matrix: np.ndarray) -> Dict[str, float]:
     return {"precision": precision, "recall": recall, "f1": f1, "accuracy": accuracy}
 
 
-def build_validation_metric_payload(metrics: Dict[str, float]) -> Dict[str, float]:
-    payload: Dict[str, float] = {}
-    loss_keys = {"loss", "box_loss", "cls_loss", "dfl_loss", "custom_loss"}
-
-    for key, value in metrics.items():
-        try:
-            numeric = float(value)
-        except (TypeError, ValueError):
-            continue
-
-        payload[f"val/{key}"] = numeric
-        if key in loss_keys or key.startswith("criterion/"):
-            payload[f"evaluation/losses/{key}"] = numeric
-        else:
-            payload[f"evaluation/coco/{key}"] = numeric
-    return payload
-
-
 def log_output_artifacts(*, output_dir: Path, logger, logged_artifacts: set[Path]) -> None:
     artifact_candidates = [
         output_dir / "results.csv",
         output_dir / "results.png",
+        output_dir / "train_total_loss.png",
+        output_dir / "val_total_loss.png",
+        output_dir / "train_common_loss_components.png",
+        output_dir / "val_common_loss_components.png",
+        output_dir / "train_concreate_loss_components.png",
+        output_dir / "val_concreate_loss_components.png",
         output_dir / "bbox_metrics.png",
         output_dir / "BoxP_curve.png",
         output_dir / "BoxR_curve.png",
