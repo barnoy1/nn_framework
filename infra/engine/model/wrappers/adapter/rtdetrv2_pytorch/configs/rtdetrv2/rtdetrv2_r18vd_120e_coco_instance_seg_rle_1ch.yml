@@ -1,7 +1,7 @@
 __include__: [
-  '@REPO_ROOT/raw_models/RT-DETR/rtdetrv2_pytorch/configs/runtime.yml',
-  '@REPO_ROOT/raw_models/RT-DETR/rtdetrv2_pytorch/configs/rtdetrv2/include/optimizer.yml',
-  '@REPO_ROOT/raw_models/RT-DETR/rtdetrv2_pytorch/configs/rtdetrv2/include/rtdetrv2_r50vd.yml',
+  '@MODEL_REPO_ROOT/configs/runtime.yml',
+  '@MODEL_REPO_ROOT/configs/rtdetrv2/include/optimizer.yml',
+  '@MODEL_REPO_ROOT/configs/rtdetrv2/include/rtdetrv2_r50vd.yml',
 ]
 
 output_dir: ./output/rtdetrv2_r18vd_120e_coco_instance_seg_rle

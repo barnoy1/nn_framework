@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import inspect
 import sys
 import tempfile
+import types
 from importlib import import_module
 from pathlib import Path
 
+import torch
+import torch.nn.functional as F
+import torchvision
 from torch import nn
 import yaml
 
@@ -13,6 +18,7 @@ from infra.engine.model.wrappers.common import AgnosticModelBuilderBase
 
 class RTDETRv2ModelBuilder(AgnosticModelBuilderBase):
     _REPO_ROOT_TOKEN = "@REPO_ROOT/"
+    _MODEL_REPO_ROOT_TOKEN = "@MODEL_REPO_ROOT/"
 
     def __init__(self, app_config, repo_root: Path) -> None:
         super().__init__(app_config=app_config, repo_root=repo_root)
@@ -53,38 +59,99 @@ class RTDETRv2ModelBuilder(AgnosticModelBuilderBase):
         core_module = import_module("src.core")
         yaml_config_cls = getattr(core_module, "YAMLConfig")
         config_path = self._resolve_model_config_path()
-        if self._adapter_root in config_path.parents:
-            config_path = self._materialize_repo_root_includes(config_path)
+        config_path = self._materialize_runtime_compatible_config(config_path)
         return yaml_config_cls(str(config_path))
 
-    def _materialize_repo_root_includes(self, config_path: Path) -> Path:
+    def _materialize_runtime_compatible_config(self, config_path: Path) -> Path:
         with config_path.open("r", encoding="utf-8") as file:
             payload = yaml.safe_load(file) or {}
 
-        includes = payload.get("__include__")
-        if not isinstance(includes, list):
-            return config_path
-
-        resolved_includes: list[str] = []
         changed = False
-        for include_path in includes:
-            include_text = str(include_path)
-            if include_text.startswith(self._REPO_ROOT_TOKEN):
-                relative_to_root = include_text[len(self._REPO_ROOT_TOKEN) :]
-                absolute = (self._workspace_root / relative_to_root).resolve()
-                resolved_includes.append(str(absolute))
-                changed = True
-                continue
-            resolved_includes.append(include_text)
+        includes = payload.get("__include__")
+        if isinstance(includes, list):
+            resolved_includes: list[str] = []
+            for include_path in includes:
+                include_text = str(include_path)
+                if include_text.startswith(self._REPO_ROOT_TOKEN):
+                    relative_to_root = include_text[len(self._REPO_ROOT_TOKEN) :]
+                    absolute = (self._workspace_root / relative_to_root).resolve()
+                    resolved_includes.append(str(absolute))
+                    changed = True
+                    continue
+                if include_text.startswith(self._MODEL_REPO_ROOT_TOKEN):
+                    relative_to_model_root = include_text[len(self._MODEL_REPO_ROOT_TOKEN) :]
+                    absolute = (self.repo_root / relative_to_model_root).resolve()
+                    resolved_includes.append(str(absolute))
+                    changed = True
+                    continue
+                resolved_includes.append(include_text)
+            payload["__include__"] = resolved_includes
+
+        presnet_cfg = payload.get("PResNet")
+        if isinstance(presnet_cfg, dict) and "in_channels" in presnet_cfg and not self._presnet_supports_in_channels():
+            presnet_cfg = dict(presnet_cfg)
+            presnet_cfg.pop("in_channels", None)
+            payload["PResNet"] = presnet_cfg
+            changed = True
 
         if not changed:
             return config_path
 
-        payload["__include__"] = resolved_includes
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", encoding="utf-8", delete=False) as temp_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".yml",
+            encoding="utf-8",
+            delete=False,
+            dir=str(config_path.parent),
+        ) as temp_file:
             yaml.safe_dump(payload, temp_file, sort_keys=False)
             return Path(temp_file.name)
 
+    @staticmethod
+    def _constructor_accepts_parameter(constructor, parameter_name: str) -> bool:
+        signature = inspect.signature(constructor)
+        if parameter_name in signature.parameters:
+            return True
+        return any(
+            parameter.kind == inspect.Parameter.VAR_KEYWORD
+            for parameter in signature.parameters.values()
+        )
+
+    def _presnet_supports_in_channels(self) -> bool:
+        module = import_module("src.nn.backbone.presnet")
+        constructor = getattr(module, "PResNet").__init__
+        return self._constructor_accepts_parameter(constructor, "in_channels")
+
+    @staticmethod
+    def _patch_criterion_focal_target_dtype(criterion: nn.Module) -> None:
+        has_required_api = all(
+            hasattr(criterion, member)
+            for member in ("loss_labels_focal", "_get_src_permutation_idx", "num_classes", "alpha", "gamma")
+        )
+        if not has_required_api:
+            return
+
+        def _patched_loss_labels_focal(self, outputs, targets, indices, num_boxes):
+            assert "pred_logits" in outputs
+            src_logits = outputs["pred_logits"]
+            idx = self._get_src_permutation_idx(indices)
+            target_classes_o = torch.cat([target["labels"][matched] for target, (_, matched) in zip(targets, indices)])
+            target_classes = torch.full(
+                src_logits.shape[:2],
+                self.num_classes,
+                dtype=torch.int64,
+                device=src_logits.device,
+            )
+            target_classes[idx] = target_classes_o
+            target = F.one_hot(target_classes, num_classes=self.num_classes + 1)[..., :-1].to(dtype=src_logits.dtype)
+            loss = torchvision.ops.sigmoid_focal_loss(src_logits, target, self.alpha, self.gamma, reduction="none")
+            loss = loss.mean(1).sum() * src_logits.shape[1] / num_boxes
+            return {"loss_focal": loss}
+
+        criterion.loss_labels_focal = types.MethodType(_patched_loss_labels_focal, criterion)
+
     def build_model_stack(self) -> tuple[nn.Module, nn.Module, nn.Module]:
         yaml_cfg = self._load_model_config()
-        return yaml_cfg.model, yaml_cfg.criterion, yaml_cfg.postprocessor
+        criterion = yaml_cfg.criterion
+        self._patch_criterion_focal_target_dtype(criterion)
+        return yaml_cfg.model, criterion, yaml_cfg.postprocessor

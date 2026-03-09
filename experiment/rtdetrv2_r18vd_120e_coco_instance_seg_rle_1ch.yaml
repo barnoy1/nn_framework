@@ -212,7 +212,7 @@ runtime:
     # Runtime default output root.
     output_dir: out
     # Shared checkpoint path for train/eval/inference defaults.
-    checkpoint: /home/ronbar/repo/nn_framework/raw_models/RT-DETR/rtdetrv2_pytorch/weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
+    checkpoint: /home/ronbar/repo/weights/rtdetrv2/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
     # Execution device.
     device: cuda
     # Hardware backend toggles.
@@ -281,7 +281,7 @@ runtime:
 
     export_onnx:
       # Source checkpoint for ONNX export.
-      checkpoint: /home/ronbar/repo/nn_framework/raw_models/RT-DETR/rtdetrv2_pytorch/weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
+      checkpoint: /home/ronbar/repo/weights/rtdetrv2/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
       # Destination ONNX path.
       onnx_model: /home/ronbar/repo/nn_framework/raw_models/RT-DETR/rtdetrv2_pytorch/exported_models/model.onnx
 
