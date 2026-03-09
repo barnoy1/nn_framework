@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import torch
@@ -22,8 +21,6 @@ class AgnosticModelBuilderBase(ModelBuilder):
     def __init__(self, app_config, repo_root: Path) -> None:
         self.app_config = app_config
         self.repo_root = repo_root
-        if str(repo_root) not in sys.path:
-            sys.path.insert(0, str(repo_root))
         self._optimizer_factory = BackboneGroupedAdamWFactory(
             lr=app_config.train.lr,
             weight_decay=app_config.train.weight_decay,
@@ -31,14 +28,8 @@ class AgnosticModelBuilderBase(ModelBuilder):
             backbone_lr_multiplier=app_config.train.backbone_lr_multiplier,
         )
 
-    def _load_model_config(self):
-        from src.core import YAMLConfig
-
-        config_rel_path = self.app_config.model.model_config_path or self.app_config.model.model_config_path
-        config_path = self.repo_root / str(config_rel_path)
-        if not config_path.exists():
-            raise FileNotFoundError(f"Official config not found: {config_path}")
-        return YAMLConfig(str(config_path))
+    def build_model_stack(self) -> tuple[nn.Module, nn.Module, nn.Module]:
+        raise NotImplementedError("Concrete model builder must implement build_model_stack")
 
     def _build_composite_criterion(self, base_criterion, model: nn.Module):
         resolver = DualCriterionSpecResolver.from_app_config(self.app_config)
@@ -51,12 +42,9 @@ class AgnosticModelBuilderBase(ModelBuilder):
         )
 
     def build(self) -> BuiltComponents:
-        yaml_cfg = self._load_model_config()
-        model = yaml_cfg.model
+        model, base_criterion, postprocessor = self.build_model_stack()
         self.apply_architecture_specifics(model=model, targets=[], dn_num_group=self.app_config.model.dn_num_group)
-        base_criterion = yaml_cfg.criterion
         criterion = self._build_composite_criterion(base_criterion, model=model)
-        postprocessor = yaml_cfg.postprocessor
         class_id_to_name = self.app_config.data.class_id_to_name or self.app_config.data.label2classid
 
         if self.app_config.model.sync_bn and torch.cuda.device_count() > 1:
