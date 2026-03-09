@@ -101,8 +101,11 @@ train:
   # Warmup updates before full EMA behavior.
   ema_warmup_updates: 2000
   # Global random seed for reproducibility.
-  seed: 42
-
+  seed: 1
+  # Metrics key(s) to use for best checkpoint selection (supports multiple for multi-objective monitoring).
+  metrics_key:
+    - "val_loss"
+    - "val_map"
 data:
   # Skip samples with no valid annotations during training.
   filter_empty_targets: true

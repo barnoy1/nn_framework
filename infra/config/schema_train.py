@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Union
 from typing import Literal
 
 from pydantic import BaseModel, field_validator
@@ -23,6 +24,7 @@ class TrainConfig(BaseModel):
     ema_decay: float = 0.9999
     ema_warmup_updates: int = 2000
     seed: int = 42
+    metrics_key: Union[str, list[str]] = "val_loss"
 
     @field_validator("backbone_lr_multiplier")
     @classmethod
@@ -30,3 +32,17 @@ class TrainConfig(BaseModel):
         if value <= 0:
             raise ValueError("backbone_lr_multiplier must be > 0")
         return value
+
+    @field_validator("metrics_key")
+    @classmethod
+    def validate_metrics_key(cls, value: Union[str, list[str]]) -> Union[str, list[str]]:
+        if isinstance(value, str):
+            normalized = value.strip()
+            if not normalized:
+                raise ValueError("metrics_key must not be empty")
+            return normalized
+
+        normalized_list = [str(item).strip() for item in value if str(item).strip()]
+        if not normalized_list:
+            raise ValueError("metrics_key must contain at least one metric")
+        return normalized_list

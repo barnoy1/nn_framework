@@ -58,6 +58,9 @@ def invoke(args) -> None:
     mlflow_cfg = app_config.runtime.visualization.mlflow
     run_output_dir = app_config.ensure_output_dir().resolve()
     shared_tracking_dir = run_output_dir.parent if "__" in run_output_dir.name else run_output_dir
+    monitor_keys_cfg = app_config.train.metrics_key
+    monitor_keys = [monitor_keys_cfg] if isinstance(monitor_keys_cfg, str) else list(monitor_keys_cfg)
+    primary_monitor_key = monitor_keys[0]
 
     callbacks = CallbackList(
         [
@@ -67,7 +70,8 @@ def invoke(args) -> None:
             CheckpointCallback(
                 output_dir=app_config.ensure_output_dir(),
                 save_every_n_epochs=app_config.train.save_every_n_epochs,
-                monitor_key='val_loss'
+                monitor_key=primary_monitor_key,
+                monitor_keys=monitor_keys,
             ),
             MLflowCallback(
                 enabled=bool(mlflow_cfg.enabled),
