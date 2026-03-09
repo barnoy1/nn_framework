@@ -1,0 +1,3 @@
+[submodule "raw_models/RT-DETR"]
+	path = raw_models/RT-DETR
+	url = https://github.com/lyuwenyu/RT-DETR.git
