@@ -2,7 +2,7 @@
 
 model:
   # Filesystem root of the concrete model repository implementation.
-  source_root: raw_models/RT-DETR/rtdetrv2_pytorch
+  source_root: raw_models/RT-DETR__modified/rtdetrv2_pytorch
   # Baseline model recipe used by wrapper/model builder.
   model_config_path: configs/rtdetrv2/rtdetrv2_r18vd_120e_coco_instance_seg_rle_1ch.yml
   # Number of classifier outputs expected from the head.
@@ -196,6 +196,8 @@ data:
         ops:
           # Deterministic resize for validation/inference parity.
           - {type: LetterBox, size: [640, 640], fill_value: 114}
+          # Image-only grayscale conversion for 1-channel model parity.
+          - {type: ToGray, p: 1.0, num_output_channels: 1}
           # Convert image to scaled float representation.
           - {type: ConvertPILImage, dtype: 'float32', scale: true}
     # Keep deterministic order for reproducible eval.
