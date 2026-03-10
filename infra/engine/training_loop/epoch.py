@@ -65,7 +65,7 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
         try:
             with trainer.accelerator.autocast():
                 outputs = trainer.model(images, targets=targets)
-                loss_dict = trainer.criterion(outputs, targets)
+                loss_dict = trainer.compute_loss_dict(outputs, targets)
                 loss = sum(loss_dict.values())
         except AssertionError as error:
             if trainer.accelerator.is_main_process:

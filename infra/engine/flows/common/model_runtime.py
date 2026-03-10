@@ -12,7 +12,13 @@ def resolve_model_root(config: AppConfig) -> Path:
     candidate = Path(config.model.source_root).expanduser()
     if not candidate.is_absolute():
         candidate = REPO_ROOT / candidate
-    return candidate.resolve()
+    resolved = candidate.resolve()
+    if not resolved.exists() or not resolved.is_dir():
+        raise FileNotFoundError(
+            "Configured model.source_root does not exist or is not a directory: "
+            f"{resolved}"
+        )
+    return resolved
 
 
 def create_wrapper(config: AppConfig) -> ModelWrapperAdapter:

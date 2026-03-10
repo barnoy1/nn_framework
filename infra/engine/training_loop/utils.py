@@ -74,7 +74,7 @@ def warn_unmatched_configured_losses(
 def compute_validation_loss_components_for_trainer(trainer) -> Dict[str, float]:
     return compute_validation_loss_components(
         model=trainer.model,
-        criterion=trainer.criterion,
+        criterion=trainer.compute_loss_dict,
         val_loader=trainer.val_loader,
         accelerator=trainer.accelerator,
         splitter=trainer._loss_splitter,

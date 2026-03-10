@@ -1,10 +1,10 @@
 # @package _global_
 
 model:
-  # Filesystem root of the concrete model repository implementation.
-  source_root: raw_models/RT-DETR/rtdetrv2_pytorch
+    # Filesystem root of the concrete model repository implementation.
+  source_root: raw_models/rf-detr
   # Baseline model recipe used by wrapper/model builder.
-  model_config_path: configs/rtdetrv2/rtdetrv2_r18vd_120e_coco_instance_seg_rle_1ch.yml
+  model_config_path: dinov2_configs/dinov2_small_1chjson
   # Number of classifier outputs expected from the head.
   num_classes: 10
   # Number of object queries decoded per image.
@@ -72,9 +72,9 @@ model:
 
 train:
   # Per-step training batch size.
-  batch_size: 8
+  batch_size: 1
   # Per-step validation batch size.
-  val_batch_size: 8
+  val_batch_size: 1
   # Base optimizer learning rate.
   lr: 0.00002
   # Multiplier applied to backbone LR relative to base LR.
@@ -242,7 +242,7 @@ data:
           # Image-only contrast/brightness change.
           - { type: RandomBrightnessContrast, p: 0.3 }
           # Final spatial normalization to model input size.
-          - { type: Resize, size: [640, 640] }
+          - { type: Resize, size: [616, 616] }
           # Convert image to float tensor-like representation with scaling.
           - { type: ConvertPILImage, dtype: "float32", scale: true }
           # Convert GT boxes to normalized cxcywh expected by model/loss.
@@ -255,7 +255,7 @@ data:
       # Batch collation strategy.
       type: BatchImageCollateFunction
       # Multi-scale training candidate sizes.
-      scales: [480, 512, 544, 576, 608, 640]
+      scales: [448, 476, 504, 532, 560, 588]
 
   val_dataloader:
     # Loader implementation type.
@@ -275,7 +275,7 @@ data:
         type: Compose
         ops:
           # Deterministic resize for validation/inference parity.
-          - { type: LetterBox, size: [640, 640], fill_value: 114 }
+          - { type: LetterBox, size: [588, 588], fill_value: 114 }
           # Image-only grayscale conversion for 1-channel model parity.
           - { type: ToGray, p: 1.0, num_output_channels: 1 }
           # Convert image to scaled float representation.
@@ -309,7 +309,7 @@ runtime:
     # Shared confidence threshold for evaluation metrics (train validation + eval flow).
     score_threshold: 0.35
     # Generic runtime batch size used by utility flows.
-    batch_size: 2
+    batch_size: 1
     # Generic runtime worker count.
     num_workers: 2
   visualization:

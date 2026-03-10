@@ -10,12 +10,6 @@ from .adapters import ModelAgnosticDetCriterion
 def prepare_base_criterion_for_agnostic_flow(
     base_criterion: nn.Module, resolver
 ) -> None:
-    losses = getattr(base_criterion, "losses", None)
-    if losses is None:
-        return
-    if not isinstance(losses, list):
-        losses = list(losses) if isinstance(losses, tuple) else []
-
     payload = getattr(base_criterion, "weight_dict", {})
     if not isinstance(payload, dict):
         payload = {}
@@ -31,13 +25,6 @@ def prepare_base_criterion_for_agnostic_flow(
     wants_vfl = _enabled("loss_vfl")
     wants_focal = _enabled("loss_focal")
 
-    if wants_boxes and "boxes" not in losses:
-        losses.append("boxes")
-    if wants_vfl and "vfl" not in losses:
-        losses.append("vfl")
-    if wants_focal and "focal" not in losses:
-        losses.append("focal")
-
     if wants_boxes:
         normalized_weight_dict.setdefault("loss_bbox", 1.0)
         normalized_weight_dict.setdefault("loss_giou", 1.0)
@@ -46,7 +33,6 @@ def prepare_base_criterion_for_agnostic_flow(
     if wants_focal:
         normalized_weight_dict.setdefault("loss_focal", 1.0)
 
-    base_criterion.losses = losses
     base_criterion.weight_dict = normalized_weight_dict
 
 
@@ -99,8 +85,7 @@ class CompositeCriterion(nn.Module):
             default_weight_dict=default_weight_dict,
         )
         for key, value in agnostic_losses.items():
-            if key not in merged:
-                merged[key] = value
+            merged[key] = value
 
     def _weight_dict(self) -> Dict[str, float]:
         payload = getattr(self.base_criterion, "weight_dict", {})
@@ -110,21 +95,33 @@ class CompositeCriterion(nn.Module):
             str(key).strip().lower(): float(value) for key, value in payload.items()
         }
 
-    def forward(self, outputs, targets, **kwargs):
+    def forward_stages(self, outputs, targets, **kwargs):
         base_loss_dict = self.base_criterion(outputs, targets, **kwargs)
-        if not isinstance(base_loss_dict, dict) or not base_loss_dict:
-            return base_loss_dict
+        if not isinstance(base_loss_dict, dict):
+            return {}, {}
 
         default_weight_dict = self._weight_dict()
-        merged = self._accumulate_concrete_losses(
+        concrete_losses = self._accumulate_concrete_losses(
             base_loss_dict=base_loss_dict,
             default_weight_dict=default_weight_dict,
         )
+
+        common_losses: Dict[str, object] = {}
         self._accumulate_common_losses(
-            merged=merged,
+            merged=common_losses,
             outputs=outputs,
             targets=targets,
             default_weight_dict=default_weight_dict,
         )
 
+        if common_losses or concrete_losses:
+            return common_losses, concrete_losses
+        return {}, base_loss_dict
+
+    def forward(self, outputs, targets, **kwargs):
+        common_losses, concrete_losses = self.forward_stages(
+            outputs, targets, **kwargs
+        )
+        merged = dict(concrete_losses)
+        merged.update(common_losses)
         return merged

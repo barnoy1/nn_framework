@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "nn_framework: cli train",
+      "name": "nn_framework: cli train (rtdetrv2)",
       "type": "debugpy",
       "request": "launch",
       "subProcess": false,
@@ -23,7 +23,7 @@
       "justMyCode": true
     },
     {
-      "name": "nn_framework: cli train 1 channel",
+      "name": "nn_framework: cli train (rtdetrv2 1 channel)",
       "type": "debugpy",
       "request": "launch",
       "subProcess": false,
@@ -44,7 +44,7 @@
       "justMyCode": true
     },
     {
-      "name": "nn_framework: cli eval",
+      "name": "nn_framework: cli eval (rtdetrv2 1 channel)",
       "type": "debugpy",
       "request": "launch",
       "subProcess": false,
@@ -69,7 +69,7 @@
       "justMyCode": true
     },
     {
-      "name": "nn_framework: cli inference",
+      "name": "nn_framework: cli inference (rtdetrv2 1 channel)",
       "type": "debugpy",
       "request": "launch",
       "subProcess": false,
@@ -88,6 +88,100 @@
         "${workspaceFolder}/out",
         "--device",
         "cuda",
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "nn_framework: cli train (rf-detr)",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/cli.py",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "train",
+        "--config",
+        "experiment/rfdetr_small_coco_instance_seg_rle.yaml",
+        "--output-dir",
+        "${workspaceFolder}/out"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "nn_framework: cli train (rf-detr 1 channel)",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/cli.py",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "train",
+        "--config",
+        "experiment/rfdetr_small_coco_instance_seg_rle_1ch.yaml",
+        "--output-dir",
+        "${workspaceFolder}/out"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "nn_framework: cli eval (rf-detr 1 channel)",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/cli.py",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "eval",
+        "--config",
+        "experiment/rfdetr_small_coco_instance_seg_rle_1ch.yaml",
+        "--output-dir",
+        "${workspaceFolder}/out",
+        "--checkpoint",
+        "${workspaceFolder}/weights/rfdetr_small_1ch.pth",
+        "--device",
+        "cuda"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "nn_framework: cli inference (rf-detr 1 channel)",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/cli.py",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "inference",
+        "--config",
+        "experiment/rfdetr_small_coco_instance_seg_rle_1ch.yaml",
+        "--checkpoint",
+        "${workspaceFolder}/weights/rfdetr_small_1ch.pth",
+        "--input-dir",
+        "${workspaceFolder}/input_data",
+        "--output-dir",
+        "${workspaceFolder}/out",
+        "--device",
+        "cuda"
       ],
       "env": {
         "PYTHONUNBUFFERED": "1"

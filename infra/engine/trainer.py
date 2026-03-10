@@ -104,6 +104,13 @@ class Trainer:
     ) -> Dict[str, float]:
         return split_loss_components(self, loss_dict)
 
+    def compute_loss_dict(self, outputs, targets) -> Dict[str, torch.Tensor]:
+        forward_stages = getattr(self.criterion, "forward_stages", None)
+        if callable(forward_stages):
+            common_losses, concrete_losses = forward_stages(outputs, targets)
+            return dict(concrete_losses) | dict(common_losses)
+        return self.criterion(outputs, targets)
+
     @torch.no_grad()
     def _compute_validation_loss_components(self) -> Dict[str, float]:
         return compute_validation_loss_components_for_trainer(self)

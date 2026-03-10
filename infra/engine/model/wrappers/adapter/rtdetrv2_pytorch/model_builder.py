@@ -8,7 +8,6 @@ from torch import nn
 from .schemes import (
     MODEL_REPO_ROOT_TOKEN,
     REPO_ROOT_TOKEN,
-    RUNTIME_FUNCTION_PATCHES,
     YAML_CLASS_PATCHES,
 )
 from infra.engine.model.wrappers.common import ReflectiveYamlAdapterModelBuilderBase
@@ -18,7 +17,6 @@ class RTDETRv2ModelBuilder(ReflectiveYamlAdapterModelBuilderBase):
     _REPO_ROOT_TOKEN = REPO_ROOT_TOKEN
     _MODEL_REPO_ROOT_TOKEN = MODEL_REPO_ROOT_TOKEN
     _YAML_CLASS_PATCHES = YAML_CLASS_PATCHES
-    _RUNTIME_FUNCTION_PATCHES = RUNTIME_FUNCTION_PATCHES
     _CONFIG_SUBDIR = ("configs", "rtdetrv2")
 
     def __init__(self, app_config, repo_root: Path) -> None:
@@ -39,5 +37,4 @@ class RTDETRv2ModelBuilder(ReflectiveYamlAdapterModelBuilderBase):
     def build_model_stack(self) -> tuple[nn.Module, nn.Module, nn.Module]:
         yaml_cfg = self._load_model_config()
         criterion = yaml_cfg.criterion
-        self._apply_runtime_patch_manifest(criterion)
         return yaml_cfg.model, criterion, yaml_cfg.postprocessor
