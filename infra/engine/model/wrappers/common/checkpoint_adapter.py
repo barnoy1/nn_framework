@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import re
 from pathlib import Path
 from typing import Dict, Iterable, Tuple
 
@@ -20,8 +22,26 @@ class GenericCheckpointAdapter(CheckpointAdapter):
         self.repo_root = repo_root
         self.extra_search_roots = tuple(extra_search_roots)
 
+    @staticmethod
+    def _expand_runtime_path(path: str) -> str:
+        raw = str(path or "").strip()
+        if not raw:
+            return raw
+
+        # Support Hydra/OmegaConf env interpolation syntax when unresolved
+        # by upstream config loading (e.g. ${oc.env:HOME}, ${env:HOME}).
+        pattern = re.compile(r"\$\{(?:oc\.env|env):([^}]+)\}")
+
+        def _replace(match: re.Match[str]) -> str:
+            variable_name = match.group(1).strip()
+            return os.environ.get(variable_name, match.group(0))
+
+        expanded = pattern.sub(_replace, raw)
+        return os.path.expandvars(expanded)
+
     def resolve_checkpoint_path(self, path: str) -> Path:
-        candidate = Path(path).expanduser()
+        resolved_input = self._expand_runtime_path(path)
+        candidate = Path(resolved_input).expanduser()
         if candidate.exists():
             return candidate.resolve()
 

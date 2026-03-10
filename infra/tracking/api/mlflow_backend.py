@@ -29,6 +29,30 @@ def _sanitize_param_value(value: str, max_len: int = 490) -> str:
 
 class MlflowVisualizationLogger:
     @staticmethod
+    def _resolve_description(execution_config: Dict[str, Any] | None) -> str:
+        if not isinstance(execution_config, dict):
+            return ""
+        runtime_cfg = execution_config.get("runtime")
+        if not isinstance(runtime_cfg, dict):
+            return ""
+        return str(runtime_cfg.get("description") or "").strip()
+
+    @staticmethod
+    def _resolve_model_metadata(
+        execution_config: Dict[str, Any] | None,
+    ) -> tuple[str, str]:
+        if not isinstance(execution_config, dict):
+            return "model", ""
+        model_cfg = execution_config.get("model")
+        if not isinstance(model_cfg, dict):
+            return "model", ""
+        source_root = str(model_cfg.get("source_root") or "").strip().rstrip("/")
+        if not source_root:
+            return "model", ""
+        model_name = Path(source_root).name or source_root
+        return model_name, source_root
+
+    @staticmethod
     def _resolve_run_folder_name(tracking_dir: Path) -> str:
         run_folder_name = tracking_dir.name.strip()
         if run_folder_name:
@@ -106,6 +130,14 @@ class MlflowVisualizationLogger:
             self._run = active_run
             self._owns_run = False
             self._mlflow.set_tag("mlflow.runName", resolved_run_name)
+        model_name, source_root = self._resolve_model_metadata(execution_config)
+        self._mlflow.set_tag("model.name", model_name)
+        if source_root:
+            self._mlflow.set_tag("model.source_root", source_root)
+        description = self._resolve_description(execution_config)
+        if description:
+            self._mlflow.set_tag("description", description)
+            self._mlflow.set_tag("runtime.description", description)
         self._last_step = -1
         if execution_config:
             self.log_execution_config(execution_config)

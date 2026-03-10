@@ -1,10 +1,10 @@
 # @package _global_
 
 model:
-    # Filesystem root of the concrete model repository implementation.
+  # Filesystem root of the concrete model repository implementation.
   source_root: raw_models/rf-detr
   # Baseline model recipe used by wrapper/model builder.
-  model_config_path: dinov2_configs/dinov2_small_1chjson
+  model_config_path: dinov2_configs/dinov2_small_1ch.json
   # Number of classifier outputs expected from the head.
   num_classes: 10
   # Number of object queries decoded per image.
@@ -281,12 +281,12 @@ data:
       type: BatchImageCollateFunction
 
 runtime:
-  description: drone_fine_tune_rtdetrv2_r18vd_120e_coco_IR
+  description: drone_fine_tune_rf_detr_r18vd_120e_coco_1ch
   common:
     # Runtime default output root.
     output_dir: out
     # Shared checkpoint path for train/eval/inference defaults.
-    checkpoint: /home/ronbar/repo/weights/rtdetrv2/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
+    checkpoint: ""
     # Execution device.
     device: cuda
     # Hardware backend toggles.
@@ -301,7 +301,7 @@ runtime:
     # Shared confidence threshold for evaluation metrics (train validation + eval flow).
     score_threshold: 0.35
     # Generic runtime batch size used by utility flows.
-    batch_size: 1
+    batch_size: 2
     # Generic runtime worker count.
     num_workers: 2
   visualization:
@@ -349,15 +349,15 @@ runtime:
 
     inference_onnx:
       # ONNX model file for ONNX inference path.
-      onnx_model: /home/ronbar/repo/nn_framework/raw_models/RT-DETR/rtdetrv2_pytorch/exported_models/model.onnx
+      onnx_model: /home/ronbar/repo/nn_framework/raw_models/RT-DETR/rf_detr/exported_models/model.onnx
       # Input directory for ONNX inference.
       input_dir: /home/ronbar/repo/nn_framework/input_data
 
     export_onnx:
       # Source checkpoint for ONNX export.
-      checkpoint: /home/ronbar/repo/weights/rtdetrv2/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
+      checkpoint: ""
       # Destination ONNX path.
-      onnx_model: /home/ronbar/repo/nn_framework/raw_models/RT-DETR/rtdetrv2_pytorch/exported_models/model.onnx
+      onnx_model: /home/ronbar/repo/nn_framework/raw_models/RT-DETR/rf_detr/exported_models/model.onnx
 
     export_coco_rle:
       # Dataset root for COCO-RLE conversion utility.

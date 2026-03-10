@@ -285,12 +285,12 @@ data:
       type: BatchImageCollateFunction
 
 runtime:
-  description: drone_fine_tune_rtdetrv2_r18vd_120e_coco_IR
+  description: drone_fine_tune_rtdetrv2_r18vd_120e_coco_1ch
   common:
     # Runtime default output root.
     output_dir: out
     # Shared checkpoint path for train/eval/inference defaults.
-    checkpoint: /home/ronbar/repo/weights/rtdetrv2/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
+    checkpoint: ${oc.env:HOME}/.cache/torch/hub/checkpoints/rtdetrv2/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
     # Execution device.
     device: cuda
     # Hardware backend toggles.

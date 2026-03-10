@@ -9,6 +9,7 @@ import yaml
 
 from ...artifacts.mlflow_tracking_helpers import (
     artifact_root,
+    extract_run_metadata_from_experiment_yaml,
     flatten_payload,
     resolve_run_folder_name,
     trim_param,
@@ -21,6 +22,14 @@ if TYPE_CHECKING:
 
 
 class MLflowCallback(Callback):
+    @staticmethod
+    def _resolve_model_name(trainer: "Trainer") -> str:
+        source_root = str(getattr(trainer.app_config.model, "source_root", "") or "")
+        source_root = source_root.strip().rstrip("/")
+        if not source_root:
+            return "model"
+        return Path(source_root).name or source_root
+
     def __init__(
         self,
         enabled: bool = False,
@@ -60,7 +69,10 @@ class MLflowCallback(Callback):
             run_output_dir=run_output_dir,
             tracking_dir=tracking_dir.resolve(),
         )
+        model_name = self._resolve_model_name(trainer)
         run_base_name = self.run_name or experiment_name
+        if model_name and model_name not in run_base_name:
+            run_base_name = f"{run_base_name}__{model_name}"
         run_name = f"{run_base_name}__{run_folder_name}"
         backend = str(self.tracking_backend).strip().lower()
         tracking_uri: str
@@ -106,6 +118,7 @@ class MLflowCallback(Callback):
         else:
             self._owns_run = False
             mlflow.set_tag("mlflow.runName", run_name)
+
         trainer.logger.info("MLflow tracking dir: {}", tracking_dir)
         trainer.logger.info("MLflow artifact root: {}", mlflow_artifact_root)
         execution_config = trainer.app_config.model_dump(mode="json")
@@ -123,10 +136,10 @@ class MLflowCallback(Callback):
         config_dir = Path(trainer.app_config.train.output_dir) / "configs"
         config_dir.mkdir(parents=True, exist_ok=True)
 
+        target = config_dir / "experiment.yaml"
         if experiment_config_path is not None:
             resolved_config_path = Path(experiment_config_path).resolve()
             if resolved_config_path.exists() and resolved_config_path.is_file():
-                target = config_dir / "experiment.yaml"
                 if target.resolve() != resolved_config_path:
                     target.write_text(
                         resolved_config_path.read_text(encoding="utf-8"),
@@ -143,7 +156,37 @@ class MLflowCallback(Callback):
             config_yaml = yaml.safe_dump(
                 execution_config, sort_keys=True, allow_unicode=True
             )
-            (config_dir / "experiment.yaml").write_text(config_yaml, encoding="utf-8")
+            target.write_text(config_yaml, encoding="utf-8")
+
+        metadata_tags = extract_run_metadata_from_experiment_yaml(target)
+        if not metadata_tags:
+            runtime_cfg = (
+                execution_config.get("runtime")
+                if isinstance(execution_config.get("runtime"), dict)
+                else {}
+            )
+            fallback_description = str(runtime_cfg.get("description") or "").strip()
+            fallback_source_root = str(
+                execution_config.get("model", {}).get("source_root")
+                if isinstance(execution_config.get("model"), dict)
+                else ""
+            ).strip()
+            if fallback_description:
+                metadata_tags["description"] = fallback_description
+            if fallback_source_root:
+                metadata_tags["model.source_root"] = fallback_source_root
+                metadata_tags["model.name"] = Path(fallback_source_root).name
+
+        if "description" in metadata_tags:
+            mlflow.set_tag("description", metadata_tags["description"])
+            mlflow.set_tag("runtime.description", metadata_tags["description"])
+        mlflow.set_tag("model.name", metadata_tags.get("model.name", model_name))
+        mlflow.set_tag(
+            "model.source_root",
+            metadata_tags.get(
+                "model.source_root", str(trainer.app_config.model.source_root)
+            ),
+        )
         self._active = True
 
     def _step(self, raw_step: int) -> int:

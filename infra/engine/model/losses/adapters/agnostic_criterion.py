@@ -20,6 +20,7 @@ class ModelAgnosticDetCriterion:
         box_fmt: str = "cxcywh",
         dfl_provider: Optional[DFLossProvider] = None,
         capability_probe=None,
+        matcher_kwargs: Optional[Dict[str, object]] = None,
     ) -> None:
         self.matcher = matcher
         self.num_classes = int(num_classes)
@@ -28,6 +29,7 @@ class ModelAgnosticDetCriterion:
         self.box_fmt = str(box_fmt)
         self.dfl_provider = dfl_provider
         self.capability_probe = capability_probe
+        self.matcher_kwargs = dict(matcher_kwargs or {})
         self._loss_keys = {
             "boxes": ("loss_bbox", "loss_giou"),
             "vfl": ("loss_vfl",),
@@ -46,6 +48,10 @@ class ModelAgnosticDetCriterion:
         matcher = getattr(base_criterion, "matcher", None)
         if matcher is None:
             return None
+        matcher_kwargs: Dict[str, object] = {}
+        group_detr = getattr(base_criterion, "group_detr", None)
+        if group_detr is not None:
+            matcher_kwargs["group_detr"] = int(group_detr)
         return cls(
             matcher=matcher,
             num_classes=int(getattr(base_criterion, "num_classes", 80)),
@@ -54,7 +60,17 @@ class ModelAgnosticDetCriterion:
             box_fmt=str(getattr(base_criterion, "box_fmt", "cxcywh")),
             dfl_provider=dfl_provider or getattr(base_criterion, "dfl_provider", None),
             capability_probe=capability_probe,
+            matcher_kwargs=matcher_kwargs,
         )
+
+    @staticmethod
+    def _extract_indices(matched) -> Optional[list[tuple[torch.Tensor, torch.Tensor]]]:
+        if isinstance(matched, dict):
+            candidate = matched.get("indices")
+            return candidate if isinstance(candidate, list) else None
+        if isinstance(matched, list):
+            return matched
+        return None
 
     @staticmethod
     def _src_idx(indices):
@@ -243,8 +259,8 @@ class ModelAgnosticDetCriterion:
             or "pred_logits" not in outputs
         ):
             return {}
-        matched = self.matcher(outputs, targets)
-        indices = matched.get("indices") if isinstance(matched, dict) else None
+        matched = self.matcher(outputs, targets, **self.matcher_kwargs)
+        indices = self._extract_indices(matched)
         if not indices:
             return {}
 

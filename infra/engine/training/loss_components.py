@@ -8,6 +8,14 @@ from infra.common.loss_aliases import canonical_loss_alias
 
 
 class LossComponentSplitter:
+    _SUPPORTED_COMMON_TERMS = {
+        "loss_bbox",
+        "loss_giou",
+        "loss_vfl",
+        "loss_focal",
+        "loss_dfl",
+    }
+
     def __init__(self, terms: Dict[str, list[str]]) -> None:
         self._terms = terms
 
@@ -25,6 +33,11 @@ class LossComponentSplitter:
                 ]
             )
         )
+        common_terms = [
+            term
+            for term in common_terms
+            if str(term).strip().lower().rstrip("_") in cls._SUPPORTED_COMMON_TERMS
+        ]
         dfl_terms = list(
             dict.fromkeys(
                 [canonical_loss_alias(str(item.loss)) for item in configured_pairs.dfl]

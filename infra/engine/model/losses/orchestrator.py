@@ -119,9 +119,7 @@ class CompositeCriterion(nn.Module):
         return {}, base_loss_dict
 
     def forward(self, outputs, targets, **kwargs):
-        common_losses, concrete_losses = self.forward_stages(
-            outputs, targets, **kwargs
-        )
+        common_losses, concrete_losses = self.forward_stages(outputs, targets, **kwargs)
         merged = dict(concrete_losses)
         merged.update(common_losses)
         return merged

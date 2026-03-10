@@ -3,7 +3,9 @@ from __future__ import annotations
 import torch
 
 
-def recover_if_cuda_oom(trainer, *, epoch: int, step: int, error: BaseException) -> bool:
+def recover_if_cuda_oom(
+    trainer, *, epoch: int, step: int, error: BaseException
+) -> bool:
     if not isinstance(error, (torch.OutOfMemoryError, RuntimeError)):
         return False
 

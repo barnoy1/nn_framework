@@ -56,6 +56,34 @@ def resolve_run_folder_name(run_output_dir: Path, tracking_dir: Path) -> str:
     return tracking_dir.parent.name
 
 
+def extract_run_metadata_from_experiment_yaml(
+    experiment_yaml_path: Path,
+) -> Dict[str, str]:
+    resolved_path = Path(experiment_yaml_path).resolve()
+    if not resolved_path.exists() or not resolved_path.is_file():
+        return {}
+
+    payload = yaml.safe_load(resolved_path.read_text(encoding="utf-8")) or {}
+    if not isinstance(payload, dict):
+        return {}
+
+    runtime_cfg = payload.get("runtime") if isinstance(payload.get("runtime"), dict) else {}
+    model_cfg = payload.get("model") if isinstance(payload.get("model"), dict) else {}
+
+    description = str(runtime_cfg.get("description") or "").strip()
+    source_root = str(model_cfg.get("source_root") or "").strip().rstrip("/")
+    model_name = Path(source_root).name if source_root else ""
+
+    metadata: Dict[str, str] = {}
+    if description:
+        metadata["description"] = description
+    if source_root:
+        metadata["model.source_root"] = source_root
+    if model_name:
+        metadata["model.name"] = model_name
+    return metadata
+
+
 def register_current_model(
     *,
     trainer,

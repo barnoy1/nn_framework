@@ -80,9 +80,7 @@ def compute_validation_loss_components(
 
     denom = max(1, num_steps)
     metrics = {"loss": running_total / float(denom)}
-    metrics.update(
-        {key: total / float(denom) for key, total in running_parts.items()}
-    )
+    metrics.update({key: total / float(denom) for key, total in running_parts.items()})
     metrics.setdefault("custom_loss", 0.0)
     metrics.update(
         {

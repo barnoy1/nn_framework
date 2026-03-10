@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import os
+import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -18,6 +20,21 @@ from .constants import REPO_ROOT
 
 REPO_ROOT_TOKEN = "@REPO_ROOT/"
 MODEL_ROOT_TOKEN = "@MODEL_ROOT/"
+
+
+def _expand_runtime_env_tokens(path: str) -> str:
+    raw = str(path or "").strip()
+    if not raw:
+        return raw
+
+    pattern = re.compile(r"\$\{(?:oc\.env|env):([^}]+)\}")
+
+    def _replace(match: re.Match[str]) -> str:
+        variable_name = match.group(1).strip()
+        return os.environ.get(variable_name, match.group(0))
+
+    expanded = pattern.sub(_replace, raw)
+    return os.path.expandvars(expanded)
 
 
 def resolve_model_root(config_path: str) -> Path:
@@ -57,7 +74,7 @@ def resolve_model_config_path(config_path: str) -> Path:
 
 
 def resolve_runtime_path(path: str, *, config_path: str | None = None) -> str:
-    raw = str(path or "").strip()
+    raw = _expand_runtime_env_tokens(path)
     if not raw:
         return raw
 

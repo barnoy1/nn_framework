@@ -140,7 +140,9 @@ def render_training_artifact_plots(
             }
         )
         common_component_fields = [
-            field for field in common_component_fields if all(field in row for row in rows)
+            field
+            for field in common_component_fields
+            if all(field in row for row in rows)
         ]
 
         plt.figure(figsize=(9, 5))

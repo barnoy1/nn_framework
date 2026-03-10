@@ -7,12 +7,13 @@ from torch import nn
 from infra.engine.model.wrappers.common import ReflectiveYamlAdapterModelBuilderBase
 
 from .patches import (
-    build_runtime_args,
-    build_runtime_overrides,
+    apply_local_dinov2_config,
+    apply_single_channel_backbone_policy,
+    build_model_config,
     ensure_repo_import_paths,
-    import_entrypoints,
     infer_model_profile,
     load_dino_config,
+    maybe_download_pretrain_weights,
 )
 
 from .schemes import (
@@ -37,37 +38,42 @@ class RFDETRModelBuilder(ReflectiveYamlAdapterModelBuilderBase):
             config_subdir=self._CONFIG_SUBDIR,
         )
         ensure_repo_import_paths(self.repo_root)
-        entrypoints = import_entrypoints()
-        self._populate_args = entrypoints["populate_args"]
-        self._post_process_cls = entrypoints["post_process_cls"]
-        self._build_criterion_and_postprocessors = entrypoints[
-            "build_criterion_and_postprocessors"
-        ]
-        self._build_model = entrypoints["build_model"]
+        self.model_config = None
+        self.model_api = None
         self.args = None
         self.resolution = None
-
-    def _infer_model_profile(self) -> dict[str, object]:
-        config_path = self._resolve_model_config_path()
-        config_payload = load_dino_config(config_path)
-        return infer_model_profile(config_path=config_path, config_payload=config_payload)
+        self._build_criterion_and_postprocessors = None
 
     def _build_runtime_args(self):
-        runtime_overrides = build_runtime_overrides(
+        from rfdetr.main import Model
+        from rfdetr.models import build_criterion_and_postprocessors
+
+        self._build_criterion_and_postprocessors = build_criterion_and_postprocessors
+        config_path = self._resolve_model_config_path()
+        config_payload = load_dino_config(config_path)
+        model_profile = infer_model_profile(
+            config_path=config_path,
+            config_payload=config_payload,
+        )
+        apply_local_dinov2_config(
+            config_path=config_path,
+            model_profile=model_profile,
+        )
+        apply_single_channel_backbone_policy(config_payload=config_payload)
+        self.model_config = build_model_config(
             app_config=self.app_config,
-            model_profile=self._infer_model_profile(),
+            config_path=config_path,
         )
-        args = build_runtime_args(
-            populate_args=self._populate_args,
-            runtime_overrides=runtime_overrides,
-        )
+        maybe_download_pretrain_weights(self.model_config)
+        self.model_api = Model(**self.model_config.model_dump())
+        args = self.model_api.args
         self.args = args
         self.resolution = args.resolution
         return args
 
     def build_model_stack(self) -> tuple[nn.Module, nn.Module, nn.Module]:
         runtime_args = self._build_runtime_args()
-        model = self._build_model(runtime_args)
+        model = self.model_api.model
         criterion, _ = self._build_criterion_and_postprocessors(runtime_args)
-        postprocessor = self._post_process_cls(num_select=runtime_args.num_select)
+        postprocessor = self.model_api.postprocess
         return model, criterion, postprocessor

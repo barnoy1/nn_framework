@@ -6,8 +6,16 @@ from infra.common.loss_aliases import canonical_loss_alias
 from ..display import yolo_progress_row
 
 
+_DISPLAY_BUCKET_ORDER = (
+    "common_loss_bbox",
+    "common_loss_giou",
+    "common_loss_vfl",
+    "common_loss_focal",
+)
+
+
 def build_common_bucket_names(trainer) -> list[str]:
-    return list(
+    configured = list(
         dict.fromkeys(
             [
                 f"common_{canonical_loss_alias(str(item.loss)).rstrip('_')}"
@@ -15,6 +23,15 @@ def build_common_bucket_names(trainer) -> list[str]:
             ]
         )
     )
+    configured_set = set(configured)
+    ordered_display = [
+        bucket_name
+        for bucket_name in _DISPLAY_BUCKET_ORDER
+        if bucket_name in configured_set
+    ]
+    if ordered_display:
+        return ordered_display
+    return configured
 
 
 def collect_bucket_values(

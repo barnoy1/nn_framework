@@ -15,6 +15,14 @@ class ConfiguredLossSpec:
 
 
 class DualCriterionSpecResolver:
+    _SUPPORTED_COMMON_PATTERNS = {
+        "loss_bbox",
+        "loss_giou",
+        "loss_vfl",
+        "loss_focal",
+        "loss_dfl",
+    }
+
     def __init__(
         self,
         *,
@@ -35,6 +43,12 @@ class DualCriterionSpecResolver:
                 pattern=canonical_loss_alias(str(item.loss)), coef=item.coef
             )
             for item in pairs.iter_adapter_common()
+        ]
+        common_specs = [
+            item
+            for item in common_specs
+            if str(item.pattern).strip().lower().rstrip("_")
+            in cls._SUPPORTED_COMMON_PATTERNS
         ]
         concrete_specs = [
             ConfiguredLossSpec(

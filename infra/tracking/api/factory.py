@@ -16,13 +16,29 @@ from ..service_launchers import start_mlflow_ui_service, start_tensorboard_servi
 def _resolve_mlflow_run_base_name(
     experiment_name: str, execution_config: Dict[str, Any] | None
 ) -> str:
+    model_name = ""
     if isinstance(execution_config, dict):
         runtime_cfg = execution_config.get("runtime")
         if isinstance(runtime_cfg, dict):
             description = str(runtime_cfg.get("description") or "").strip()
             if description:
-                return description
-    return str(experiment_name)
+                base = description
+            else:
+                base = str(experiment_name)
+        else:
+            base = str(experiment_name)
+
+        model_cfg = execution_config.get("model")
+        if isinstance(model_cfg, dict):
+            source_root = str(model_cfg.get("source_root") or "").strip().rstrip("/")
+            if source_root:
+                model_name = Path(source_root).name or source_root
+    else:
+        base = str(experiment_name)
+
+    if model_name and model_name not in base:
+        return f"{base}__{model_name}"
+    return base
 
 
 def create_visualization_logger(
