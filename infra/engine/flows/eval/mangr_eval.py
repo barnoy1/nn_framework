@@ -13,10 +13,13 @@ if str(ROOT) not in sys.path:
 from infra.common.logging.logger import logger
 from infra.engine.flows.common.config_loader import get_execution_config
 from infra.engine.flows.common.runtime import build_flow_runtime
-from infra.engine.flows.eval.dataset_profile import model_num_classes, profile_dataset_distribution
+from infra.engine.flows.eval.dataset_profile import (
+    model_num_classes,
+    profile_dataset_distribution,
+)
 from infra.engine.flows.eval.eval_artifacts import run_eval_artifacts
 from infra.engine.training import save_eval_batch_visualization
-from infra.common.logging.logger import logger
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="nn_framework evaluation manager")
@@ -54,19 +57,34 @@ def invoke(args: argparse.Namespace) -> None:
         )
         saved_eval_batches += 1
     if saved_eval_batches > 0:
-        logger.info("Saved {} eval batch visualizations to {}", saved_eval_batches, output_root)
+        logger.info(
+            "Saved {} eval batch visualizations to {}", saved_eval_batches, output_root
+        )
 
     state = runtime.wrapper.load_checkpoint_state(args.checkpoint)
     runtime.wrapper.validate_checkpoint_class_compatibility(runtime.built.model, state)
-    loaded, skipped, missing = runtime.wrapper.safe_load_state_dict(runtime.built.model, state)
-    logger.info("Loaded checkpoint tensors={}, skipped_shape={}, missing={}", loaded, skipped, missing)
+    loaded, skipped, missing = runtime.wrapper.safe_load_state_dict(
+        runtime.built.model, state
+    )
+    logger.info(
+        "Loaded checkpoint tensors={}, skipped_shape={}, missing={}",
+        loaded,
+        skipped,
+        missing,
+    )
 
     net_classes = model_num_classes(runtime.built.model)
     if net_classes is not None:
         configured_mapping = app_config.data.mapping or {}
-        configured_label_ids = sorted({int(label_id) for label_id in configured_mapping.values()})
+        configured_label_ids = sorted(
+            {int(label_id) for label_id in configured_mapping.values()}
+        )
         if configured_label_ids:
-            out_of_range = [label_id for label_id in configured_label_ids if label_id < 0 or label_id >= net_classes]
+            out_of_range = [
+                label_id
+                for label_id in configured_label_ids
+                if label_id < 0 or label_id >= net_classes
+            ]
             if out_of_range:
                 logger.warning(
                     "validation label ids {} are out of model class range [0, {}]. Evaluation AP will be invalid.",

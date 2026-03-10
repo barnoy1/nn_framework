@@ -56,11 +56,19 @@ def resolve_run_folder_name(run_output_dir: Path, tracking_dir: Path) -> str:
     return tracking_dir.parent.name
 
 
-def register_current_model(*, trainer, client: "mlflow.tracking.MlflowClient", experiment_name: str, execution_config: Dict) -> None:
+def register_current_model(
+    *,
+    trainer,
+    client: "mlflow.tracking.MlflowClient",
+    experiment_name: str,
+    execution_config: Dict,
+) -> None:
     if not trainer.accelerator.is_main_process:
         return
 
-    model_cfg = execution_config.get("model") if isinstance(execution_config, dict) else None
+    model_cfg = (
+        execution_config.get("model") if isinstance(execution_config, dict) else None
+    )
     if not isinstance(model_cfg, dict):
         return
 
@@ -77,17 +85,21 @@ def register_current_model(*, trainer, client: "mlflow.tracking.MlflowClient", e
         yaml.safe_dump(model_info, sort_keys=True, allow_unicode=True),
         artifact_file="model/definition.yaml",
     )
-    mlflow.set_tags({
-        "model.source_root": source_root,
-        "model.model_config_path": model_config_path,
-    })
+    mlflow.set_tags(
+        {
+            "model.source_root": source_root,
+            "model.model_config_path": model_config_path,
+        }
+    )
 
     active_run = mlflow.active_run()
     if active_run is None:
         return
 
     model_cfg_name = Path(model_config_path).stem if model_config_path else "model"
-    registered_model_name = normalize_registered_model_name(f"{experiment_name}__{model_cfg_name}")
+    registered_model_name = normalize_registered_model_name(
+        f"{experiment_name}__{model_cfg_name}"
+    )
     model_uri = f"runs:/{active_run.info.run_id}/model"
 
     class _IdentityModel(mlflow.pyfunc.PythonModel):

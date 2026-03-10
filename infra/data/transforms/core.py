@@ -51,10 +51,23 @@ class DynamicAlbumentations:
     def _build_heavy_pipeline(self) -> A.Compose:
         ops = [
             A.LongestMaxSize(max_size=self.image_size),
-            A.PadIfNeeded(min_height=self.image_size, min_width=self.image_size, border_mode=cv2.BORDER_CONSTANT),
-            A.RandomScale(scale_limit=(self.heavy_scale_min - 1.0, self.heavy_scale_max - 1.0), p=0.9),
-            A.PadIfNeeded(min_height=self.image_size, min_width=self.image_size, border_mode=cv2.BORDER_CONSTANT),
-            A.RandomSizedBBoxSafeCrop(height=self.image_size, width=self.image_size, p=1.0),
+            A.PadIfNeeded(
+                min_height=self.image_size,
+                min_width=self.image_size,
+                border_mode=cv2.BORDER_CONSTANT,
+            ),
+            A.RandomScale(
+                scale_limit=(self.heavy_scale_min - 1.0, self.heavy_scale_max - 1.0),
+                p=0.9,
+            ),
+            A.PadIfNeeded(
+                min_height=self.image_size,
+                min_width=self.image_size,
+                border_mode=cv2.BORDER_CONSTANT,
+            ),
+            A.RandomSizedBBoxSafeCrop(
+                height=self.image_size, width=self.image_size, p=1.0
+            ),
             *self._build_common(),
         ]
         return self._compose(ops)
@@ -62,9 +75,20 @@ class DynamicAlbumentations:
     def _build_light_pipeline(self) -> A.Compose:
         ops = [
             A.LongestMaxSize(max_size=self.image_size),
-            A.PadIfNeeded(min_height=self.image_size, min_width=self.image_size, border_mode=cv2.BORDER_CONSTANT),
-            A.RandomScale(scale_limit=(self.light_scale_min - 1.0, self.light_scale_max - 1.0), p=0.4),
-            A.PadIfNeeded(min_height=self.image_size, min_width=self.image_size, border_mode=cv2.BORDER_CONSTANT),
+            A.PadIfNeeded(
+                min_height=self.image_size,
+                min_width=self.image_size,
+                border_mode=cv2.BORDER_CONSTANT,
+            ),
+            A.RandomScale(
+                scale_limit=(self.light_scale_min - 1.0, self.light_scale_max - 1.0),
+                p=0.4,
+            ),
+            A.PadIfNeeded(
+                min_height=self.image_size,
+                min_width=self.image_size,
+                border_mode=cv2.BORDER_CONSTANT,
+            ),
             A.CenterCrop(height=self.image_size, width=self.image_size, p=1.0),
             *self._build_common(),
         ]
@@ -74,7 +98,9 @@ class DynamicAlbumentations:
     def _compose(ops: List[Any]) -> A.Compose:
         return A.Compose(
             ops,
-            bbox_params=A.BboxParams(format="pascal_voc", label_fields=["class_labels"], min_visibility=0.05),
+            bbox_params=A.BboxParams(
+                format="pascal_voc", label_fields=["class_labels"], min_visibility=0.05
+            ),
         )
 
     def update_augmentation(self, epoch: int, total_epochs: int) -> None:
@@ -89,7 +115,11 @@ class DynamicAlbumentations:
         masks: Optional[List[np.ndarray]] = None,
     ) -> TransformResult:
         compose = self._heavy if self.current_stage == "heavy" else self._light
-        payload: Dict[str, Any] = {"image": image, "bboxes": bboxes, "class_labels": class_labels}
+        payload: Dict[str, Any] = {
+            "image": image,
+            "bboxes": bboxes,
+            "class_labels": class_labels,
+        }
         if self.use_masks and masks is not None:
             payload["masks"] = masks
         transformed = compose(**payload)
@@ -106,7 +136,9 @@ class EvalResizeTransform:
         self.use_masks = use_masks
         self._compose = A.Compose(
             [A.Resize(height=image_size, width=image_size)],
-            bbox_params=A.BboxParams(format="pascal_voc", label_fields=["class_labels"], min_visibility=0.05),
+            bbox_params=A.BboxParams(
+                format="pascal_voc", label_fields=["class_labels"], min_visibility=0.05
+            ),
         )
 
     def __call__(
@@ -116,7 +148,11 @@ class EvalResizeTransform:
         class_labels: List[int],
         masks: Optional[List[np.ndarray]] = None,
     ) -> TransformResult:
-        payload: Dict[str, Any] = {"image": image, "bboxes": bboxes, "class_labels": class_labels}
+        payload: Dict[str, Any] = {
+            "image": image,
+            "bboxes": bboxes,
+            "class_labels": class_labels,
+        }
         if self.use_masks and masks is not None:
             payload["masks"] = masks
         transformed = self._compose(**payload)
@@ -133,7 +169,9 @@ class ConfigurableAlbumentations:
         self.use_masks = use_masks
         self._compose = A.Compose(
             ops,
-            bbox_params=A.BboxParams(format="pascal_voc", label_fields=["class_labels"], min_visibility=0.05),
+            bbox_params=A.BboxParams(
+                format="pascal_voc", label_fields=["class_labels"], min_visibility=0.05
+            ),
         )
 
     def __call__(
@@ -143,7 +181,11 @@ class ConfigurableAlbumentations:
         class_labels: List[int],
         masks: Optional[List[np.ndarray]] = None,
     ) -> TransformResult:
-        payload: Dict[str, Any] = {"image": image, "bboxes": bboxes, "class_labels": class_labels}
+        payload: Dict[str, Any] = {
+            "image": image,
+            "bboxes": bboxes,
+            "class_labels": class_labels,
+        }
         if self.use_masks and masks is not None:
             payload["masks"] = masks
         transformed = self._compose(**payload)
@@ -160,7 +202,9 @@ class ApplyColorOnly:
         self.augment = augment
 
     def __call__(self, image: np.ndarray, **kwargs) -> np.ndarray:
-        channels = 1 if image.ndim == 2 else int(image.shape[2]) if image.ndim >= 3 else 1
+        channels = (
+            1 if image.ndim == 2 else int(image.shape[2]) if image.ndim >= 3 else 1
+        )
         if channels < 3:
             return image
         return self.augment(image=image)["image"]
@@ -172,7 +216,9 @@ class ApplyToGrayIfNeeded:
         self._to_gray = A.ToGray(num_output_channels=1, p=1.0)
 
     def __call__(self, image: np.ndarray, **kwargs) -> np.ndarray:
-        channels = 1 if image.ndim == 2 else int(image.shape[2]) if image.ndim >= 3 else 1
+        channels = (
+            1 if image.ndim == 2 else int(image.shape[2]) if image.ndim >= 3 else 1
+        )
 
         if channels >= 3:
             gray = self._to_gray(image=image)["image"]

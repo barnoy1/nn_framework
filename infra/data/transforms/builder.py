@@ -31,8 +31,12 @@ def build_albumentations_from_loader(
     default_size: int = 640,
 ) -> ConfigurableAlbumentations:
     dataset_cfg = loader_cfg.get("dataset") if isinstance(loader_cfg, Mapping) else None
-    transforms_cfg = dataset_cfg.get("transforms") if isinstance(dataset_cfg, Mapping) else None
-    configured_ops = transforms_cfg.get("ops") if isinstance(transforms_cfg, Mapping) else None
+    transforms_cfg = (
+        dataset_cfg.get("transforms") if isinstance(dataset_cfg, Mapping) else None
+    )
+    configured_ops = (
+        transforms_cfg.get("ops") if isinstance(transforms_cfg, Mapping) else None
+    )
 
     ops: List[Any] = []
     resize_h, resize_w = default_size, default_size
@@ -52,9 +56,18 @@ def build_albumentations_from_loader(
             if op_type == "letterbox":
                 resize_h, resize_w = _extract_resize_hw(op, default_size=default_size)
                 fill_value = op.get("fill_value", 114)
-                ops.append(A.LongestMaxSize(max_size=max(resize_h, resize_w), p=_prob(op, 1.0)))
                 ops.append(
-                    A.PadIfNeeded(min_height=resize_h, min_width=resize_w, border_mode=cv2.BORDER_CONSTANT, fill=fill_value, fill_mask=0, p=1.0)
+                    A.LongestMaxSize(max_size=max(resize_h, resize_w), p=_prob(op, 1.0))
+                )
+                ops.append(
+                    A.PadIfNeeded(
+                        min_height=resize_h,
+                        min_width=resize_w,
+                        border_mode=cv2.BORDER_CONSTANT,
+                        fill=fill_value,
+                        fill_mask=0,
+                        p=1.0,
+                    )
                 )
                 continue
 
@@ -175,17 +188,34 @@ def build_albumentations_from_loader(
 
             if op_type == "togray":
                 num_output_channels = int(op.get("num_output_channels", 3))
-                ops.append(A.Lambda(image=ApplyToGrayIfNeeded(num_output_channels), p=_prob(op, 0.5)))
+                ops.append(
+                    A.Lambda(
+                        image=ApplyToGrayIfNeeded(num_output_channels), p=_prob(op, 0.5)
+                    )
+                )
                 continue
 
             if op_type == "randomzoomout":
                 max_scale = float(op.get("max_scale", 1.2))
-                ops.append(A.RandomScale(scale_limit=(0.0, max_scale - 1.0), p=_prob(op, 0.5)))
-                ops.append(A.PadIfNeeded(min_height=resize_h, min_width=resize_w, border_mode=cv2.BORDER_CONSTANT, p=1.0))
+                ops.append(
+                    A.RandomScale(scale_limit=(0.0, max_scale - 1.0), p=_prob(op, 0.5))
+                )
+                ops.append(
+                    A.PadIfNeeded(
+                        min_height=resize_h,
+                        min_width=resize_w,
+                        border_mode=cv2.BORDER_CONSTANT,
+                        p=1.0,
+                    )
+                )
                 continue
 
             if op_type == "randomioucrop":
-                ops.append(A.RandomSizedBBoxSafeCrop(height=resize_h, width=resize_w, p=_prob(op, 0.8)))
+                ops.append(
+                    A.RandomSizedBBoxSafeCrop(
+                        height=resize_h, width=resize_w, p=_prob(op, 0.8)
+                    )
+                )
                 continue
 
             if op_type in {"sanitizeboundingboxes", "convertpilimage", "convertboxes"}:

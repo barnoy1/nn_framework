@@ -14,11 +14,15 @@ class DataConfig(BaseModel):
     dataset_root: Optional[str] = None
     train_sets: List[DatasetPair] = Field(default_factory=list)
     val_sets: List[DatasetPair] = Field(default_factory=list)
-    iou_types: List[Literal["bbox", "segm"]] = Field(default_factory=lambda: ["bbox", "segm"])
+    iou_types: List[Literal["bbox", "segm"]] = Field(
+        default_factory=lambda: ["bbox", "segm"]
+    )
     filter_empty_targets: bool = True
     keep_rle_in_targets: bool = True
     task: str = "detection"
-    evaluator: Dict = Field(default_factory=lambda: {"type": "CocoEvaluator", "iou_types": ["bbox", "segm"]})
+    evaluator: Dict = Field(
+        default_factory=lambda: {"type": "CocoEvaluator", "iou_types": ["bbox", "segm"]}
+    )
     num_classes: int = 80
     remap_mscoco_category: bool = False
     mapping: Dict[int, int] = Field(default_factory=dict)
@@ -53,7 +57,9 @@ class DataConfig(BaseModel):
                 img_dir = entry.get("img_dir") or entry.get("img_folder")
                 ann_file = entry.get("ann_file")
                 if img_dir and ann_file:
-                    parsed.append(DatasetPair(img_dir=str(img_dir), ann_file=str(ann_file)))
+                    parsed.append(
+                        DatasetPair(img_dir=str(img_dir), ann_file=str(ann_file))
+                    )
             return parsed
 
         if not self.train_sets:
@@ -67,7 +73,11 @@ class DataConfig(BaseModel):
             raise ValueError("data.val_sets must contain at least one dataset pair")
 
         if not self.class_id_to_name and self.label2classid:
-            self.class_id_to_name = {int(key): str(value) for key, value in self.label2classid.items()}
+            self.class_id_to_name = {
+                int(key): str(value) for key, value in self.label2classid.items()
+            }
         if not self.label2classid and self.class_id_to_name:
-            self.label2classid = {int(key): str(value) for key, value in self.class_id_to_name.items()}
+            self.label2classid = {
+                int(key): str(value) for key, value in self.class_id_to_name.items()
+            }
         return self

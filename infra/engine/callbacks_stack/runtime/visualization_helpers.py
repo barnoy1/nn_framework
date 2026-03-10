@@ -63,7 +63,9 @@ def compute_detection_scores(matrix: np.ndarray) -> Dict[str, float]:
     return {"precision": precision, "recall": recall, "f1": f1, "accuracy": accuracy}
 
 
-def log_output_artifacts(*, output_dir: Path, logger, logged_artifacts: set[Path]) -> None:
+def log_output_artifacts(
+    *, output_dir: Path, logger, logged_artifacts: set[Path]
+) -> None:
     artifact_candidates = [
         output_dir / "results.csv",
         output_dir / "results.png",
@@ -88,7 +90,9 @@ def log_output_artifacts(*, output_dir: Path, logger, logged_artifacts: set[Path
             logged_artifacts.add(resolved)
 
 
-def log_dataset_artifacts(*, output_dir: Path, logger, logged_artifacts: set[Path]) -> None:
+def log_dataset_artifacts(
+    *, output_dir: Path, logger, logged_artifacts: set[Path]
+) -> None:
     dataset_candidates = [
         output_dir / "labels.png",
         output_dir / "labels.jpg",
@@ -96,7 +100,9 @@ def log_dataset_artifacts(*, output_dir: Path, logger, logged_artifacts: set[Pat
         output_dir / "dataset" / "labels.jpg",
     ]
     dataset_candidates.extend(iter_files(output_dir / "dataset"))
-    resolved_paths = {candidate.resolve() for candidate in dataset_candidates if candidate.exists()}
+    resolved_paths = {
+        candidate.resolve() for candidate in dataset_candidates if candidate.exists()
+    }
 
     for artifact_path in sorted(resolved_paths):
         if artifact_path in logged_artifacts:
@@ -105,12 +111,18 @@ def log_dataset_artifacts(*, output_dir: Path, logger, logged_artifacts: set[Pat
         logged_artifacts.add(artifact_path)
 
 
-def log_batch_artifacts(*, output_dir: Path, logger, logged_artifacts: set[Path]) -> None:
+def log_batch_artifacts(
+    *, output_dir: Path, logger, logged_artifacts: set[Path]
+) -> None:
     batch_roots = [
         (output_dir, "training/train_batches", "train_batch*.jpg"),
         (output_dir, "training/validation_batches", "val_batch*.jpg"),
         (output_dir, "training/eval_batches", "eval_batch*.jpg"),
-        (output_dir / "inference" / "validation", "training/validation_grids", "val_epoch_*.jpg"),
+        (
+            output_dir / "inference" / "validation",
+            "training/validation_grids",
+            "val_epoch_*.jpg",
+        ),
     ]
 
     for root_dir, artifact_path, pattern in batch_roots:
@@ -124,12 +136,18 @@ def log_batch_artifacts(*, output_dir: Path, logger, logged_artifacts: set[Path]
             logged_artifacts.add(resolved)
 
 
-def log_evaluation_artifacts(*, output_dir: Path, epoch: int, logger, logged_artifacts: set[Path]) -> None:
+def log_evaluation_artifacts(
+    *, output_dir: Path, epoch: int, logger, logged_artifacts: set[Path]
+) -> None:
     epoch_prefix = f"evaluation/epoch_{epoch + 1:04d}"
     eval_dir = output_dir / "inference" / "eval"
     epoch_token = f"__epoch_{epoch + 1:04d}.png"
 
-    epoch_candidates = [candidate for candidate in iter_files(eval_dir) if candidate.name.endswith(epoch_token)]
+    epoch_candidates = [
+        candidate
+        for candidate in iter_files(eval_dir)
+        if candidate.name.endswith(epoch_token)
+    ]
     for artifact_path in epoch_candidates:
         resolved = artifact_path.resolve()
         if resolved in logged_artifacts:
@@ -166,7 +184,9 @@ def log_accumulated_eval_history_artifacts(*, output_dir: Path, logger) -> None:
             logger.log_artifact(file_path=resolved, artifact_path="evaluation/history")
 
 
-def sync_execution_tree_artifacts(*, output_dir: Path, logger, artifact_mtimes: dict[Path, int]) -> None:
+def sync_execution_tree_artifacts(
+    *, output_dir: Path, logger, artifact_mtimes: dict[Path, int]
+) -> None:
     if not output_dir.exists():
         return
     for candidate in sorted(output_dir.rglob("*")):

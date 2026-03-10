@@ -74,7 +74,9 @@ def _save_batch_visualization(
         suffix = f"_{int(epoch_suffix):04d}"
     output_image = Image.fromarray(canvas)
     output_image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
-    output_image.save(output_root / f"{file_prefix}{step}{suffix}.jpg", quality=85, optimize=True)
+    output_image.save(
+        output_root / f"{file_prefix}{step}{suffix}.jpg", quality=85, optimize=True
+    )
 
 
 def save_train_batch_visualization(

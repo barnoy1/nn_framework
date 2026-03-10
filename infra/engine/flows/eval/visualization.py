@@ -30,7 +30,9 @@ def save_eval_visualizations(runtime, args, logger) -> None:
         images = images.to(device, non_blocking=True)
         targets = [
             {
-                key: value.to(device, non_blocking=True) if isinstance(value, torch.Tensor) else value
+                key: value.to(device, non_blocking=True)
+                if isinstance(value, torch.Tensor)
+                else value
                 for key, value in target.items()
             }
             for target in targets

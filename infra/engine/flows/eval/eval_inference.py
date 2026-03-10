@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import random
 import re
 from pathlib import Path
@@ -25,6 +24,7 @@ def _safe_token(value: str) -> str:
     token = re.sub(r"[^A-Za-z0-9._-]+", "_", str(value)).strip("_")
     return token or "unknown"
 
+
 def run_eval_inference_loop(
     *,
     app_config,
@@ -40,11 +40,17 @@ def run_eval_inference_loop(
     vis_logger,
     logger,
 ) -> Dict[str, object]:
-    transforms = build_image_preprocess_from_loader(app_config.data.val_dataloader, logger=logger, default_size=640)
+    transforms = build_image_preprocess_from_loader(
+        app_config.data.val_dataloader, logger=logger, default_size=640
+    )
     label_id_remap = build_label_id_remap_from_config_and_annotations(
         remap_mscoco_category=bool(app_config.data.remap_mscoco_category),
-        class_id_to_name={int(k): str(v) for k, v in (app_config.data.class_id_to_name or {}).items()},
-        annotation_files=[str(dataset_pair.ann_file) for dataset_pair in app_config.data.val_sets],
+        class_id_to_name={
+            int(k): str(v) for k, v in (app_config.data.class_id_to_name or {}).items()
+        },
+        annotation_files=[
+            str(dataset_pair.ann_file) for dataset_pair in app_config.data.val_sets
+        ],
     )
     all_predictions: List[Dict[str, torch.Tensor]] = []
     all_targets_for_metric: List[Dict[str, torch.Tensor]] = []
@@ -54,8 +60,17 @@ def run_eval_inference_loop(
     saved_vis = 0
     confusion_events: List[tuple[Optional[int], Optional[int]]] = []
     max_visualizations = max(0, int(vis_samples))
-    first_conv_weight = next((parameter for parameter in model_eval.parameters() if getattr(parameter, "ndim", 0) == 4), None)
-    expected_channels = int(first_conv_weight.shape[1]) if first_conv_weight is not None else None
+    first_conv_weight = next(
+        (
+            parameter
+            for parameter in model_eval.parameters()
+            if getattr(parameter, "ndim", 0) == 4
+        ),
+        None,
+    )
+    expected_channels = (
+        int(first_conv_weight.shape[1]) if first_conv_weight is not None else None
+    )
     visualization_indices: set[int] = set()
     if max_visualizations > 0 and len(samples) > 0:
         configured_seed = app_config.runtime.common.seed
@@ -71,8 +86,13 @@ def run_eval_inference_loop(
         for sample_index, sample in enumerate(samples):
             original_image = load_pil_image(Path(sample["image_path"]))
             batch_tensor = transforms(original_image).unsqueeze(0).to(device)
-            orig_sizes = torch.tensor([[original_image.size[0], original_image.size[1]]], device=device)
-            transformed_sizes = torch.tensor([[int(batch_tensor.shape[-1]), int(batch_tensor.shape[-2])]], device=device)
+            orig_sizes = torch.tensor(
+                [[original_image.size[0], original_image.size[1]]], device=device
+            )
+            transformed_sizes = torch.tensor(
+                [[int(batch_tensor.shape[-1]), int(batch_tensor.shape[-2])]],
+                device=device,
+            )
             if expected_channels and int(batch_tensor.shape[1]) != expected_channels:
                 if expected_channels == 1:
                     batch_tensor = batch_tensor.mean(dim=1, keepdim=True)
@@ -82,7 +102,9 @@ def run_eval_inference_loop(
                     batch_tensor = batch_tensor[:, :expected_channels, :, :]
             outputs = model_eval(batch_tensor)
             prediction = to_result_list(outputs, post_eval, orig_sizes)[0]
-            prediction_for_vis = to_result_list(outputs, post_eval, transformed_sizes)[0]
+            prediction_for_vis = to_result_list(outputs, post_eval, transformed_sizes)[
+                0
+            ]
             normalized_results = normalize_prediction_labels_for_metrics(
                 [prediction, prediction_for_vis],
                 label_id_remap=label_id_remap,
@@ -119,20 +141,29 @@ def run_eval_inference_loop(
             if pred_for_metric["labels"].numel() > 0:
                 images_with_predictions += 1
             gt_total += int(sample["gt_labels"].numel())
-            if sample["gt_labels"].numel() > 0 and pred_for_metric["labels"].numel() > 0:
-                ious = torchvision.ops.box_iou(pred_for_metric["boxes"], sample["gt_boxes"])
+            if (
+                sample["gt_labels"].numel() > 0
+                and pred_for_metric["labels"].numel() > 0
+            ):
+                ious = torchvision.ops.box_iou(
+                    pred_for_metric["boxes"], sample["gt_boxes"]
+                )
                 pred_labels = pred_for_metric["labels"].unsqueeze(1)
                 gt_labels = sample["gt_labels"].unsqueeze(0)
                 label_match = pred_labels == gt_labels
                 if label_match.any():
-                    matched_ious = torch.where(label_match, ious, torch.zeros_like(ious))
+                    matched_ious = torch.where(
+                        label_match, ious, torch.zeros_like(ious)
+                    )
                     max_per_gt = matched_ious.max(dim=0).values
                     gt_matched_iou50 += int((max_per_gt >= 0.5).sum().item())
 
             pred_labels = pred_for_metric["labels"].detach().cpu().long()
             gt_labels = sample["gt_labels"].detach().cpu().long()
             if pred_for_metric["boxes"].numel() > 0 and sample["gt_boxes"].numel() > 0:
-                ious_for_match = torchvision.ops.box_iou(pred_for_metric["boxes"], sample["gt_boxes"])
+                ious_for_match = torchvision.ops.box_iou(
+                    pred_for_metric["boxes"], sample["gt_boxes"]
+                )
                 candidate_pairs = []
                 for pred_idx in range(ious_for_match.shape[0]):
                     for gt_idx in range(ious_for_match.shape[1]):
@@ -147,13 +178,20 @@ def run_eval_inference_loop(
                         continue
                     matched_pred.add(pred_idx)
                     matched_gt.add(gt_idx)
-                    confusion_events.append((int(gt_labels[gt_idx].item()), int(pred_labels[pred_idx].item())))
+                    confusion_events.append(
+                        (
+                            int(gt_labels[gt_idx].item()),
+                            int(pred_labels[pred_idx].item()),
+                        )
+                    )
                 for gt_idx in range(gt_labels.numel()):
                     if gt_idx not in matched_gt:
                         confusion_events.append((int(gt_labels[gt_idx].item()), None))
                 for pred_idx in range(pred_labels.numel()):
                     if pred_idx not in matched_pred:
-                        confusion_events.append((None, int(pred_labels[pred_idx].item())))
+                        confusion_events.append(
+                            (None, int(pred_labels[pred_idx].item()))
+                        )
             else:
                 for gt_idx in range(gt_labels.numel()):
                     confusion_events.append((int(gt_labels[gt_idx].item()), None))
@@ -163,12 +201,16 @@ def run_eval_inference_loop(
             if sample_index in visualization_indices:
                 vis_tensor = batch_tensor[0].detach().cpu()
                 if vis_tensor.ndim != 3:
-                    raise ValueError(f"Expected CHW tensor for visualization, got shape={tuple(vis_tensor.shape)}")
+                    raise ValueError(
+                        f"Expected CHW tensor for visualization, got shape={tuple(vis_tensor.shape)}"
+                    )
                 if int(vis_tensor.shape[0]) == 1:
                     vis_tensor = vis_tensor.repeat(3, 1, 1)
                 elif int(vis_tensor.shape[0]) > 3:
                     vis_tensor = vis_tensor[:3]
-                vis_image = (vis_tensor.clamp(0.0, 1.0).permute(1, 2, 0).numpy() * 255.0).astype(np.uint8)
+                vis_image = (
+                    vis_tensor.clamp(0.0, 1.0).permute(1, 2, 0).numpy() * 255.0
+                ).astype(np.uint8)
                 rendered = render_prediction_with_yolo_caption(
                     image=vis_image,
                     prediction=prediction_for_vis,
@@ -177,14 +219,20 @@ def run_eval_inference_loop(
                 )
                 dataset_name = _safe_token(str(sample.get("dataset_name", "dataset")))
                 image_id = int(sample.get("image_id", -1))
-                image_stem = _safe_token(Path(str(sample.get("file_name", "image"))).stem)
+                image_stem = _safe_token(
+                    Path(str(sample.get("file_name", "image"))).stem
+                )
                 image_folder = eval_vis_dir / f"{dataset_name}__image_id_{image_id}"
                 image_folder.mkdir(parents=True, exist_ok=True)
-                image_name = f"{dataset_name}__{image_stem}__epoch_{resolved_epoch:04d}.png"
+                image_name = (
+                    f"{dataset_name}__{image_stem}__epoch_{resolved_epoch:04d}.png"
+                )
                 rendered_image = Image.fromarray(rendered)
                 rendered_image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
                 rendered_image.save(image_folder / image_name, optimize=True)
-                vis_logger.log_image(tag="eval/visualization", image=rendered, step=saved_vis)
+                vis_logger.log_image(
+                    tag="eval/visualization", image=rendered, step=saved_vis
+                )
                 saved_vis += 1
     logger.info("Saved {} eval visualizations to {}", saved_vis, eval_vis_dir)
     if gt_total > 0:
@@ -195,5 +243,13 @@ def run_eval_inference_loop(
             gt_matched_iou50,
             gt_matched_iou50 / float(gt_total),
         )
-    vis_logger.log_text(tag="eval/detections_summary", text=f"visualized_samples={saved_vis} epoch={resolved_epoch}", step=resolved_epoch)
-    return {"all_predictions": all_predictions, "all_targets_for_metric": all_targets_for_metric, "confusion_events": confusion_events}
+    vis_logger.log_text(
+        tag="eval/detections_summary",
+        text=f"visualized_samples={saved_vis} epoch={resolved_epoch}",
+        step=resolved_epoch,
+    )
+    return {
+        "all_predictions": all_predictions,
+        "all_targets_for_metric": all_targets_for_metric,
+        "confusion_events": confusion_events,
+    }

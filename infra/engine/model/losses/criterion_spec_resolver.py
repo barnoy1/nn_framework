@@ -31,18 +31,24 @@ class DualCriterionSpecResolver:
         pairs = app_config.model.losses.criterion_pairs
 
         common_specs = [
-            ConfiguredLossSpec(pattern=canonical_loss_alias(str(item.loss)), coef=item.coef)
+            ConfiguredLossSpec(
+                pattern=canonical_loss_alias(str(item.loss)), coef=item.coef
+            )
             for item in pairs.iter_adapter_common()
         ]
         concrete_specs = [
-            ConfiguredLossSpec(pattern=canonical_loss_alias(str(item.loss)), coef=item.coef)
+            ConfiguredLossSpec(
+                pattern=canonical_loss_alias(str(item.loss)), coef=item.coef
+            )
             for item in pairs.iter_concrete_model()
         ]
 
         return cls(
             adapter_common_specs=common_specs,
             concrete_specs=concrete_specs,
-            fallback_to_model_default=bool(getattr(app_config.model.losses, "fallback_to_model_default", True)),
+            fallback_to_model_default=bool(
+                getattr(app_config.model.losses, "fallback_to_model_default", True)
+            ),
         )
 
     @staticmethod
@@ -62,10 +68,14 @@ class DualCriterionSpecResolver:
         lowered_key = str(loss_key).strip().lower()
         if normalized_pattern.endswith("_"):
             return lowered_key.startswith(normalized_pattern)
-        return lowered_key == normalized_pattern or lowered_key.startswith(f"{normalized_pattern}_")
+        return lowered_key == normalized_pattern or lowered_key.startswith(
+            f"{normalized_pattern}_"
+        )
 
     @classmethod
-    def _resolve_from_specs(cls, loss_key: str, specs: Iterable[ConfiguredLossSpec]) -> Optional[float]:
+    def _resolve_from_specs(
+        cls, loss_key: str, specs: Iterable[ConfiguredLossSpec]
+    ) -> Optional[float]:
         best_match_len = -1
         resolved: Optional[float] = None
         for item in specs:
@@ -79,7 +89,9 @@ class DualCriterionSpecResolver:
         return resolved
 
     @classmethod
-    def _resolve_default_coef(cls, loss_key: str, default_weight_dict: Dict[str, float]) -> float:
+    def _resolve_default_coef(
+        cls, loss_key: str, default_weight_dict: Dict[str, float]
+    ) -> float:
         lowered_key = str(loss_key).strip().lower()
         exact = default_weight_dict.get(lowered_key)
         if exact is not None:
@@ -94,7 +106,9 @@ class DualCriterionSpecResolver:
     def has_explicit_concrete_match(self, loss_key: str) -> bool:
         return self._resolve_from_specs(loss_key, self._concrete_specs) is not None
 
-    def resolve(self, loss_key: str, default_weight_dict: Dict[str, float]) -> ResolvedLossTarget:
+    def resolve(
+        self, loss_key: str, default_weight_dict: Dict[str, float]
+    ) -> ResolvedLossTarget:
         concrete = self._resolve_from_specs(loss_key, self._concrete_specs)
         if concrete is not None:
             return ResolvedLossTarget(coef=float(concrete), source="concrete")

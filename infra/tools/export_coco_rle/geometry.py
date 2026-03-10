@@ -11,7 +11,9 @@ IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff")
 
 def rectangle_to_polygon(exterior: List[List[float]]) -> List[float]:
     if len(exterior) != 2:
-        raise ValueError(f"Rectangle exterior must contain exactly 2 points, got {len(exterior)}")
+        raise ValueError(
+            f"Rectangle exterior must contain exactly 2 points, got {len(exterior)}"
+        )
     (x1, y1), (x2, y2) = exterior
     x_min, x_max = sorted([float(x1), float(x2)])
     y_min, y_max = sorted([float(y1), float(y2)])

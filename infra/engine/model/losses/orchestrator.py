@@ -7,7 +7,9 @@ from torch import nn
 from .adapters import ModelAgnosticDetCriterion
 
 
-def prepare_base_criterion_for_agnostic_flow(base_criterion: nn.Module, resolver) -> None:
+def prepare_base_criterion_for_agnostic_flow(
+    base_criterion: nn.Module, resolver
+) -> None:
     losses = getattr(base_criterion, "losses", None)
     if losses is None:
         return
@@ -18,7 +20,9 @@ def prepare_base_criterion_for_agnostic_flow(base_criterion: nn.Module, resolver
     if not isinstance(payload, dict):
         payload = {}
 
-    normalized_weight_dict = {str(key).strip().lower(): float(value) for key, value in payload.items()}
+    normalized_weight_dict = {
+        str(key).strip().lower(): float(value) for key, value in payload.items()
+    }
 
     def _enabled(loss_key: str) -> bool:
         return float(resolver.resolve(loss_key, normalized_weight_dict).coef) > 0.0
@@ -47,19 +51,30 @@ def prepare_base_criterion_for_agnostic_flow(base_criterion: nn.Module, resolver
 
 
 class CompositeCriterion(nn.Module):
-    def __init__(self, base_criterion: nn.Module, adapters: Iterable, resolver, dfl_provider=None) -> None:
+    def __init__(
+        self, base_criterion: nn.Module, adapters: Iterable, resolver, dfl_provider=None
+    ) -> None:
         super().__init__()
         self.base_criterion = base_criterion
         self.adapters = list(adapters)
         self.resolver = resolver
-        concrete_probe = next((adapter for adapter in self.adapters if getattr(adapter, "name", "") == "concrete"), None)
+        concrete_probe = next(
+            (
+                adapter
+                for adapter in self.adapters
+                if getattr(adapter, "name", "") == "concrete"
+            ),
+            None,
+        )
         self.model_agnostic_criterion = ModelAgnosticDetCriterion.from_base(
             base_criterion,
             dfl_provider=dfl_provider,
             capability_probe=concrete_probe,
         )
 
-    def _accumulate_concrete_losses(self, *, base_loss_dict, default_weight_dict: Dict[str, float]) -> Dict[str, object]:
+    def _accumulate_concrete_losses(
+        self, *, base_loss_dict, default_weight_dict: Dict[str, float]
+    ) -> Dict[str, object]:
         merged = dict(base_loss_dict)
         for adapter in self.adapters:
             adapted_losses = adapter.transform(
@@ -72,7 +87,9 @@ class CompositeCriterion(nn.Module):
             merged.update(adapted_losses)
         return merged
 
-    def _accumulate_common_losses(self, *, merged, outputs, targets, default_weight_dict: Dict[str, float]) -> None:
+    def _accumulate_common_losses(
+        self, *, merged, outputs, targets, default_weight_dict: Dict[str, float]
+    ) -> None:
         if self.model_agnostic_criterion is None:
             return
         agnostic_losses = self.model_agnostic_criterion.forward(
@@ -89,7 +106,9 @@ class CompositeCriterion(nn.Module):
         payload = getattr(self.base_criterion, "weight_dict", {})
         if not isinstance(payload, dict):
             return {}
-        return {str(key).strip().lower(): float(value) for key, value in payload.items()}
+        return {
+            str(key).strip().lower(): float(value) for key, value in payload.items()
+        }
 
     def forward(self, outputs, targets, **kwargs):
         base_loss_dict = self.base_criterion(outputs, targets, **kwargs)

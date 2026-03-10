@@ -18,14 +18,25 @@ class LossComponentSplitter:
     def from_config(cls, app_config) -> "LossComponentSplitter":
         configured_pairs = app_config.model.losses.criterion_pairs
         terms = {
-            "box": [canonical_loss_alias(str(item.loss)) for item in configured_pairs.box],
-            "cls": [canonical_loss_alias(str(item.loss)) for item in configured_pairs.cls],
-            "dfl": [canonical_loss_alias(str(item.loss)) for item in configured_pairs.dfl],
-            "custom": [canonical_loss_alias(str(item.loss)) for item in configured_pairs.custom],
+            "box": [
+                canonical_loss_alias(str(item.loss)) for item in configured_pairs.box
+            ],
+            "cls": [
+                canonical_loss_alias(str(item.loss)) for item in configured_pairs.cls
+            ],
+            "dfl": [
+                canonical_loss_alias(str(item.loss)) for item in configured_pairs.dfl
+            ],
+            "custom": [
+                canonical_loss_alias(str(item.loss)) for item in configured_pairs.custom
+            ],
         }
 
         if not terms["custom"]:
-            terms["custom"] = [canonical_loss_alias(str(item.loss)) for item in configured_pairs.iter_concrete_model()]
+            terms["custom"] = [
+                canonical_loss_alias(str(item.loss))
+                for item in configured_pairs.iter_concrete_model()
+            ]
 
         return cls(terms=terms)
 
@@ -52,7 +63,9 @@ class LossComponentSplitter:
         for key, value in loss_dict.items():
             if value is None:
                 continue
-            numeric = float(value.detach().item()) if torch.is_tensor(value) else float(value)
+            numeric = (
+                float(value.detach().item()) if torch.is_tensor(value) else float(value)
+            )
             if self._matches_any(str(key), self._terms["custom"]):
                 custom_loss += numeric
             elif self._matches_any(str(key), self._terms["dfl"]):

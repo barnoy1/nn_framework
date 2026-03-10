@@ -3,13 +3,19 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List
 
-from .interfaces import CompositeVisualizationLogger, NullVisualizationLogger, VisualizationLogger
+from .interfaces import (
+    CompositeVisualizationLogger,
+    NullVisualizationLogger,
+    VisualizationLogger,
+)
 from .mlflow_backend import MlflowVisualizationLogger
 from .tb_backend import TensorBoardVisualizationLogger
 from ..service_launchers import start_mlflow_ui_service, start_tensorboard_service
 
 
-def _resolve_mlflow_run_base_name(experiment_name: str, execution_config: Dict[str, Any] | None) -> str:
+def _resolve_mlflow_run_base_name(
+    experiment_name: str, execution_config: Dict[str, Any] | None
+) -> str:
     if isinstance(execution_config, dict):
         runtime_cfg = execution_config.get("runtime")
         if isinstance(runtime_cfg, dict):
@@ -46,7 +52,9 @@ def create_visualization_logger(
             resolved.mkdir(parents=True, exist_ok=True)
             loggers.append(TensorBoardVisualizationLogger(log_dir=resolved))
             if logger_port is not None:
-                logger_port.info("TensorBoard visualization logging enabled at {}", resolved)
+                logger_port.info(
+                    "TensorBoard visualization logging enabled at {}", resolved
+                )
             if tensorboard_start_service and logger_port is not None:
                 tensorboard_url = start_tensorboard_service(
                     log_dir=resolved,
@@ -54,10 +62,14 @@ def create_visualization_logger(
                     port=int(tensorboard_port),
                     logger_port=logger_port,
                 )
-                logger_port.info("TensorBoard dashboard URL: {}/#scalars", tensorboard_url)
+                logger_port.info(
+                    "TensorBoard dashboard URL: {}/#scalars", tensorboard_url
+                )
         except Exception as error:
             if logger_port is not None:
-                logger_port.warning("TensorBoard visualization logger unavailable: {}", error)
+                logger_port.warning(
+                    "TensorBoard visualization logger unavailable: {}", error
+                )
 
     if mlflow_enabled:
         try:
@@ -108,7 +120,9 @@ def create_visualization_logger(
                     )
         except Exception as error:
             if logger_port is not None:
-                logger_port.warning("MLflow visualization logger unavailable: {}", error)
+                logger_port.warning(
+                    "MLflow visualization logger unavailable: {}", error
+                )
 
     if not loggers:
         return NullVisualizationLogger()

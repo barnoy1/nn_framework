@@ -12,8 +12,12 @@ def parse_args() -> argparse.Namespace:
         type=str,
         help="Local path pointing to a run, experiment, mlruns root, or folder containing mlruns.",
     )
-    parser.add_argument("--host", type=str, default="127.0.0.1", help="Host to bind MLflow UI.")
-    parser.add_argument("--port", type=int, default=5000, help="Port to bind MLflow UI.")
+    parser.add_argument(
+        "--host", type=str, default="127.0.0.1", help="Host to bind MLflow UI."
+    )
+    parser.add_argument(
+        "--port", type=int, default=5000, help="Port to bind MLflow UI."
+    )
     parser.add_argument(
         "--strict-port",
         action="store_true",

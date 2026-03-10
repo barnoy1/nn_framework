@@ -9,7 +9,9 @@ if TYPE_CHECKING:
 
 
 class EMACallback(Callback):
-    def on_batch_end(self, trainer: "Trainer", epoch: int, step: int, metrics: Dict[str, float]) -> None:
+    def on_batch_end(
+        self, trainer: "Trainer", epoch: int, step: int, metrics: Dict[str, float]
+    ) -> None:
         if trainer.ema_model is not None:
             trainer.ema_model.update(trainer.accelerator.unwrap_model(trainer.model))
 
@@ -21,4 +23,6 @@ class DynamicAugCallback(Callback):
         for dataset in datasets:
             transforms = getattr(dataset, "transforms", None)
             if transforms is not None and hasattr(transforms, "update_augmentation"):
-                transforms.update_augmentation(epoch=epoch, total_epochs=trainer.total_epochs)
+                transforms.update_augmentation(
+                    epoch=epoch, total_epochs=trainer.total_epochs
+                )

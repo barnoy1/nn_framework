@@ -93,11 +93,10 @@ def run_train(args: argparse.Namespace) -> None:
     args.overrides = [*args.overrides, f"train.output_dir={Path(args.run_root)}"]
 
     from infra.engine.flows.train.mangr_train import invoke
-    args = SimpleNamespace(**dict(
-        config=args.config,
-        checkpoint=args.checkpoint, 
-        overrides=args.overrides
-    ))
+
+    args = SimpleNamespace(
+        **dict(config=args.config, checkpoint=args.checkpoint, overrides=args.overrides)
+    )
     invoke(args)
 
 
@@ -128,7 +127,9 @@ def run_inference(args: argparse.Namespace) -> None:
     checkpoint = ""
     if getattr(args, "checkpoint", ""):
         checkpoint = resolve_checkpoint_path(args.checkpoint, config_path=args.config)
-    onnx_model = resolve_runtime_path(getattr(args, "onnx_model", ""), config_path=args.config)
+    onnx_model = resolve_runtime_path(
+        getattr(args, "onnx_model", ""), config_path=args.config
+    )
 
     from infra.engine.flows.inference.mangr_inference import invoke
 
@@ -155,10 +156,16 @@ def run_export_onnx(args: argparse.Namespace) -> None:
     model_root = resolve_model_root(experiment_config)
     model_config = resolve_model_config_path(experiment_config)
 
-    checkpoint_path = resolve_checkpoint_path(args.checkpoint, config_path=experiment_config)
-    output_onnx_path = resolve_runtime_path(args.onnx_model, config_path=experiment_config)
+    checkpoint_path = resolve_checkpoint_path(
+        args.checkpoint, config_path=experiment_config
+    )
+    output_onnx_path = resolve_runtime_path(
+        args.onnx_model, config_path=experiment_config
+    )
     export_script = model_root / "tools" / "export_onnx.py"
-    spec = importlib.util.spec_from_file_location("rtdetr_export_onnx", str(export_script))
+    spec = importlib.util.spec_from_file_location(
+        "rtdetr_export_onnx", str(export_script)
+    )
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Cannot load export script module: {export_script}")
 
@@ -187,7 +194,9 @@ def run_export_coco_rle(args: argparse.Namespace) -> None:
     if not args.output_dir:
         raise ValueError("--output_dir is required for export-coco-rle")
 
-    splits, default_ann_subdir, default_img_subdir = load_dataset_export_settings(dataset_conf)
+    splits, default_ann_subdir, default_img_subdir = load_dataset_export_settings(
+        dataset_conf
+    )
 
     selected_splits = args.splits if args.splits else splits
     ann_subdir = args.ann_subdir or default_ann_subdir

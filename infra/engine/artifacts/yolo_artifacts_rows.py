@@ -30,7 +30,16 @@ RESULTS_FIELDNAMES = [
 ]
 
 
-def build_epoch_row(*, epoch: int, metrics: Dict[str, float], optimizer_lrs: List[float], precision: float, recall: float, f1: float, accuracy: float) -> Dict[str, float]:
+def build_epoch_row(
+    *,
+    epoch: int,
+    metrics: Dict[str, float],
+    optimizer_lrs: List[float],
+    precision: float,
+    recall: float,
+    f1: float,
+    accuracy: float,
+) -> Dict[str, float]:
     lr0 = optimizer_lrs[0] if len(optimizer_lrs) > 0 else 0.0
     lr1 = optimizer_lrs[1] if len(optimizer_lrs) > 1 else lr0
     lr2 = optimizer_lrs[2] if len(optimizer_lrs) > 2 else lr1
@@ -47,7 +56,9 @@ def build_epoch_row(*, epoch: int, metrics: Dict[str, float], optimizer_lrs: Lis
         "metrics/F1(B)": float(f1),
         "metrics/accuracy(B)": float(accuracy),
         "metrics/mAP50(B)": float(metrics.get("val_bbox_map_50", 0.0)),
-        "metrics/mAP50-95(B)": float(metrics.get("val_bbox_map", metrics.get("val_map", 0.0))),
+        "metrics/mAP50-95(B)": float(
+            metrics.get("val_bbox_map", metrics.get("val_map", 0.0))
+        ),
         "val/total_loss": float(metrics.get("val_loss", 0.0)),
         "val/box_loss": float(metrics.get("val_box_loss", 0.0)),
         "val/cls_loss": float(metrics.get("val_cls_loss", 0.0)),
@@ -73,7 +84,9 @@ def build_epoch_row(*, epoch: int, metrics: Dict[str, float], optimizer_lrs: Lis
 
 
 def write_results_csv(csv_path: Path, rows: List[Dict[str, float]]) -> None:
-    extra_fields = sorted({key for row in rows for key in row.keys() if key not in RESULTS_FIELDNAMES})
+    extra_fields = sorted(
+        {key for row in rows for key in row.keys() if key not in RESULTS_FIELDNAMES}
+    )
     fieldnames = [*RESULTS_FIELDNAMES, *extra_fields]
     with csv_path.open("w", encoding="utf-8", newline="") as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)

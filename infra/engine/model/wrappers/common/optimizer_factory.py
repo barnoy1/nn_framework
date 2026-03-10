@@ -21,10 +21,14 @@ class BackboneGroupedAdamWFactory:
         self.weight_decay = weight_decay
         self.epochs = epochs
         self.backbone_lr_multiplier = backbone_lr_multiplier
-        self.backbone_name_matcher = backbone_name_matcher or (lambda name: "backbone" in name)
+        self.backbone_name_matcher = backbone_name_matcher or (
+            lambda name: "backbone" in name
+        )
         self.eta_min_ratio = eta_min_ratio
 
-    def split_trainable_params(self, model: nn.Module) -> Tuple[List[nn.Parameter], List[nn.Parameter]]:
+    def split_trainable_params(
+        self, model: nn.Module
+    ) -> Tuple[List[nn.Parameter], List[nn.Parameter]]:
         backbone_params: List[nn.Parameter] = []
         non_backbone_params: List[nn.Parameter] = []
         for name, parameter in model.named_parameters():

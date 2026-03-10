@@ -10,6 +10,7 @@ from torch.utils.data import Dataset
 
 from infra.engine.flows.common.image_io import load_rgb_image
 
+
 class COCODetectionDataset(Dataset):
     def __init__(
         self,
@@ -28,13 +29,19 @@ class COCODetectionDataset(Dataset):
         self.iou_types = iou_types or ["bbox"]
         self.keep_rle = keep_rle
         self.filter_empty_targets = filter_empty_targets
-        self.label_mapping = {int(key): int(value) for key, value in (label_mapping or {}).items()}
+        self.label_mapping = {
+            int(key): int(value) for key, value in (label_mapping or {}).items()
+        }
 
         self.coco = COCO(str(self.ann_file))
         self.image_ids = sorted(self.coco.getImgIds())
 
-        categories = sorted(self.coco.loadCats(self.coco.getCatIds()), key=lambda cat: cat["id"])
-        self.category_id_to_contiguous = {cat["id"]: idx for idx, cat in enumerate(categories)}
+        categories = sorted(
+            self.coco.loadCats(self.coco.getCatIds()), key=lambda cat: cat["id"]
+        )
+        self.category_id_to_contiguous = {
+            cat["id"]: idx for idx, cat in enumerate(categories)
+        }
 
     def __len__(self) -> int:
         return len(self.image_ids)
@@ -45,7 +52,9 @@ class COCODetectionDataset(Dataset):
             decoded = decoded[..., 0]
         return decoded.astype(np.uint8)
 
-    def _load_annotations(self, image_id: int, width: int, height: int) -> Tuple[List[List[float]], List[int], List[dict]]:
+    def _load_annotations(
+        self, image_id: int, width: int, height: int
+    ) -> Tuple[List[List[float]], List[int], List[dict]]:
         ann_ids = self.coco.getAnnIds(imgIds=[image_id], iscrowd=None)
         annotations = self.coco.loadAnns(ann_ids)
 
@@ -68,7 +77,9 @@ class COCODetectionDataset(Dataset):
                 continue
             boxes_xyxy.append([x1, y1, x2, y2])
             contiguous_label = int(self.category_id_to_contiguous[category_id])
-            labels.append(int(self.label_mapping.get(contiguous_label, contiguous_label)))
+            labels.append(
+                int(self.label_mapping.get(contiguous_label, contiguous_label))
+            )
             kept_annotations.append(ann)
 
         return boxes_xyxy, labels, kept_annotations
@@ -81,7 +92,9 @@ class COCODetectionDataset(Dataset):
         image = load_rgb_image(img_path)
         orig_h, orig_w = image.shape[:2]
 
-        boxes_xyxy, labels, annotations = self._load_annotations(image_id=image_id, width=orig_w, height=orig_h)
+        boxes_xyxy, labels, annotations = self._load_annotations(
+            image_id=image_id, width=orig_w, height=orig_h
+        )
 
         if not boxes_xyxy and self.filter_empty_targets:
             return self[(index + 1) % len(self)]
@@ -92,15 +105,23 @@ class COCODetectionDataset(Dataset):
             rle_objects = [ann.get("segmentation") for ann in annotations]
             needs_decoded_masks = (self.transforms is not None) and (not self.keep_rle)
             if needs_decoded_masks:
-                masks_np = [self._decode_ann_mask(ann) for ann in annotations if ann.get("segmentation") is not None]
+                masks_np = [
+                    self._decode_ann_mask(ann)
+                    for ann in annotations
+                    if ann.get("segmentation") is not None
+                ]
 
         if self.transforms is not None:
-            transformed = self.transforms(image=image, bboxes=boxes_xyxy, class_labels=labels, masks=masks_np)
+            transformed = self.transforms(
+                image=image, bboxes=boxes_xyxy, class_labels=labels, masks=masks_np
+            )
             image = transformed.image
             boxes_xyxy = transformed.bboxes
             labels = transformed.class_labels
             if "segm" in self.iou_types and transformed.masks is not None:
-                masks_np = [np.asarray(mask, dtype=np.uint8) for mask in transformed.masks]
+                masks_np = [
+                    np.asarray(mask, dtype=np.uint8) for mask in transformed.masks
+                ]
 
         image_h = int(image.shape[0])
         image_w = int(image.shape[1])
@@ -149,7 +170,13 @@ class COCODetectionDataset(Dataset):
             w = boxes_tensor_xyxy[:, 2] - boxes_tensor_xyxy[:, 0]
             h = boxes_tensor_xyxy[:, 3] - boxes_tensor_xyxy[:, 1]
             boxes_tensor_cxcywh = torch.stack(
-                [cx / image.shape[1], cy / image.shape[0], w / image.shape[1], h / image.shape[0]], dim=-1
+                [
+                    cx / image.shape[1],
+                    cy / image.shape[0],
+                    w / image.shape[1],
+                    h / image.shape[0],
+                ],
+                dim=-1,
             )
 
         if boxes_tensor_cxcywh.ndim != 2 or boxes_tensor_cxcywh.shape[-1] != 4:
@@ -160,13 +187,17 @@ class COCODetectionDataset(Dataset):
         if image.ndim == 2:
             image = np.expand_dims(image, axis=-1)
         if image.ndim != 3:
-            raise ValueError(f"Expected image to be HWC after transforms, got shape={image.shape}")
+            raise ValueError(
+                f"Expected image to be HWC after transforms, got shape={image.shape}"
+            )
 
         channels = int(image.shape[2])
         if channels > 3:
             image = image[:, :, :3]
 
-        image_tensor = torch.from_numpy(image).permute(2, 0, 1).contiguous().float() / 255.0
+        image_tensor = (
+            torch.from_numpy(image).permute(2, 0, 1).contiguous().float() / 255.0
+        )
 
         target: Dict[str, torch.Tensor | List[dict]] = {
             "image_id": torch.tensor([image_id], dtype=torch.long),
@@ -176,12 +207,16 @@ class COCODetectionDataset(Dataset):
             "boxes_xyxy": boxes_tensor_xyxy,
             "labels": labels_tensor,
             "orig_size": torch.tensor([orig_w, orig_h], dtype=torch.long),
-            "size": torch.tensor([image_tensor.shape[2], image_tensor.shape[1]], dtype=torch.long),
+            "size": torch.tensor(
+                [image_tensor.shape[2], image_tensor.shape[1]], dtype=torch.long
+            ),
         }
 
         if "segm" in self.iou_types:
             if masks_np is not None:
-                masks_tensor = torch.stack([torch.from_numpy(mask).to(torch.uint8) for mask in masks_np], dim=0)
+                masks_tensor = torch.stack(
+                    [torch.from_numpy(mask).to(torch.uint8) for mask in masks_np], dim=0
+                )
                 target["masks"] = masks_tensor
             elif self.keep_rle and rle_objects is not None:
                 target["masks_rle"] = rle_objects

@@ -46,22 +46,38 @@ def load_config_payload(path: str) -> dict[str, Any]:
 
 def build_parser_defaults(config_path: str, action: str) -> dict[str, Any]:
     payload = load_config_payload(config_path)
-    runtime_cfg = payload.get("runtime", {}) if isinstance(payload.get("runtime", {}), dict) else {}
-    runtime_common = runtime_cfg.get("common", {}) if isinstance(runtime_cfg.get("common", {}), dict) else {}
+    runtime_cfg = (
+        payload.get("runtime", {})
+        if isinstance(payload.get("runtime", {}), dict)
+        else {}
+    )
+    runtime_common = (
+        runtime_cfg.get("common", {})
+        if isinstance(runtime_cfg.get("common", {}), dict)
+        else {}
+    )
     runtime_data_prep = (
         runtime_cfg.get("data_preparation", {})
         if isinstance(runtime_cfg.get("data_preparation", {}), dict)
         else {}
     )
-    runtime_actions = runtime_cfg.get("actions", {}) if isinstance(runtime_cfg.get("actions", {}), dict) else {}
+    runtime_actions = (
+        runtime_cfg.get("actions", {})
+        if isinstance(runtime_cfg.get("actions", {}), dict)
+        else {}
+    )
     runtime_action_key = ACTION_TO_RUNTIME_SECTION.get(action, action)
     runtime_action = (
         runtime_actions.get(runtime_action_key, {})
         if isinstance(runtime_actions.get(runtime_action_key, {}), dict)
         else {}
     )
-    train_cfg = payload.get("train", {}) if isinstance(payload.get("train", {}), dict) else {}
-    data_cfg = payload.get("data", {}) if isinstance(payload.get("data", {}), dict) else {}
+    train_cfg = (
+        payload.get("train", {}) if isinstance(payload.get("train", {}), dict) else {}
+    )
+    data_cfg = (
+        payload.get("data", {}) if isinstance(payload.get("data", {}), dict) else {}
+    )
 
     device_default = str(runtime_common.get("device", "cuda"))
     if "device" not in runtime_common and not bool(runtime_common.get("use_gpu", True)):
@@ -74,8 +90,12 @@ def build_parser_defaults(config_path: str, action: str) -> dict[str, Any]:
         "config": str(resolve_config_path(config_path)),
         "output_dir": str(runtime_common.get("output_dir", str(REPO_ROOT / "out"))),
         "device": device_default,
-        "batch_size": int(runtime_common.get("batch_size", train_cfg.get("batch_size", 1))),
-        "num_workers": int(runtime_common.get("num_workers", train_cfg.get("num_workers", 2))),
+        "batch_size": int(
+            runtime_common.get("batch_size", train_cfg.get("batch_size", 1))
+        ),
+        "num_workers": int(
+            runtime_common.get("num_workers", train_cfg.get("num_workers", 2))
+        ),
         "checkpoint": str(runtime_common.get("checkpoint", "")),
         "input_dir": "",
         "onnx_model": "",
@@ -117,7 +137,11 @@ def build_parser_defaults(config_path: str, action: str) -> dict[str, Any]:
     if action == "train":
         train_checkpoint = str(defaults.get("checkpoint") or "").strip()
         if not train_checkpoint:
-            eval_cfg = runtime_actions.get("eval", {}) if isinstance(runtime_actions.get("eval", {}), dict) else {}
+            eval_cfg = (
+                runtime_actions.get("eval", {})
+                if isinstance(runtime_actions.get("eval", {}), dict)
+                else {}
+            )
             eval_checkpoint = str(eval_cfg.get("checkpoint") or "").strip()
             if eval_checkpoint:
                 defaults["checkpoint"] = eval_checkpoint
@@ -125,7 +149,9 @@ def build_parser_defaults(config_path: str, action: str) -> dict[str, Any]:
     return defaults
 
 
-def load_dataset_export_settings(dataset_conf: str | None) -> tuple[list[str], str, str]:
+def load_dataset_export_settings(
+    dataset_conf: str | None,
+) -> tuple[list[str], str, str]:
     splits = ["train", "valid"]
     ann_subdir = "ann"
     img_subdir = "img"

@@ -8,7 +8,9 @@ from .config_service import load_json
 from .geometry import polygon_to_rle, rectangle_to_polygon, resolve_image_path
 
 
-def build_coco_for_split(split_dir: Path, ann_subdir: str, img_subdir: str, logger, data_cfg: dict):
+def build_coco_for_split(
+    split_dir: Path, ann_subdir: str, img_subdir: str, logger, data_cfg: dict
+):
     ann_dir = split_dir / ann_subdir
     img_dir = split_dir / img_subdir
     if not ann_dir.exists():
@@ -50,7 +52,12 @@ def build_coco_for_split(split_dir: Path, ann_subdir: str, img_subdir: str, logg
         width = int(size.get("width", 0))
         height = int(size.get("height", 0))
         if width <= 0 or height <= 0:
-            logger.warning("Skipping {}: invalid size width={}, height={}", ann_file.name, width, height)
+            logger.warning(
+                "Skipping {}: invalid size width={}, height={}",
+                ann_file.name,
+                width,
+                height,
+            )
             continue
 
         image_path = resolve_image_path(img_dir, ann_file.stem)
@@ -58,7 +65,14 @@ def build_coco_for_split(split_dir: Path, ann_subdir: str, img_subdir: str, logg
             logger.warning("Image file not found for annotation {}", ann_file.name)
             continue
 
-        images.append({"id": image_id, "file_name": image_path.name, "width": width, "height": height})
+        images.append(
+            {
+                "id": image_id,
+                "file_name": image_path.name,
+                "width": width,
+                "height": height,
+            }
+        )
 
         for obj in sample.get("objects", []):
             if obj.get("geometryType") != "rectangle":
@@ -68,11 +82,17 @@ def build_coco_for_split(split_dir: Path, ann_subdir: str, img_subdir: str, logg
             source_class_id = int(obj.get("classId"))
             class_title = str(obj.get("classTitle", f"class_{source_class_id}"))
             if source_class_id not in source_to_contiguous_class_id:
-                source_to_contiguous_class_id[source_class_id] = len(source_to_contiguous_class_id)
+                source_to_contiguous_class_id[source_class_id] = len(
+                    source_to_contiguous_class_id
+                )
 
             source_contiguous_id = source_to_contiguous_class_id[source_class_id]
-            remap_stats["source_raw_to_contiguous"][str(source_class_id)] = source_contiguous_id
-            remap_stats["source_contiguous_to_name"][str(source_contiguous_id)] = class_title
+            remap_stats["source_raw_to_contiguous"][str(source_class_id)] = (
+                source_contiguous_id
+            )
+            remap_stats["source_contiguous_to_name"][str(source_contiguous_id)] = (
+                class_title
+            )
 
             class_id = int(mapping.get(source_contiguous_id, source_contiguous_id))
             if class_id < 0 or class_id >= num_classes:
@@ -80,10 +100,16 @@ def build_coco_for_split(split_dir: Path, ann_subdir: str, img_subdir: str, logg
                 continue
 
             remap_stats["source_raw_to_target"][str(source_class_id)] = class_id
-            remap_stats["source_contiguous_to_target"][str(source_contiguous_id)] = class_id
+            remap_stats["source_contiguous_to_target"][str(source_contiguous_id)] = (
+                class_id
+            )
             pair_key = f"{source_contiguous_id}->{class_id}"
-            remap_stats["source_target_counts"][pair_key] = remap_stats["source_target_counts"].get(pair_key, 0) + 1
-            remap_stats["target_counts"][str(class_id)] = remap_stats["target_counts"].get(str(class_id), 0) + 1
+            remap_stats["source_target_counts"][pair_key] = (
+                remap_stats["source_target_counts"].get(pair_key, 0) + 1
+            )
+            remap_stats["target_counts"][str(class_id)] = (
+                remap_stats["target_counts"].get(str(class_id), 0) + 1
+            )
 
             categories_by_output_class_id[class_id] = {
                 "id": class_id,
@@ -92,7 +118,9 @@ def build_coco_for_split(split_dir: Path, ann_subdir: str, img_subdir: str, logg
             }
 
             try:
-                polygon = rectangle_to_polygon(obj.get("points", {}).get("exterior", []))
+                polygon = rectangle_to_polygon(
+                    obj.get("points", {}).get("exterior", [])
+                )
             except ValueError:
                 remap_stats["skipped_invalid_polygon"] += 1
                 continue
@@ -118,11 +146,18 @@ def build_coco_for_split(split_dir: Path, ann_subdir: str, img_subdir: str, logg
 
         image_id += 1
 
-    categories = [categories_by_output_class_id[class_id] for class_id in sorted(categories_by_output_class_id.keys())]
+    categories = [
+        categories_by_output_class_id[class_id]
+        for class_id in sorted(categories_by_output_class_id.keys())
+    ]
     remap_stats["num_images"] = len(images)
     remap_stats["num_annotations"] = len(annotations)
     remap_stats["num_categories"] = len(categories)
-    return {"images": images, "annotations": annotations, "categories": categories}, remap_stats
+    return {
+        "images": images,
+        "annotations": annotations,
+        "categories": categories,
+    }, remap_stats
 
 
 def save_coco_json(coco_data: dict, output_path: Path):

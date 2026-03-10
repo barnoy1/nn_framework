@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sys
 import tempfile
-from importlib import import_module
 from pathlib import Path
 from typing import Any, Callable
 
@@ -20,7 +19,11 @@ from infra.engine.model.losses import (
 from infra.engine.model.wrappers.contracts import BuiltComponents, ModelBuilder
 
 from .optimizer_factory import BackboneGroupedAdamWFactory
-from .reflection import inject_runtime_functions, patch_yaml_class_section, patch_yaml_include_tokens
+from .reflection import (
+    inject_runtime_functions,
+    patch_yaml_class_section,
+    patch_yaml_include_tokens,
+)
 
 
 class AgnosticModelBuilderBase(ModelBuilder):
@@ -35,7 +38,9 @@ class AgnosticModelBuilderBase(ModelBuilder):
         )
 
     def build_model_stack(self) -> tuple[nn.Module, nn.Module, nn.Module]:
-        raise NotImplementedError("Concrete model builder must implement build_model_stack")
+        raise NotImplementedError(
+            "Concrete model builder must implement build_model_stack"
+        )
 
     def _build_composite_criterion(self, base_criterion, model: nn.Module):
         resolver = DualCriterionSpecResolver.from_app_config(self.app_config)
@@ -49,15 +54,23 @@ class AgnosticModelBuilderBase(ModelBuilder):
 
     def build(self) -> BuiltComponents:
         model, base_criterion, postprocessor = self.build_model_stack()
-        self.apply_architecture_specifics(model=model, targets=[], dn_num_group=self.app_config.model.dn_num_group)
+        self.apply_architecture_specifics(
+            model=model, targets=[], dn_num_group=self.app_config.model.dn_num_group
+        )
         criterion = self._build_composite_criterion(base_criterion, model=model)
-        class_id_to_name = self.app_config.data.class_id_to_name or self.app_config.data.label2classid
+        class_id_to_name = (
+            self.app_config.data.class_id_to_name or self.app_config.data.label2classid
+        )
 
         if self.app_config.model.sync_bn and torch.cuda.device_count() > 1:
             model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
         optimizer, scheduler = self._optimizer_factory.build(model)
-        ema_model = EMAModel(model, decay=self.app_config.train.ema_decay) if self.app_config.train.use_ema else None
+        ema_model = (
+            EMAModel(model, decay=self.app_config.train.ema_decay)
+            if self.app_config.train.use_ema
+            else None
+        )
 
         return BuiltComponents(
             model=model,
@@ -77,7 +90,14 @@ class ReflectiveYamlAdapterModelBuilderBase(AgnosticModelBuilderBase):
     _RUNTIME_FUNCTION_PATCHES: tuple[dict[str, Any], ...] = ()
     _CONFIG_SUBDIR: tuple[str, ...] = ("configs",)
 
-    def __init__(self, app_config, repo_root: Path, *, adapter_root: Path, config_subdir: tuple[str, ...] | None = None) -> None:
+    def __init__(
+        self,
+        app_config,
+        repo_root: Path,
+        *,
+        adapter_root: Path,
+        config_subdir: tuple[str, ...] | None = None,
+    ) -> None:
         super().__init__(app_config=app_config, repo_root=repo_root)
         if str(repo_root) not in sys.path:
             sys.path.insert(0, str(repo_root))
@@ -104,7 +124,9 @@ class ReflectiveYamlAdapterModelBuilderBase(AgnosticModelBuilderBase):
         if adapter_relative.exists():
             return adapter_relative
 
-        adapter_by_name = (self._adapter_root.joinpath(*self._config_subdir) / candidate.name).resolve()
+        adapter_by_name = (
+            self._adapter_root.joinpath(*self._config_subdir) / candidate.name
+        ).resolve()
         if adapter_by_name.exists():
             return adapter_by_name
 
@@ -152,12 +174,15 @@ class ReflectiveYamlAdapterModelBuilderBase(AgnosticModelBuilderBase):
                 key: class_payload.get(key) if isinstance(class_payload, dict) else None
                 for key in keys
             }
-            changed = patch_yaml_class_section(
-                payload=payload,
-                module=str(patch_spec["module"]),
-                class_name=class_name,
-                injected=injected,
-            ) or changed
+            changed = (
+                patch_yaml_class_section(
+                    payload=payload,
+                    module=str(patch_spec["module"]),
+                    class_name=class_name,
+                    injected=injected,
+                )
+                or changed
+            )
         return changed
 
     def _apply_runtime_patch_manifest(self, target: nn.Module) -> None:

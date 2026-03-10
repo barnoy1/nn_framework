@@ -21,7 +21,11 @@ def prepare_run_layout(args) -> Path:
     payload = {
         "action": args.action,
         "run_root": str(run_root),
-        "args": {k: v for k, v in vars(args).items() if not k.startswith("_") and k != "handler"},
+        "args": {
+            k: v
+            for k, v in vars(args).items()
+            if not k.startswith("_") and k != "handler"
+        },
     }
     with (run_root / "configs" / "execution.yaml").open("w", encoding="utf-8") as file:
         yaml.safe_dump(payload, file, sort_keys=False)

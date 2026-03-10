@@ -38,7 +38,9 @@ class GenericCheckpointAdapter(CheckpointAdapter):
 
         for fallback in candidates:
             if fallback.exists():
-                logger.warning("checkpoint not found at {}, using {}", candidate, fallback)
+                logger.warning(
+                    "checkpoint not found at {}, using {}", candidate, fallback
+                )
                 return fallback
 
         checked = "\n  - ".join(str(p) for p in [candidate, *candidates])
@@ -56,10 +58,15 @@ class GenericCheckpointAdapter(CheckpointAdapter):
         return checkpoint
 
     @staticmethod
-    def _normalize_state_dict_keys(state_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    def _normalize_state_dict_keys(
+        state_dict: Dict[str, torch.Tensor],
+    ) -> Dict[str, torch.Tensor]:
         if not any(key.startswith("module.") for key in state_dict.keys()):
             return state_dict
-        return {key[7:] if key.startswith("module.") else key: value for key, value in state_dict.items()}
+        return {
+            key[7:] if key.startswith("module.") else key: value
+            for key, value in state_dict.items()
+        }
 
     def validate_checkpoint_class_compatibility(
         self,
@@ -68,7 +75,9 @@ class GenericCheckpointAdapter(CheckpointAdapter):
     ) -> None:
         return
 
-    def safe_load_state_dict(self, model: nn.Module, state_dict: Dict[str, torch.Tensor]) -> Tuple[int, int, int]:
+    def safe_load_state_dict(
+        self, model: nn.Module, state_dict: Dict[str, torch.Tensor]
+    ) -> Tuple[int, int, int]:
         normalized = self._normalize_state_dict_keys(state_dict)
         model_state = model.state_dict()
 

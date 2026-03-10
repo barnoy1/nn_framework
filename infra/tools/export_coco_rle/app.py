@@ -41,7 +41,9 @@ def invoke(args) -> None:
         if not experiment_conf_path.is_absolute():
             experiment_conf_path = (Path.cwd() / experiment_conf_path).resolve()
         if not experiment_conf_path.exists():
-            raise FileNotFoundError(f"Experiment config file does not exist: {experiment_conf_path}")
+            raise FileNotFoundError(
+                f"Experiment config file does not exist: {experiment_conf_path}"
+            )
         copied_experiment_conf = output_dir / experiment_conf_path.name
         shutil.copy2(experiment_conf_path, copied_experiment_conf)
         logger.info("Copied experiment config to {}", copied_experiment_conf)
@@ -49,8 +51,12 @@ def invoke(args) -> None:
     remap_report = {
         "config_path": str(conf_data_path),
         "copied_config_path": str(copied_conf),
-        "experiment_config_path": str(experiment_conf_path) if experiment_conf_path else None,
-        "copied_experiment_config_path": str(copied_experiment_conf) if copied_experiment_conf else None,
+        "experiment_config_path": str(experiment_conf_path)
+        if experiment_conf_path
+        else None,
+        "copied_experiment_config_path": str(copied_experiment_conf)
+        if copied_experiment_conf
+        else None,
         "num_classes": data_cfg["num_classes"],
         "mapping": {str(key): value for key, value in data_cfg["mapping"].items()},
         "splits": {},
@@ -62,7 +68,9 @@ def invoke(args) -> None:
             logger.warning("Split directory not found, skipping: {}", split_dir)
             continue
 
-        coco_data, split_remap_stats = build_coco_for_split(split_dir, args.ann_subdir, args.img_subdir, logger, data_cfg)
+        coco_data, split_remap_stats = build_coco_for_split(
+            split_dir, args.ann_subdir, args.img_subdir, logger, data_cfg
+        )
         output_path = output_dir / f"instances_{split}.json"
         save_coco_json(coco_data, output_path)
         remap_report["splits"][split] = split_remap_stats
@@ -72,11 +80,21 @@ def invoke(args) -> None:
             rows = []
             for pair_key in sorted(pair_counts.keys()):
                 source_contiguous_id_str, target_id_str = pair_key.split("->")
-                source_label = split_remap_stats.get("source_contiguous_to_name", {}).get(source_contiguous_id_str, source_contiguous_id_str)
+                source_label = split_remap_stats.get(
+                    "source_contiguous_to_name", {}
+                ).get(source_contiguous_id_str, source_contiguous_id_str)
                 target_id = int(target_id_str)
                 target_label = data_cfg["label2classid"].get(target_id, str(target_id))
                 rows.append([source_label, target_label, int(pair_counts[pair_key])])
-            logger.info("Split '{}' remap summary:\n{}", split, tabulate(rows, headers=["orig_label", "new_label", "instances"], tablefmt="psql"))
+            logger.info(
+                "Split '{}' remap summary:\n{}",
+                split,
+                tabulate(
+                    rows,
+                    headers=["orig_label", "new_label", "instances"],
+                    tablefmt="psql",
+                ),
+            )
 
     remap_path = output_dir / "remap_info.json"
     with remap_path.open("w", encoding="utf-8") as file:

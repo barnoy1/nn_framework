@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, List, TYPE_CHECKING
+from typing import Dict, TYPE_CHECKING
 
-import numpy as np
 from PIL import Image
 
 from infra.tracking import create_visualization_logger
@@ -47,7 +46,10 @@ class ValidationVisualizationCallback(Callback):
     @staticmethod
     def _extract_epoch_loss_metrics(metrics: Dict[str, float]) -> Dict[str, float]:
         payload: Dict[str, float] = {}
-        for source_key, target_key in (("train_loss", "train/total_loss"), ("val_loss", "val/total_loss")):
+        for source_key, target_key in (
+            ("train_loss", "train/total_loss"),
+            ("val_loss", "val/total_loss"),
+        ):
             value = metrics.get(source_key)
             if value is None:
                 continue
@@ -62,7 +64,11 @@ class ValidationVisualizationCallback(Callback):
             return
         vis_cfg = trainer.app_config.runtime.visualization
         output_root_resolved = self.output_dir.resolve()
-        shared_tracking_dir = output_root_resolved.parent if "__" in output_root_resolved.name else output_root_resolved
+        shared_tracking_dir = (
+            output_root_resolved.parent
+            if "__" in output_root_resolved.name
+            else output_root_resolved
+        )
         self._logger = create_visualization_logger(
             output_root=self.output_dir,
             experiment_name=self.experiment_name,
@@ -82,10 +88,14 @@ class ValidationVisualizationCallback(Callback):
             logger_port=trainer.logger,
         )
 
-    def on_batch_end(self, trainer: "Trainer", epoch: int, step: int, metrics: Dict[str, float]) -> None:
+    def on_batch_end(
+        self, trainer: "Trainer", epoch: int, step: int, metrics: Dict[str, float]
+    ) -> None:
         return
 
-    def on_validation_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
+    def on_validation_end(
+        self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]
+    ) -> None:
         if not trainer.accelerator.is_main_process or self._logger is None:
             return
 
@@ -106,14 +116,39 @@ class ValidationVisualizationCallback(Callback):
                 step=epoch + 1,
             )
 
-        log_evaluation_artifacts(output_dir=self.output_dir, epoch=epoch, logger=self._logger, logged_artifacts=self._last_logged_artifacts)
-        log_accumulated_eval_history_artifacts(output_dir=self.output_dir, logger=self._logger)
-        log_dataset_artifacts(output_dir=self.output_dir, logger=self._logger, logged_artifacts=self._last_logged_artifacts)
-        log_batch_artifacts(output_dir=self.output_dir, logger=self._logger, logged_artifacts=self._last_logged_artifacts)
-        log_output_artifacts(output_dir=self.output_dir, logger=self._logger, logged_artifacts=self._last_logged_artifacts)
-        sync_execution_tree_artifacts(output_dir=self.output_dir, logger=self._logger, artifact_mtimes=self._artifact_mtimes)
+        log_evaluation_artifacts(
+            output_dir=self.output_dir,
+            epoch=epoch,
+            logger=self._logger,
+            logged_artifacts=self._last_logged_artifacts,
+        )
+        log_accumulated_eval_history_artifacts(
+            output_dir=self.output_dir, logger=self._logger
+        )
+        log_dataset_artifacts(
+            output_dir=self.output_dir,
+            logger=self._logger,
+            logged_artifacts=self._last_logged_artifacts,
+        )
+        log_batch_artifacts(
+            output_dir=self.output_dir,
+            logger=self._logger,
+            logged_artifacts=self._last_logged_artifacts,
+        )
+        log_output_artifacts(
+            output_dir=self.output_dir,
+            logger=self._logger,
+            logged_artifacts=self._last_logged_artifacts,
+        )
+        sync_execution_tree_artifacts(
+            output_dir=self.output_dir,
+            logger=self._logger,
+            artifact_mtimes=self._artifact_mtimes,
+        )
 
-        samples = list(getattr(trainer, "last_validation_visual_samples", []) or [])[: self.num_samples]
+        samples = list(getattr(trainer, "last_validation_visual_samples", []) or [])[
+            : self.num_samples
+        ]
         if not samples:
             return
 
@@ -122,16 +157,40 @@ class ValidationVisualizationCallback(Callback):
         output_path = self._save_dir / f"val_epoch_{epoch + 1:04d}.jpg"
         Image.fromarray(panel).save(output_path)
 
-        self._logger.log_image(tag="train/val_visualization_grid", image=panel, step=epoch + 1)
-        trainer.logger.info("Saved validation visualization grid ({} samples) to {}", len(samples), output_path)
+        self._logger.log_image(
+            tag="train/val_visualization_grid", image=panel, step=epoch + 1
+        )
+        trainer.logger.info(
+            "Saved validation visualization grid ({} samples) to {}",
+            len(samples),
+            output_path,
+        )
 
-    def on_epoch_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
+    def on_epoch_end(
+        self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]
+    ) -> None:
         if not trainer.accelerator.is_main_process or self._logger is None:
             return
-        log_dataset_artifacts(output_dir=self.output_dir, logger=self._logger, logged_artifacts=self._last_logged_artifacts)
-        log_batch_artifacts(output_dir=self.output_dir, logger=self._logger, logged_artifacts=self._last_logged_artifacts)
-        log_output_artifacts(output_dir=self.output_dir, logger=self._logger, logged_artifacts=self._last_logged_artifacts)
-        sync_execution_tree_artifacts(output_dir=self.output_dir, logger=self._logger, artifact_mtimes=self._artifact_mtimes)
+        log_dataset_artifacts(
+            output_dir=self.output_dir,
+            logger=self._logger,
+            logged_artifacts=self._last_logged_artifacts,
+        )
+        log_batch_artifacts(
+            output_dir=self.output_dir,
+            logger=self._logger,
+            logged_artifacts=self._last_logged_artifacts,
+        )
+        log_output_artifacts(
+            output_dir=self.output_dir,
+            logger=self._logger,
+            logged_artifacts=self._last_logged_artifacts,
+        )
+        sync_execution_tree_artifacts(
+            output_dir=self.output_dir,
+            logger=self._logger,
+            artifact_mtimes=self._artifact_mtimes,
+        )
 
     def on_train_end(self, trainer: "Trainer") -> None:
         if self._logger is not None:

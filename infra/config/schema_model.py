@@ -58,7 +58,9 @@ class CriterionLossPairs(BaseModel):
                     self.dfl.append(item)
                 elif any(token in normalized for token in ("bbox", "giou", "boxes")):
                     self.box.append(item)
-                elif any(token in normalized for token in ("vfl", "focal", "cls", "label")):
+                elif any(
+                    token in normalized for token in ("vfl", "focal", "cls", "label")
+                ):
                     self.cls.append(item)
 
         if len(self.custom) == 0 and len(self.concrete_model) > 0:
@@ -88,7 +90,9 @@ class ModelLossesConfig(BaseModel):
     dn_cls_loss_coef: Optional[float] = None
     dn_bbox_loss_coef: Optional[float] = None
     fallback_to_model_default: bool = True
-    criterion_pairs: CriterionLossPairs = Field(default_factory=default_yolov11_criterion_pairs)
+    criterion_pairs: CriterionLossPairs = Field(
+        default_factory=default_yolov11_criterion_pairs
+    )
 
 
 class ModelConfig(BaseModel):
@@ -111,5 +115,7 @@ class ModelConfig(BaseModel):
         if not self.official_config_path and self.model_config_path:
             self.official_config_path = self.model_config_path
         if not self.model_config_path:
-            raise ValueError("model.model_config_path (or model.official_config_path) must be provided")
+            raise ValueError(
+                "model.model_config_path (or model.official_config_path) must be provided"
+            )
         return self

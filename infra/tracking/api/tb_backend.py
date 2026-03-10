@@ -19,7 +19,9 @@ class TensorBoardVisualizationLogger:
 
     def log_metrics(self, metrics: Dict[str, float], step: int) -> None:
         for key, value in metrics.items():
-            self._writer.add_scalar(tag=key, scalar_value=float(value), global_step=step)
+            self._writer.add_scalar(
+                tag=key, scalar_value=float(value), global_step=step
+            )
 
     def log_text(self, tag: str, text: str, step: int) -> None:
         self._writer.add_text(tag=tag, text_string=str(text), global_step=step)
@@ -58,7 +60,9 @@ class TensorBoardVisualizationLogger:
             return
 
         summary = f"artifact_path={artifact_path} file={resolved}"
-        self._writer.add_text(tag=f"artifact/{artifact_path}", text_string=summary, global_step=0)
+        self._writer.add_text(
+            tag=f"artifact/{artifact_path}", text_string=summary, global_step=0
+        )
 
     def close(self) -> None:
         self._writer.close()

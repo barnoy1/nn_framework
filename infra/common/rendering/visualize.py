@@ -75,7 +75,9 @@ def _pastel_bgr_for_class(class_id: int) -> tuple[int, int, int]:
     return int(blue * 255), int(green * 255), int(red * 255)
 
 
-def _readable_text_color_for_bgr(color_bgr: tuple[int, int, int]) -> tuple[int, int, int]:
+def _readable_text_color_for_bgr(
+    color_bgr: tuple[int, int, int],
+) -> tuple[int, int, int]:
     blue, green, red = color_bgr
     luminance = 0.114 * blue + 0.587 * green + 0.299 * red
     return (20, 20, 20) if luminance > 170 else (245, 245, 245)
@@ -110,7 +112,9 @@ def draw_yolo_caption_detections(
 
         cv2.rectangle(frame, (x1, y1), (x2, y2), class_color, 2)
 
-        (text_w, text_h), baseline = cv2.getTextSize(caption, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        (text_w, text_h), baseline = cv2.getTextSize(
+            caption, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1
+        )
         box_top = max(0, y1 - text_h - baseline - 6)
         box_bottom = max(text_h + baseline + 6, y1)
         box_right = min(frame.shape[1] - 1, x1 + text_w + 6)
@@ -155,6 +159,7 @@ def render_prediction_with_yolo_caption(
         class_id_to_name=class_id_to_name,
         confidence_threshold=confidence_threshold,
     )
+
 
 __all__ = [
     "draw_yolo_caption_detections",

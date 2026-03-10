@@ -79,21 +79,29 @@ def pids_on_port(port: int) -> list[int]:
 
 def free_port_for_reuse(host: str, port: int, logger_port) -> bool:
     if not is_local_host(host):
-        logger_port.warning("Port cleanup skipped for non-local host {}:{}", host, int(port))
+        logger_port.warning(
+            "Port cleanup skipped for non-local host {}:{}", host, int(port)
+        )
         return False
 
     pids = [pid for pid in pids_on_port(int(port)) if pid != os.getpid()]
     if not pids:
         return not is_port_in_use(host, int(port))
 
-    logger_port.warning("Port {} is occupied by pid(s) {}; terminating to reuse configured port.", int(port), pids)
+    logger_port.warning(
+        "Port {} is occupied by pid(s) {}; terminating to reuse configured port.",
+        int(port),
+        pids,
+    )
     for pid in pids:
         try:
             os.kill(pid, signal.SIGTERM)
         except ProcessLookupError:
             continue
         except PermissionError:
-            logger_port.warning("No permission to terminate pid {} on port {}", pid, int(port))
+            logger_port.warning(
+                "No permission to terminate pid {} on port {}", pid, int(port)
+            )
 
     deadline = time.time() + 3.0
     while time.time() < deadline:
@@ -108,9 +116,12 @@ def free_port_for_reuse(host: str, port: int, logger_port) -> bool:
         except ProcessLookupError:
             continue
         except PermissionError:
-            logger_port.warning("No permission to force-kill pid {} on port {}", pid, int(port))
+            logger_port.warning(
+                "No permission to force-kill pid {} on port {}", pid, int(port)
+            )
 
     return not is_port_in_use(host, int(port))
+
 
 __all__ = [
     "find_available_port",

@@ -7,7 +7,9 @@ if TYPE_CHECKING:
     from .schema_app import AppConfig
 
 
-_ACTIVE_APP_CONFIG: ContextVar["AppConfig | None"] = ContextVar("active_app_config", default=None)
+_ACTIVE_APP_CONFIG: ContextVar["AppConfig | None"] = ContextVar(
+    "active_app_config", default=None
+)
 
 
 def set_active_app_config(config: "AppConfig") -> None:

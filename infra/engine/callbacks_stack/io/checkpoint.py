@@ -36,7 +36,10 @@ class CheckpointCallback(Callback):
 
     @staticmethod
     def _metric_slug(metric_key: str) -> str:
-        slug = "".join(char if (char.isalnum() or char in "-_") else "_" for char in str(metric_key).strip())
+        slug = "".join(
+            char if (char.isalnum() or char in "-_") else "_"
+            for char in str(metric_key).strip()
+        )
         while "__" in slug:
             slug = slug.replace("__", "_")
         return slug.strip("_") or "metric"
@@ -91,12 +94,18 @@ class CheckpointCallback(Callback):
             encoding="utf-8",
         )
 
-    def _sync_best_eval_pointer(self, epoch: int, monitor_key: str, monitor_value: float) -> None:
+    def _sync_best_eval_pointer(
+        self, epoch: int, monitor_key: str, monitor_value: float
+    ) -> None:
         eval_root = self.output_dir / "inference" / "eval"
         if not eval_root.exists():
             return
         epoch_suffix = f"__epoch_{epoch + 1:04d}.png"
-        epoch_files = [candidate for candidate in eval_root.rglob(f"*{epoch_suffix}") if candidate.is_file()]
+        epoch_files = [
+            candidate
+            for candidate in eval_root.rglob(f"*{epoch_suffix}")
+            if candidate.is_file()
+        ]
         if not epoch_files:
             return
 
@@ -109,7 +118,11 @@ class CheckpointCallback(Callback):
             "source_eval_dir": str(eval_root),
             "best_checkpoint": str(best_checkpoint),
         }
-        entries = [entry for entry in self._load_best_epoch_entries() if str(entry.get("monitor_key")) != str(monitor_key)]
+        entries = [
+            entry
+            for entry in self._load_best_epoch_entries()
+            if str(entry.get("monitor_key")) != str(monitor_key)
+        ]
         entries.append(pointer_payload)
         self._write_best_epoch_entries(entries)
 
@@ -126,7 +139,9 @@ class CheckpointCallback(Callback):
             encoding="utf-8",
         )
 
-    def on_epoch_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
+    def on_epoch_end(
+        self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]
+    ) -> None:
         if not trainer.accelerator.is_main_process:
             return
 
@@ -148,4 +163,6 @@ class CheckpointCallback(Callback):
                 self._save(trainer, f"best_{metric_slug}.pt")
                 if monitor_key == self.monitor_keys[0]:
                     self._save(trainer, "best.pt")
-                self._sync_best_eval_pointer(epoch=epoch, monitor_key=monitor_key, monitor_value=value)
+                self._sync_best_eval_pointer(
+                    epoch=epoch, monitor_key=monitor_key, monitor_value=value
+                )

@@ -32,14 +32,18 @@ def load_data_config(conf_data_path: Path) -> dict:
             raise ValueError(f"Invalid class id in label2classid: {key}") from error
         class_name = str(value).strip()
         if not class_name:
-            raise ValueError(f"Empty class name for class id {class_id} in label2classid")
+            raise ValueError(
+                f"Empty class name for class id {class_id} in label2classid"
+            )
         label2classid[class_id] = class_name
 
     mapping_raw = data_cfg.get("mapping", {})
     if mapping_raw is None:
         mapping_raw = {}
     if not isinstance(mapping_raw, dict):
-        raise ValueError("data.mapping must be a mapping of source_class_id -> target_class_id")
+        raise ValueError(
+            "data.mapping must be a mapping of source_class_id -> target_class_id"
+        )
 
     mapping: Dict[int, int] = {}
     for source_key, target_value in mapping_raw.items():
@@ -47,7 +51,9 @@ def load_data_config(conf_data_path: Path) -> dict:
             source_id = int(source_key)
             target_id = int(target_value)
         except (TypeError, ValueError) as error:
-            raise ValueError(f"Invalid mapping entry: {source_key}: {target_value}") from error
+            raise ValueError(
+                f"Invalid mapping entry: {source_key}: {target_value}"
+            ) from error
         mapping[source_id] = target_id
 
     num_classes = int(data_cfg.get("num_classes", len(label2classid)))
@@ -60,4 +66,8 @@ def load_data_config(conf_data_path: Path) -> dict:
                 f"Mapped target class id out of range for data.num_classes={num_classes}: {source_id} -> {target_id}"
             )
 
-    return {"label2classid": label2classid, "mapping": mapping, "num_classes": num_classes}
+    return {
+        "label2classid": label2classid,
+        "mapping": mapping,
+        "num_classes": num_classes,
+    }

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Dict, List
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,7 +26,11 @@ def compute_detection_scores(matrix: np.ndarray | None) -> Dict[str, float]:
 
     precision = float(tp / (tp + fp)) if (tp + fp) > 0.0 else 0.0
     recall = float(tp / (tp + fn)) if (tp + fn) > 0.0 else 0.0
-    f1 = float((2.0 * precision * recall) / (precision + recall)) if (precision + recall) > 0.0 else 0.0
+    f1 = (
+        float((2.0 * precision * recall) / (precision + recall))
+        if (precision + recall) > 0.0
+        else 0.0
+    )
     accuracy = float(tp / (tp + fp + fn)) if (tp + fp + fn) > 0.0 else 0.0
 
     return {
@@ -36,7 +41,9 @@ def compute_detection_scores(matrix: np.ndarray | None) -> Dict[str, float]:
     }
 
 
-def _save_confusion_matrix_plot(output_root: Path, matrix: np.ndarray, labels: List[str]) -> None:
+def _save_confusion_matrix_plot(
+    output_root: Path, matrix: np.ndarray, labels: List[str]
+) -> None:
     fig_size = max(6, min(18, 0.25 * len(labels) + 6))
     plt.figure(figsize=(fig_size, fig_size))
     plt.imshow(matrix, interpolation="nearest", cmap="Blues")
@@ -52,7 +59,9 @@ def _save_confusion_matrix_plot(output_root: Path, matrix: np.ndarray, labels: L
     plt.close()
 
 
-def _save_confusion_matrix_normalized_plot(output_root: Path, matrix: np.ndarray, labels: List[str]) -> None:
+def _save_confusion_matrix_normalized_plot(
+    output_root: Path, matrix: np.ndarray, labels: List[str]
+) -> None:
     row_sums = matrix.sum(axis=1, keepdims=True).astype(np.float64)
     normalized = np.divide(
         matrix.astype(np.float64),
@@ -74,7 +83,9 @@ def _save_confusion_matrix_normalized_plot(output_root: Path, matrix: np.ndarray
     plt.close()
 
 
-def _write_results_csv(output_root: Path, metrics: Dict[str, float], scores: Dict[str, float], epoch: int) -> Path:
+def _write_results_csv(
+    output_root: Path, metrics: Dict[str, float], scores: Dict[str, float], epoch: int
+) -> Path:
     results_csv = output_root / "results.csv"
     fieldnames = [
         "epoch",
@@ -181,7 +192,9 @@ def _plot_box_curves(output_root: Path, scores: Dict[str, float]) -> None:
     plt.close()
 
 
-def _plot_results(output_root: Path, metrics: Dict[str, float], scores: Dict[str, float]) -> None:
+def _plot_results(
+    output_root: Path, metrics: Dict[str, float], scores: Dict[str, float]
+) -> None:
     epochs = [1.0]
     precision = [float(scores.get("precision", 0.0))]
     recall = [float(scores.get("recall", 0.0))]
@@ -228,13 +241,19 @@ def generate_eval_model_metrics_bundle(
 ) -> Dict[str, float]:
     output_root.mkdir(parents=True, exist_ok=True)
     scores = compute_detection_scores(confusion_matrix)
-    _write_results_csv(output_root=output_root, metrics=metrics, scores=scores, epoch=int(epoch))
+    _write_results_csv(
+        output_root=output_root, metrics=metrics, scores=scores, epoch=int(epoch)
+    )
     _plot_bbox_metrics(output_root=output_root, metrics=metrics)
     _plot_box_curves(output_root=output_root, scores=scores)
     _plot_results(output_root=output_root, metrics=metrics, scores=scores)
     if confusion_matrix is not None and confusion_labels:
-        _save_confusion_matrix_plot(output_root=output_root, matrix=confusion_matrix, labels=confusion_labels)
-        _save_confusion_matrix_normalized_plot(output_root=output_root, matrix=confusion_matrix, labels=confusion_labels)
+        _save_confusion_matrix_plot(
+            output_root=output_root, matrix=confusion_matrix, labels=confusion_labels
+        )
+        _save_confusion_matrix_normalized_plot(
+            output_root=output_root, matrix=confusion_matrix, labels=confusion_labels
+        )
     return scores
 
 
@@ -267,13 +286,17 @@ def log_eval_model_metrics_bundle(
     ]
     for artifact_path in artifact_candidates:
         if artifact_path.exists():
-            vis_logger.log_artifact(file_path=artifact_path, artifact_path="evaluation/history")
+            vis_logger.log_artifact(
+                file_path=artifact_path, artifact_path="evaluation/history"
+            )
 
     eval_batch_paths = sorted(output_root.glob("eval_batch*.jpg"))
     if not eval_batch_paths:
         eval_batch_paths = sorted(output_root.glob("val_batch*.jpg"))
     for eval_batch_path in eval_batch_paths:
-        vis_logger.log_artifact(file_path=eval_batch_path, artifact_path="evaluation/history")
+        vis_logger.log_artifact(
+            file_path=eval_batch_path, artifact_path="evaluation/history"
+        )
 
     dataset_labels = output_root / "dataset" / "labels.png"
     if dataset_labels.exists():

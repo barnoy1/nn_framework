@@ -44,7 +44,11 @@ def discover_tracking_dirs(input_path: str) -> list[Path]:
     resolved = resolve_tracking_dir(input_path)
 
     def _is_single_tracking_dir(path: Path) -> bool:
-        return path.is_dir() and (path / "mlruns").is_dir() and (path / "mlflow.db").exists()
+        return (
+            path.is_dir()
+            and (path / "mlruns").is_dir()
+            and (path / "mlflow.db").exists()
+        )
 
     def _has_visualization_mlflow(path: Path) -> bool:
         return (path / "visualization" / "mlflow").is_dir()

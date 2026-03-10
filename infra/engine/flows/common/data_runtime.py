@@ -58,7 +58,9 @@ def prepare_data_if_needed(config: AppConfig) -> None:
     if not config.runtime.prepare_data:
         return
     if not config.runtime.supervisely_dataset_root:
-        raise ValueError("runtime.prepare_data=True requires runtime.supervisely_dataset_root")
+        raise ValueError(
+            "runtime.prepare_data=True requires runtime.supervisely_dataset_root"
+        )
     convert_dataset(
         dataset_root=Path(config.runtime.supervisely_dataset_root),
         output_dir=Path(config.data.dataset_root),
@@ -108,15 +110,31 @@ def build_loaders(config: AppConfig) -> tuple[DataLoader, DataLoader]:
         for index, dataset_pair in enumerate(config.data.val_sets)
     ]
 
-    train_dataset = train_datasets[0] if len(train_datasets) == 1 else ConcatDataset(train_datasets)
-    val_dataset = val_datasets[0] if len(val_datasets) == 1 else ConcatDataset(val_datasets)
+    train_dataset = (
+        train_datasets[0] if len(train_datasets) == 1 else ConcatDataset(train_datasets)
+    )
+    val_dataset = (
+        val_datasets[0] if len(val_datasets) == 1 else ConcatDataset(val_datasets)
+    )
 
     collate_fn = DetectionCollateFn()
     runtime_worker_count = config.runtime.num_workers
-    worker_count = int(runtime_worker_count) if runtime_worker_count is not None else int(config.train.num_workers)
+    worker_count = (
+        int(runtime_worker_count)
+        if runtime_worker_count is not None
+        else int(config.train.num_workers)
+    )
     runtime_batch_size = config.runtime.batch_size
-    train_batch_size = int(runtime_batch_size) if runtime_batch_size is not None else int(config.train.batch_size)
-    val_batch_size = int(runtime_batch_size) if runtime_batch_size is not None else int(config.train.val_batch_size)
+    train_batch_size = (
+        int(runtime_batch_size)
+        if runtime_batch_size is not None
+        else int(config.train.batch_size)
+    )
+    val_batch_size = (
+        int(runtime_batch_size)
+        if runtime_batch_size is not None
+        else int(config.train.val_batch_size)
+    )
 
     loader_worker_kwargs = {}
     if worker_count > 0:

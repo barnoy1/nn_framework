@@ -11,6 +11,7 @@ from .config_loader import load_app_config
 from .data_runtime import build_loaders as build_data_loaders, prepare_data_if_needed
 from .model_runtime import create_wrapper
 
+
 @dataclass(frozen=True)
 class FlowRuntime:
     app_config: AppConfig
@@ -20,7 +21,9 @@ class FlowRuntime:
     val_loader: Optional[DataLoader]
 
 
-def build_flow_runtime(overrides: List[str], config_path: str, build_loaders: bool = True) -> FlowRuntime:
+def build_flow_runtime(
+    overrides: List[str], config_path: str, build_loaders: bool = True
+) -> FlowRuntime:
     config = load_app_config(overrides=overrides, config_path=config_path)
     set_active_app_config(config)
     if build_loaders:

@@ -49,7 +49,9 @@ class MLflowCallback(Callback):
     def on_train_start(self, trainer: "Trainer") -> None:
         if not self.enabled:
             return
-        tracking_dir = self.tracking_dir or (Path(trainer.app_config.train.output_dir) / "mlflow")
+        tracking_dir = self.tracking_dir or (
+            Path(trainer.app_config.train.output_dir) / "mlflow"
+        )
         tracking_dir.mkdir(parents=True, exist_ok=True)
         mlflow_artifact_root = artifact_root(tracking_dir)
         experiment_name = self.experiment_name or trainer.experiment_name
@@ -72,7 +74,9 @@ class MLflowCallback(Callback):
         client = mlflow.tracking.MlflowClient(tracking_uri=tracking_uri)
         experiment = client.get_experiment_by_name(experiment_name)
         if experiment is None:
-            experiment_id = client.create_experiment(experiment_name, artifact_location=mlflow_artifact_root.as_uri())
+            experiment_id = client.create_experiment(
+                experiment_name, artifact_location=mlflow_artifact_root.as_uri()
+            )
             experiment = client.get_experiment(experiment_id)
         mlflow.set_experiment(experiment_name)
 
@@ -87,7 +91,9 @@ class MLflowCallback(Callback):
                     sqlite_db_name=self.sqlite_db_name,
                 )
                 if experiment is not None:
-                    experiment_url = f"{mlflow_url}/#/experiments/{experiment.experiment_id}"
+                    experiment_url = (
+                        f"{mlflow_url}/#/experiments/{experiment.experiment_id}"
+                    )
                     webbrowser.open(experiment_url, new=0)
                     trainer.logger.info("MLflow experiment URL: {}", experiment_url)
             except Exception as error:
@@ -122,12 +128,21 @@ class MLflowCallback(Callback):
             if resolved_config_path.exists() and resolved_config_path.is_file():
                 target = config_dir / "experiment.yaml"
                 if target.resolve() != resolved_config_path:
-                    target.write_text(resolved_config_path.read_text(encoding="utf-8"), encoding="utf-8")
+                    target.write_text(
+                        resolved_config_path.read_text(encoding="utf-8"),
+                        encoding="utf-8",
+                    )
             else:
-                config_yaml = yaml.safe_dump(execution_config, sort_keys=True, allow_unicode=True)
-                (config_dir / "experiment.yaml").write_text(config_yaml, encoding="utf-8")
+                config_yaml = yaml.safe_dump(
+                    execution_config, sort_keys=True, allow_unicode=True
+                )
+                (config_dir / "experiment.yaml").write_text(
+                    config_yaml, encoding="utf-8"
+                )
         else:
-            config_yaml = yaml.safe_dump(execution_config, sort_keys=True, allow_unicode=True)
+            config_yaml = yaml.safe_dump(
+                execution_config, sort_keys=True, allow_unicode=True
+            )
             (config_dir / "experiment.yaml").write_text(config_yaml, encoding="utf-8")
         self._active = True
 
@@ -141,7 +156,10 @@ class MLflowCallback(Callback):
     @staticmethod
     def _extract_epoch_loss_metrics(metrics: Dict[str, float]) -> Dict[str, float]:
         payload: Dict[str, float] = {}
-        for source_key, target_key in (("train_loss", "train/total_loss"), ("val_loss", "val/total_loss")):
+        for source_key, target_key in (
+            ("train_loss", "train/total_loss"),
+            ("val_loss", "val/total_loss"),
+        ):
             value = metrics.get(source_key)
             if value is None:
                 continue
@@ -151,13 +169,19 @@ class MLflowCallback(Callback):
                 continue
         return payload
 
-    def on_batch_end(self, trainer: "Trainer", epoch: int, step: int, metrics: Dict[str, float]) -> None:
+    def on_batch_end(
+        self, trainer: "Trainer", epoch: int, step: int, metrics: Dict[str, float]
+    ) -> None:
         return
 
-    def on_validation_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
+    def on_validation_end(
+        self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]
+    ) -> None:
         return
 
-    def on_epoch_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
+    def on_epoch_end(
+        self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]
+    ) -> None:
         if self._active and trainer.accelerator.is_main_process:
             current_step = self._step(trainer.global_step)
             payload = {"epoch": float(epoch)}

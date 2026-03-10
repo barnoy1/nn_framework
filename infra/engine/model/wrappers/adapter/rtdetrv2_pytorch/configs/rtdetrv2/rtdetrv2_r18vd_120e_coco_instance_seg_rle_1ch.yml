@@ -1,8 +1,9 @@
-__include__: [
-  '@MODEL_REPO_ROOT/configs/runtime.yml',
-  '@MODEL_REPO_ROOT/configs/rtdetrv2/include/optimizer.yml',
-  '@MODEL_REPO_ROOT/configs/rtdetrv2/include/rtdetrv2_r50vd.yml',
-]
+__include__:
+  [
+    "@MODEL_REPO_ROOT/configs/runtime.yml",
+    "@MODEL_REPO_ROOT/configs/rtdetrv2/include/optimizer.yml",
+    "@MODEL_REPO_ROOT/configs/rtdetrv2/include/rtdetrv2_r50vd.yml",
+  ]
 
 output_dir: ./output/rtdetrv2_r18vd_120e_coco_instance_seg_rle
 
@@ -26,8 +27,7 @@ epoches: 120
 optimizer:
   type: AdamW
   params:
-    -
-      params: '^(?=.*(?:norm|bn)).*$'
+    - params: "^(?=.*(?:norm|bn)).*$"
       weight_decay: 0.
 
 train_dataloader:

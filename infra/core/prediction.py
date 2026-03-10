@@ -19,7 +19,9 @@ def build_label_id_remap_from_config_and_annotations(
     if not class_id_to_name:
         return {}
 
-    label_id_to_name = {int(label_id): str(name) for label_id, name in class_id_to_name.items()}
+    label_id_to_name = {
+        int(label_id): str(name) for label_id, name in class_id_to_name.items()
+    }
     name_to_label_id = {name: label_id for label_id, name in label_id_to_name.items()}
     remap: Dict[int, int] = {}
 
@@ -80,7 +82,9 @@ def to_result_list(outputs, postprocessor, orig_sizes):
             for labels_i, boxes_i, scores_i in zip(labels, boxes, scores)
         ]
 
-    if isinstance(processed, dict) and {"labels", "boxes", "scores"}.issubset(set(processed.keys())):
+    if isinstance(processed, dict) and {"labels", "boxes", "scores"}.issubset(
+        set(processed.keys())
+    ):
         labels = processed["labels"]
         boxes = processed["boxes"]
         scores = processed["scores"]
@@ -112,8 +116,12 @@ def normalize_prediction_labels_for_metrics(
             continue
 
         flat_labels = labels.detach().to("cpu").reshape(-1).tolist()
-        mapped_flat = [label_id_remap.get(int(label), int(label)) for label in flat_labels]
-        mapped = torch.tensor(mapped_flat, dtype=labels.dtype, device=labels.device).reshape_as(labels)
+        mapped_flat = [
+            label_id_remap.get(int(label), int(label)) for label in flat_labels
+        ]
+        mapped = torch.tensor(
+            mapped_flat, dtype=labels.dtype, device=labels.device
+        ).reshape_as(labels)
 
         normalized = dict(result)
         normalized["labels"] = mapped

@@ -27,11 +27,17 @@ class FrameworkModelAdapter(ModelWrapperAdapter):
     def build_components(self) -> BuiltComponents:
         built = self.model_builder.build()
         if not isinstance(built, BuiltComponents):
-            raise TypeError(f"Model builder must return BuiltComponents, got {type(built)!r}")
+            raise TypeError(
+                f"Model builder must return BuiltComponents, got {type(built)!r}"
+            )
         return built
 
-    def apply_architecture_specifics(self, model: nn.Module, targets: List[Dict], *, dn_num_group: int) -> None:
-        self.model_builder.apply_architecture_specifics(model=model, targets=targets, dn_num_group=dn_num_group)
+    def apply_architecture_specifics(
+        self, model: nn.Module, targets: List[Dict], *, dn_num_group: int
+    ) -> None:
+        self.model_builder.apply_architecture_specifics(
+            model=model, targets=targets, dn_num_group=dn_num_group
+        )
 
     def load_checkpoint_state(self, path: str) -> Dict[str, torch.Tensor]:
         return self._checkpoint_adapter.load_checkpoint_state(path)
@@ -46,5 +52,9 @@ class FrameworkModelAdapter(ModelWrapperAdapter):
             state_dict=state_dict,
         )
 
-    def safe_load_state_dict(self, model: nn.Module, state_dict: Dict[str, torch.Tensor]) -> Tuple[int, int, int]:
-        return self._checkpoint_adapter.safe_load_state_dict(model=model, state_dict=state_dict)
+    def safe_load_state_dict(
+        self, model: nn.Module, state_dict: Dict[str, torch.Tensor]
+    ) -> Tuple[int, int, int]:
+        return self._checkpoint_adapter.safe_load_state_dict(
+            model=model, state_dict=state_dict
+        )

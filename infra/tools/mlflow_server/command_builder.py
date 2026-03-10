@@ -37,7 +37,10 @@ def build_mlflow_command(
     if not launcher_prefix:
         mlflow_main_spec = importlib.util.find_spec("mlflow.__main__")
         if mlflow_main_spec is not None and mlflow_main_spec.origin:
-            launcher_prefix = [sys.executable, str(Path(mlflow_main_spec.origin).resolve())]
+            launcher_prefix = [
+                sys.executable,
+                str(Path(mlflow_main_spec.origin).resolve()),
+            ]
 
     if not launcher_prefix:
         raise RuntimeError(

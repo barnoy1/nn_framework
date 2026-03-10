@@ -11,7 +11,9 @@ from .utils import (
 )
 
 
-def validate_epoch(trainer, epoch: int, score_thr: Optional[float] = None) -> Dict[str, float]:
+def validate_epoch(
+    trainer, epoch: int, score_thr: Optional[float] = None
+) -> Dict[str, float]:
     trainer.model.eval()
     resolved_score_thr = (
         float(score_thr)
@@ -25,7 +27,10 @@ def validate_epoch(trainer, epoch: int, score_thr: Optional[float] = None) -> Di
             epoch_suffix=None,
             max_batches=3,
         )
-        class_id_to_name = {int(key): str(value) for key, value in (trainer.app_config.data.class_id_to_name or {}).items()}
+        class_id_to_name = {
+            int(key): str(value)
+            for key, value in (trainer.app_config.data.class_id_to_name or {}).items()
+        }
         diagnostics: Dict[str, object] = {}
         metrics = run_eval_artifacts(
             app_config=trainer.app_config,
@@ -45,13 +50,17 @@ def validate_epoch(trainer, epoch: int, score_thr: Optional[float] = None) -> Di
         val_loss_metrics = compute_validation_loss_components_for_trainer(trainer)
         metrics = metrics | val_loss_metrics
         trainer.last_validation_confusion_matrix = diagnostics.get("confusion_matrix")
-        trainer.last_validation_confusion_labels = diagnostics.get("confusion_labels", [])
+        trainer.last_validation_confusion_labels = diagnostics.get(
+            "confusion_labels", []
+        )
 
     trainer.callbacks.on_validation_end(trainer, epoch, metrics)
     return metrics
 
 
-def run_baseline_eval_sanity(trainer, epoch: int = -1, score_thr: Optional[float] = None) -> Dict[str, float]:
+def run_baseline_eval_sanity(
+    trainer, epoch: int = -1, score_thr: Optional[float] = None
+) -> Dict[str, float]:
     trainer.model.eval()
     resolved_score_thr = (
         float(score_thr)
@@ -71,7 +80,10 @@ def run_baseline_eval_sanity(trainer, epoch: int = -1, score_thr: Optional[float
             max_batches=3,
         )
     unwrapped_model = trainer.accelerator.unwrap_model(trainer.model)
-    class_id_to_name = {int(key): str(value) for key, value in (trainer.app_config.data.class_id_to_name or {}).items()}
+    class_id_to_name = {
+        int(key): str(value)
+        for key, value in (trainer.app_config.data.class_id_to_name or {}).items()
+    }
     diagnostics: Dict[str, object] = {}
     metrics = run_eval_artifacts(
         app_config=trainer.app_config,

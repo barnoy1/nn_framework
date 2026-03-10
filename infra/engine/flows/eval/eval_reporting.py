@@ -36,7 +36,10 @@ def populate_confusion_diagnostics(
         pred_index = background_id if pred_label is None else int(pred_label)
         confusion_matrix[gt_index, pred_index] += 1
 
-    confusion_labels = [class_id_to_name.get(class_id, str(class_id)) for class_id in range(background_id)]
+    confusion_labels = [
+        class_id_to_name.get(class_id, str(class_id))
+        for class_id in range(background_id)
+    ]
     confusion_labels.append("background")
     diagnostics["confusion_matrix"] = confusion_matrix
     diagnostics["confusion_labels"] = confusion_labels

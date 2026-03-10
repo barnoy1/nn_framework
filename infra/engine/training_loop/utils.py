@@ -15,7 +15,9 @@ from ..training import (
 )
 
 
-def split_loss_components(trainer, loss_dict: Dict[str, torch.Tensor]) -> Dict[str, float]:
+def split_loss_components(
+    trainer, loss_dict: Dict[str, torch.Tensor]
+) -> Dict[str, float]:
     return trainer._loss_splitter.split(loss_dict)
 
 
@@ -29,7 +31,9 @@ def _loss_pattern_matches(loss_key: str, pattern: str) -> bool:
     return lowered_key == normalized or lowered_key.startswith(f"{normalized}_")
 
 
-def warn_unmatched_configured_losses(trainer, loss_dict: Dict[str, torch.Tensor]) -> None:
+def warn_unmatched_configured_losses(
+    trainer, loss_dict: Dict[str, torch.Tensor]
+) -> None:
     if getattr(trainer, "_warned_unmatched_configured_losses", False):
         return
 
@@ -52,7 +56,9 @@ def warn_unmatched_configured_losses(trainer, loss_dict: Dict[str, torch.Tensor]
     unmatched = [
         pattern
         for pattern in active_patterns
-        if not any(_loss_pattern_matches(loss_key, pattern) for loss_key in produced_keys)
+        if not any(
+            _loss_pattern_matches(loss_key, pattern) for loss_key in produced_keys
+        )
     ]
 
     if unmatched and trainer.accelerator.is_main_process:
@@ -75,9 +81,13 @@ def compute_validation_loss_components_for_trainer(trainer) -> Dict[str, float]:
     )
 
 
-def save_train_batch_visualization_for_trainer(trainer, images: torch.Tensor, targets, step: int) -> None:
+def save_train_batch_visualization_for_trainer(
+    trainer, images: torch.Tensor, targets, step: int
+) -> None:
     output_root = trainer.app_config.ensure_output_dir()
-    save_train_batch_visualization(output_root=output_root, images=images, targets=targets, step=step)
+    save_train_batch_visualization(
+        output_root=output_root, images=images, targets=targets, step=step
+    )
 
 
 def save_eval_batch_visualizations_for_trainer(
@@ -107,7 +117,9 @@ def save_eval_batch_visualizations_for_trainer(
         saved += 1
 
     if saved > 0:
-        trainer.logger.info("Saved {} eval batch visualizations to {}", saved, output_root)
+        trainer.logger.info(
+            "Saved {} eval batch visualizations to {}", saved, output_root
+        )
 
 
 def save_val_batch_visualizations_for_trainer(
@@ -137,7 +149,9 @@ def save_val_batch_visualizations_for_trainer(
         saved += 1
 
     if saved > 0:
-        trainer.logger.info("Saved {} val batch visualizations to {}", saved, output_root)
+        trainer.logger.info(
+            "Saved {} val batch visualizations to {}", saved, output_root
+        )
 
 
 def move_batch_to_device(trainer, images, targets):
@@ -186,5 +200,5 @@ def image_size_text(images: torch.Tensor) -> str:
 
 def gpu_mem_reserved_gb(trainer) -> float:
     if torch.cuda.is_available() and str(trainer.accelerator.device).startswith("cuda"):
-        return float(torch.cuda.memory_reserved(trainer.accelerator.device) / (1024 ** 3))
+        return float(torch.cuda.memory_reserved(trainer.accelerator.device) / (1024**3))
     return 0.0

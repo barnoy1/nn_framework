@@ -44,10 +44,15 @@ def load_checkpoint_state(path: str) -> Dict[str, torch.Tensor]:
     return checkpoint
 
 
-def _normalize_state_dict_keys(state_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+def _normalize_state_dict_keys(
+    state_dict: Dict[str, torch.Tensor],
+) -> Dict[str, torch.Tensor]:
     if not any(key.startswith("module.") for key in state_dict.keys()):
         return state_dict
-    return {key[7:] if key.startswith("module.") else key: value for key, value in state_dict.items()}
+    return {
+        key[7:] if key.startswith("module.") else key: value
+        for key, value in state_dict.items()
+    }
 
 
 def get_checkpoint_num_classes(state_dict: Dict[str, torch.Tensor]) -> Optional[int]:
@@ -91,7 +96,9 @@ def validate_checkpoint_class_compatibility(
     raise RuntimeError(message)
 
 
-def safe_load_state_dict(model: nn.Module, state_dict: Dict[str, torch.Tensor]) -> Tuple[int, int, int]:
+def safe_load_state_dict(
+    model: nn.Module, state_dict: Dict[str, torch.Tensor]
+) -> Tuple[int, int, int]:
     state_dict = _normalize_state_dict_keys(state_dict)
     model_state = model.state_dict()
 

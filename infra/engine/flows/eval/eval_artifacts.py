@@ -12,7 +12,10 @@ from infra.engine.evaluate import evaluate_predictions
 from infra.tracking import create_visualization_logger
 
 from .eval_inference import run_eval_inference_loop
-from .eval_model_metrics import generate_eval_model_metrics_bundle, log_eval_model_metrics_bundle
+from .eval_model_metrics import (
+    generate_eval_model_metrics_bundle,
+    log_eval_model_metrics_bundle,
+)
 from .eval_reporting import populate_confusion_diagnostics
 from .eval_sampling import build_eval_samples
 
@@ -43,7 +46,9 @@ def _prune_eval_non_image_files(eval_root_dir: Path) -> None:
         candidate.unlink(missing_ok=True)
 
 
-def _build_eval_results_row(*, epoch: int, metrics: Dict[str, float], confusion_scores: Dict[str, float]) -> Dict[str, float]:
+def _build_eval_results_row(
+    *, epoch: int, metrics: Dict[str, float], confusion_scores: Dict[str, float]
+) -> Dict[str, float]:
     return {
         "epoch": float(epoch),
         "time": float(epoch),
@@ -81,7 +86,9 @@ def _load_eval_results_history(results_csv: Path) -> Dict[int, Dict[str, float]]
     return rows_by_epoch
 
 
-def _write_eval_results_history(results_csv: Path, rows_by_epoch: Dict[int, Dict[str, float]]) -> None:
+def _write_eval_results_history(
+    results_csv: Path, rows_by_epoch: Dict[int, Dict[str, float]]
+) -> None:
     ordered_epochs = sorted(rows_by_epoch.keys())
     with results_csv.open("w", encoding="utf-8", newline="") as file:
         writer = csv.DictWriter(file, fieldnames=EVAL_RESULTS_FIELDNAMES)
@@ -120,11 +127,18 @@ def _update_eval_history_files(
 
     entry = {"epoch": int(epoch)}
     entry.update({key: float(value) for key, value in metrics.items()})
-    entry.update({f"confusion_{key}": float(value) for key, value in confusion_scores.items()})
+    entry.update(
+        {f"confusion_{key}": float(value) for key, value in confusion_scores.items()}
+    )
     history_entries[int(epoch)] = entry
 
-    ordered_entries = [history_entries[current_epoch] for current_epoch in sorted(history_entries.keys())]
-    history_json.write_text(json.dumps(ordered_entries, indent=2, ensure_ascii=False), encoding="utf-8")
+    ordered_entries = [
+        history_entries[current_epoch]
+        for current_epoch in sorted(history_entries.keys())
+    ]
+    history_json.write_text(
+        json.dumps(ordered_entries, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
 
     results_csv = eval_root_dir / "results.csv"
     rows_by_epoch = _load_eval_results_history(results_csv)
@@ -173,7 +187,11 @@ def run_eval_artifacts(
 ) -> Dict[str, float]:
     output_root = Path(app_config.train.output_dir)
     output_root_resolved = output_root.resolve()
-    shared_tracking_dir = output_root_resolved.parent if "__" in output_root_resolved.name else output_root_resolved
+    shared_tracking_dir = (
+        output_root_resolved.parent
+        if "__" in output_root_resolved.name
+        else output_root_resolved
+    )
     inference_dir = output_root / "inference"
     inference_dir.mkdir(parents=True, exist_ok=True)
     eval_vis_dir = inference_dir / "eval"
@@ -188,23 +206,39 @@ def run_eval_artifacts(
         tensorboard_log_dir=str(app_config.runtime.visualization.tensorboard.log_dir),
         tensorboard_host=str(app_config.runtime.visualization.tensorboard.host),
         tensorboard_port=int(app_config.runtime.visualization.tensorboard.port),
-        tensorboard_start_service=bool(app_config.runtime.visualization.tensorboard.start_service),
+        tensorboard_start_service=bool(
+            app_config.runtime.visualization.tensorboard.start_service
+        ),
         mlflow_enabled=bool(app_config.runtime.visualization.mlflow.enabled),
         mlflow_dir=str(shared_tracking_dir),
-        mlflow_tracking_backend=str(app_config.runtime.visualization.mlflow.tracking_backend),
-        mlflow_sqlite_db_name=str(app_config.runtime.visualization.mlflow.sqlite_db_name),
+        mlflow_tracking_backend=str(
+            app_config.runtime.visualization.mlflow.tracking_backend
+        ),
+        mlflow_sqlite_db_name=str(
+            app_config.runtime.visualization.mlflow.sqlite_db_name
+        ),
         mlflow_host=str(app_config.runtime.visualization.mlflow.host),
         mlflow_port=int(app_config.runtime.visualization.mlflow.port),
-        mlflow_start_service=bool(app_config.runtime.visualization.mlflow.start_service),
+        mlflow_start_service=bool(
+            app_config.runtime.visualization.mlflow.start_service
+        ),
         execution_config=app_config.model_dump(mode="json"),
         logger_port=logger,
     )
 
-    model_eval = model.deploy() if use_deploy_model and hasattr(model, "deploy") else model
-    post_eval = postprocessor.deploy() if use_deploy_model and hasattr(postprocessor, "deploy") else postprocessor
+    model_eval = (
+        model.deploy() if use_deploy_model and hasattr(model, "deploy") else model
+    )
+    post_eval = (
+        postprocessor.deploy()
+        if use_deploy_model and hasattr(postprocessor, "deploy")
+        else postprocessor
+    )
     model_eval = model_eval.to(device).eval()
 
-    samples = build_eval_samples(app_config.data.val_sets, app_config.data.mapping or {})
+    samples = build_eval_samples(
+        app_config.data.val_sets, app_config.data.mapping or {}
+    )
     eval_outputs = run_eval_inference_loop(
         app_config=app_config,
         samples=samples,

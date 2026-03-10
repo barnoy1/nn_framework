@@ -14,7 +14,9 @@ def evaluate_predictions(
 ) -> Dict[str, float]:
     output: Dict[str, float] = {}
 
-    bbox_metric = MeanAveragePrecision(box_format="xyxy", iou_type="bbox", class_metrics=False)
+    bbox_metric = MeanAveragePrecision(
+        box_format="xyxy", iou_type="bbox", class_metrics=False
+    )
     bbox_metric.update(predictions, targets)
     bbox_result = bbox_metric.compute()
     output.update(
@@ -28,16 +30,25 @@ def evaluate_predictions(
     )
 
     if "segm" in iou_types:
-        has_masks = all(("masks" in prediction and "masks" in target) for prediction, target in zip(predictions, targets))
+        has_masks = all(
+            ("masks" in prediction and "masks" in target)
+            for prediction, target in zip(predictions, targets)
+        )
         if has_masks:
-            segm_metric = MeanAveragePrecision(box_format="xyxy", iou_type="segm", class_metrics=False)
+            segm_metric = MeanAveragePrecision(
+                box_format="xyxy", iou_type="segm", class_metrics=False
+            )
             segm_metric.update(predictions, targets)
             segm_result = segm_metric.compute()
             output.update(
                 {
                     "segm_map": float(segm_result.get("map", torch.tensor(0.0)).item()),
-                    "segm_map_50": float(segm_result.get("map_50", torch.tensor(0.0)).item()),
-                    "segm_map_75": float(segm_result.get("map_75", torch.tensor(0.0)).item()),
+                    "segm_map_50": float(
+                        segm_result.get("map_50", torch.tensor(0.0)).item()
+                    ),
+                    "segm_map_75": float(
+                        segm_result.get("map_75", torch.tensor(0.0)).item()
+                    ),
                 }
             )
 

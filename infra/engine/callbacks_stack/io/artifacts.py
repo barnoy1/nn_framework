@@ -38,7 +38,9 @@ class YoloStyleArtifactsCallback(Callback):
 
     def _save_labels_plot(self, trainer: "Trainer") -> None:
         output_root = Path(trainer.app_config.train.output_dir)
-        train_counts, train_names = collect_class_frequency(trainer.train_loader.dataset)
+        train_counts, train_names = collect_class_frequency(
+            trainer.train_loader.dataset
+        )
         val_counts, val_names = collect_class_frequency(trainer.val_loader.dataset)
         save_labels_plot(
             output_root=output_root,
@@ -51,7 +53,9 @@ class YoloStyleArtifactsCallback(Callback):
         if legacy_jpg.exists():
             legacy_jpg.unlink(missing_ok=True)
 
-    def on_validation_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
+    def on_validation_end(
+        self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]
+    ) -> None:
         if not self.enabled or not trainer.accelerator.is_main_process:
             return
         matrix = getattr(trainer, "last_validation_confusion_matrix", None)
@@ -60,17 +64,24 @@ class YoloStyleArtifactsCallback(Callback):
             return
 
         output_root = Path(trainer.app_config.train.output_dir)
-        save_confusion_matrix_plots(output_root=output_root, matrix=matrix, labels=names)
+        save_confusion_matrix_plots(
+            output_root=output_root, matrix=matrix, labels=names
+        )
         scores = compute_detection_scores(matrix)
         self._last_precision = float(scores["precision"])
         self._last_recall = float(scores["recall"])
         self._last_f1 = float(scores["f1"])
         self._last_accuracy = float(scores["accuracy"])
 
-    def on_epoch_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
+    def on_epoch_end(
+        self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]
+    ) -> None:
         if not self.enabled or not trainer.accelerator.is_main_process:
             return
-        optimizer_lrs = [float(group.get("lr", 0.0)) for group in getattr(trainer.optimizer, "param_groups", [])]
+        optimizer_lrs = [
+            float(group.get("lr", 0.0))
+            for group in getattr(trainer.optimizer, "param_groups", [])
+        ]
         row = build_epoch_row(
             epoch=epoch,
             metrics=metrics,
@@ -82,7 +93,9 @@ class YoloStyleArtifactsCallback(Callback):
         )
         self._rows.append(row)
         self._write_results_csv()
-        render_training_artifact_plots(output_root=Path(trainer.app_config.train.output_dir), rows=self._rows)
+        render_training_artifact_plots(
+            output_root=Path(trainer.app_config.train.output_dir), rows=self._rows
+        )
 
     def _write_results_csv(self) -> None:
         if self._results_csv is None:

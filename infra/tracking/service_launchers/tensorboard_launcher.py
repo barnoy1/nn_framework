@@ -4,10 +4,20 @@ from pathlib import Path
 import subprocess
 import sys
 
-from .shared import find_available_port, free_port_for_reuse, get_running_process, is_port_in_use, read_log_tail, register_process, wait_for_service
+from .shared import (
+    find_available_port,
+    free_port_for_reuse,
+    get_running_process,
+    is_port_in_use,
+    read_log_tail,
+    register_process,
+    wait_for_service,
+)
 
 
-def start_tensorboard_service(*, log_dir: Path, host: str, port: int, logger_port) -> str:
+def start_tensorboard_service(
+    *, log_dir: Path, host: str, port: int, logger_port
+) -> str:
     resolved_log_dir = log_dir.resolve()
     requested_port = int(port)
     url = f"http://{host}:{requested_port}"
@@ -60,7 +70,9 @@ def start_tensorboard_service(*, log_dir: Path, host: str, port: int, logger_por
         if tail:
             logger_port.warning("TensorBoard failed to start: {}", tail)
             if "pkg_resources" in tail:
-                logger_port.warning("TensorBoard requires setuptools (pkg_resources). Install with: pip install setuptools")
+                logger_port.warning(
+                    "TensorBoard requires setuptools (pkg_resources). Install with: pip install setuptools"
+                )
         logger_port.warning("TensorBoard failed to start. Check {}", service_log)
     else:
         logger_port.info("TensorBoard starting: {}", url)

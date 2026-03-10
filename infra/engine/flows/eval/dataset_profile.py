@@ -20,7 +20,9 @@ def collect_class_frequency(dataset) -> tuple[Dict[int, int], Dict[int, str]]:
             merged_names.update(child_names)
         return merged_counts, merged_names
 
-    if not hasattr(dataset, "coco") or not hasattr(dataset, "category_id_to_contiguous"):
+    if not hasattr(dataset, "coco") or not hasattr(
+        dataset, "category_id_to_contiguous"
+    ):
         return {}, {}
 
     coco = dataset.coco
@@ -32,7 +34,9 @@ def collect_class_frequency(dataset) -> tuple[Dict[int, int], Dict[int, str]]:
             contiguous_id = int(category_map[category_id])
             contiguous_to_name[contiguous_id] = str(category.get("name", contiguous_id))
 
-    frequencies: Dict[int, int] = {class_id: 0 for class_id in contiguous_to_name.keys()}
+    frequencies: Dict[int, int] = {
+        class_id: 0 for class_id in contiguous_to_name.keys()
+    }
     for annotation in coco.anns.values():
         if annotation.get("iscrowd", 0) == 1:
             continue
@@ -45,10 +49,14 @@ def collect_class_frequency(dataset) -> tuple[Dict[int, int], Dict[int, str]]:
     return frequencies, contiguous_to_name
 
 
-def _profile_single_dataset_distribution(*, dataset, split_name: str, output_dir: Path, logger) -> None:
+def _profile_single_dataset_distribution(
+    *, dataset, split_name: str, output_dir: Path, logger
+) -> None:
     counts, names = collect_class_frequency(dataset)
     if not counts:
-        logger.warning("Could not compute class-frequency profile for {} dataset", split_name)
+        logger.warning(
+            "Could not compute class-frequency profile for {} dataset", split_name
+        )
         return
 
     total_instances = sum(counts.values())
@@ -63,8 +71,18 @@ def _profile_single_dataset_distribution(*, dataset, split_name: str, output_dir
         percentage = (100.0 * frequency) / float(total_instances)
         rows.append([class_id, class_name, frequency, f"{percentage:.2f}%"])
 
-    table = tabulate(rows, headers=["class_id", "class_name", "frequency", "dataset_pct"], tablefmt="psql", floatfmt=".2f")
-    logger.info("{} dataset class-frequency profile (instances={}):\n{}", split_name.capitalize(), total_instances, table)
+    table = tabulate(
+        rows,
+        headers=["class_id", "class_name", "frequency", "dataset_pct"],
+        tablefmt="psql",
+        floatfmt=".2f",
+    )
+    logger.info(
+        "{} dataset class-frequency profile (instances={}):\n{}",
+        split_name.capitalize(),
+        total_instances,
+        table,
+    )
 
     output_dir.mkdir(parents=True, exist_ok=True)
     sns.set_theme(style="whitegrid")
@@ -82,7 +100,15 @@ def _profile_single_dataset_distribution(*, dataset, split_name: str, output_dir
     for patch, row in zip(axis.patches, rows):
         x_pos = patch.get_x() + patch.get_width() / 2.0
         y_pos = patch.get_height()
-        axis.text(x_pos, y_pos + y_max * 0.01, f"{row[1]}\n{row[3]}", ha="center", va="bottom", fontsize=8, rotation=90)
+        axis.text(
+            x_pos,
+            y_pos + y_max * 0.01,
+            f"{row[1]}\n{row[3]}",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            rotation=90,
+        )
 
     chart_path = output_dir / f"{split_name}_class_frequency.png"
     plt.tight_layout()

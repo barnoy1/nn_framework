@@ -12,8 +12,10 @@ def create_model_wrapper(app_config: AppConfig, repo_root: Path) -> ModelWrapper
     source_root = str(app_config.model.source_root).lower()
     if "rtdetrv2_pytorch" in source_root:
         return FrameworkModelAdapter(
-            model_builder=RTDETRv2ModelBuilder(app_config=app_config, repo_root=repo_root),
+            model_builder=RTDETRv2ModelBuilder(
+                app_config=app_config, repo_root=repo_root
+            ),
         )
-    raise NotImplementedError(f"No model wrapper adapter registered for source_root={app_config.model.source_root}")
-
-    
+    raise NotImplementedError(
+        f"No model wrapper adapter registered for source_root={app_config.model.source_root}"
+    )

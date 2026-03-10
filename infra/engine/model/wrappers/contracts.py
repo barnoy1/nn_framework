@@ -26,44 +26,44 @@ class ModelBuilder(ABC):
     def build(self) -> BuiltComponents:
         raise NotImplementedError
 
-    def apply_architecture_specifics(self, model: nn.Module, targets: List[Dict], *, dn_num_group: int) -> None:
+    def apply_architecture_specifics(
+        self, model: nn.Module, targets: List[Dict], *, dn_num_group: int
+    ) -> None:
         return
 
 
 class CheckpointAdapter(Protocol):
-    def load_checkpoint_state(self, path: str) -> Dict[str, torch.Tensor]:
-        ...
+    def load_checkpoint_state(self, path: str) -> Dict[str, torch.Tensor]: ...
 
     def validate_checkpoint_class_compatibility(
         self,
         model: nn.Module,
         state_dict: Dict[str, torch.Tensor],
-    ) -> None:
-        ...
+    ) -> None: ...
 
-    def safe_load_state_dict(self, model: nn.Module, state_dict: Dict[str, torch.Tensor]) -> Tuple[int, int, int]:
-        ...
+    def safe_load_state_dict(
+        self, model: nn.Module, state_dict: Dict[str, torch.Tensor]
+    ) -> Tuple[int, int, int]: ...
 
 
 class ModelWrapperAdapter(Protocol):
-    def build_components(self) -> BuiltComponents:
-        ...
+    def build_components(self) -> BuiltComponents: ...
 
-    def apply_architecture_specifics(self, model: nn.Module, targets: List[Dict], *, dn_num_group: int) -> None:
-        ...
+    def apply_architecture_specifics(
+        self, model: nn.Module, targets: List[Dict], *, dn_num_group: int
+    ) -> None: ...
 
-    def load_checkpoint_state(self, path: str) -> Dict[str, torch.Tensor]:
-        ...
+    def load_checkpoint_state(self, path: str) -> Dict[str, torch.Tensor]: ...
 
     def validate_checkpoint_class_compatibility(
         self,
         model: nn.Module,
         state_dict: Dict[str, torch.Tensor],
-    ) -> None:
-        ...
+    ) -> None: ...
 
-    def safe_load_state_dict(self, model: nn.Module, state_dict: Dict[str, torch.Tensor]) -> Tuple[int, int, int]:
-        ...
+    def safe_load_state_dict(
+        self, model: nn.Module, state_dict: Dict[str, torch.Tensor]
+    ) -> Tuple[int, int, int]: ...
 
 
 @dataclass

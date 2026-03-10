@@ -24,6 +24,7 @@ from .training_loop import (
 )
 from infra.common.logging.logger import logger
 
+
 class Trainer:
     def __init__(
         self,
@@ -59,7 +60,9 @@ class Trainer:
 
         set_seed(self.app_config.train.seed)
 
-        self.accelerator = Accelerator(mixed_precision=self.app_config.train.mixed_precision)
+        self.accelerator = Accelerator(
+            mixed_precision=self.app_config.train.mixed_precision
+        )
         if self.ema_model is not None:
             self.accelerator.register_for_checkpointing(self.ema_model)
 
@@ -96,7 +99,9 @@ class Trainer:
         )
         self._loss_splitter = LossComponentSplitter.from_config(self.app_config)
 
-    def _split_loss_components(self, loss_dict: Dict[str, torch.Tensor]) -> Dict[str, float]:
+    def _split_loss_components(
+        self, loss_dict: Dict[str, torch.Tensor]
+    ) -> Dict[str, float]:
         return split_loss_components(self, loss_dict)
 
     @torch.no_grad()
@@ -124,21 +129,30 @@ class Trainer:
             self.logger.debug("Cleared CUDA cache at end of epoch={}", epoch)
 
     @torch.no_grad()
-    def validate(self, epoch: int, score_thr: Optional[float] = None) -> Dict[str, float]:
+    def validate(
+        self, epoch: int, score_thr: Optional[float] = None
+    ) -> Dict[str, float]:
         return validate_epoch(self, epoch, score_thr=score_thr)
 
     @torch.no_grad()
-    def run_baseline_eval_sanity(self, epoch: int = -1, score_thr: Optional[float] = None) -> Dict[str, float]:
+    def run_baseline_eval_sanity(
+        self, epoch: int = -1, score_thr: Optional[float] = None
+    ) -> Dict[str, float]:
         return run_baseline_eval_sanity(self, epoch=epoch, score_thr=score_thr)
 
     def fit(self) -> None:
         self.callbacks.on_train_start(self)
         try:
             if self.accelerator.is_main_process:
-                self.logger.info("Running baseline evaluation sanity-check before optimizer updates")
+                self.logger.info(
+                    "Running baseline evaluation sanity-check before optimizer updates"
+                )
             baseline_metrics = self.run_baseline_eval_sanity(epoch=-1)
             if self.accelerator.is_main_process:
-                self.logger.info("baseline metrics={}", {f"val_{k}": v for k, v in baseline_metrics.items()})
+                self.logger.info(
+                    "baseline metrics={}",
+                    {f"val_{k}": v for k, v in baseline_metrics.items()},
+                )
             self._cleanup_gpu_memory(epoch=-1)
 
             first_epoch_in_run = True
@@ -149,7 +163,9 @@ class Trainer:
                 train_metrics = self._train_one_epoch(epoch)
 
                 val_metrics: Dict[str, float] = {}
-                should_validate = first_epoch_in_run or ((epoch + 1) % self.app_config.train.val_every_n_epochs == 0)
+                should_validate = first_epoch_in_run or (
+                    (epoch + 1) % self.app_config.train.val_every_n_epochs == 0
+                )
                 if should_validate:
                     val_metrics = self.validate(epoch)
                 first_epoch_in_run = False

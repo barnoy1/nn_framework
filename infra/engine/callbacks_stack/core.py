@@ -13,13 +13,19 @@ class Callback:
     def on_epoch_start(self, trainer: "Trainer", epoch: int) -> None:
         pass
 
-    def on_batch_end(self, trainer: "Trainer", epoch: int, step: int, metrics: Dict[str, float]) -> None:
+    def on_batch_end(
+        self, trainer: "Trainer", epoch: int, step: int, metrics: Dict[str, float]
+    ) -> None:
         pass
 
-    def on_validation_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
+    def on_validation_end(
+        self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]
+    ) -> None:
         pass
 
-    def on_epoch_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
+    def on_epoch_end(
+        self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]
+    ) -> None:
         pass
 
     def on_train_end(self, trainer: "Trainer") -> None:
@@ -38,15 +44,21 @@ class CallbackList:
         for callback in self.callbacks:
             callback.on_epoch_start(trainer, epoch)
 
-    def on_batch_end(self, trainer: "Trainer", epoch: int, step: int, metrics: Dict[str, float]) -> None:
+    def on_batch_end(
+        self, trainer: "Trainer", epoch: int, step: int, metrics: Dict[str, float]
+    ) -> None:
         for callback in self.callbacks:
             callback.on_batch_end(trainer, epoch, step, metrics)
 
-    def on_validation_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
+    def on_validation_end(
+        self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]
+    ) -> None:
         for callback in self.callbacks:
             callback.on_validation_end(trainer, epoch, metrics)
 
-    def on_epoch_end(self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]) -> None:
+    def on_epoch_end(
+        self, trainer: "Trainer", epoch: int, metrics: Dict[str, float]
+    ) -> None:
         for callback in self.callbacks:
             callback.on_epoch_end(trainer, epoch, metrics)
 

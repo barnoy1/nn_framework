@@ -11,18 +11,24 @@ def _sanitize_experiment_name(name: str | None, fallback: str) -> str:
     return cleaned if cleaned else fallback
 
 
-def _chunk_items(source: dict[str, str], chunk_size: int = 100) -> Iterable[dict[str, str]]:
+def _chunk_items(
+    source: dict[str, str], chunk_size: int = 100
+) -> Iterable[dict[str, str]]:
     items = list(source.items())
     for index in range(0, len(items), chunk_size):
         yield dict(items[index : index + chunk_size])
 
 
-def build_aggregate_tracking_dir(root_path: Path, source_tracking_dirs: list[Path], sqlite_db_name: str) -> Path:
+def build_aggregate_tracking_dir(
+    root_path: Path, source_tracking_dirs: list[Path], sqlite_db_name: str
+) -> Path:
     if len(source_tracking_dirs) <= 1:
         return source_tracking_dirs[0]
 
     if importlib.util.find_spec("mlflow") is None:
-        raise RuntimeError("mlflow Python package is required for multi-run aggregation mode.")
+        raise RuntimeError(
+            "mlflow Python package is required for multi-run aggregation mode."
+        )
 
     import mlflow
 
@@ -48,10 +54,16 @@ def build_aggregate_tracking_dir(root_path: Path, source_tracking_dirs: list[Pat
             if base_name.lower() == "default":
                 base_name = "run"
             aggregate_experiment_name = f"{base_name}_{run_folder_name}"
-            destination_experiment_id = experiment_ids_by_name.get(aggregate_experiment_name)
+            destination_experiment_id = experiment_ids_by_name.get(
+                aggregate_experiment_name
+            )
             if destination_experiment_id is None:
-                destination_experiment_id = destination_client.create_experiment(aggregate_experiment_name)
-                experiment_ids_by_name[aggregate_experiment_name] = destination_experiment_id
+                destination_experiment_id = destination_client.create_experiment(
+                    aggregate_experiment_name
+                )
+                experiment_ids_by_name[aggregate_experiment_name] = (
+                    destination_experiment_id
+                )
 
             runs = source_client.search_runs(
                 experiment_ids=[source_experiment.experiment_id],
@@ -74,15 +86,22 @@ def build_aggregate_tracking_dir(root_path: Path, source_tracking_dirs: list[Pat
                 )
 
                 if source_run.data.params:
-                    for param_chunk in _chunk_items({k: str(v) for k, v in source_run.data.params.items()}):
+                    for param_chunk in _chunk_items(
+                        {k: str(v) for k, v in source_run.data.params.items()}
+                    ):
                         destination_client.log_batch(
                             run_id=destination_run.info.run_id,
-                            params=[mlflow.entities.Param(key, value) for key, value in param_chunk.items()],
+                            params=[
+                                mlflow.entities.Param(key, value)
+                                for key, value in param_chunk.items()
+                            ],
                         )
 
                 if source_run.data.metrics:
                     for key, value in source_run.data.metrics.items():
-                        history = source_client.get_metric_history(source_run.info.run_id, key)
+                        history = source_client.get_metric_history(
+                            source_run.info.run_id, key
+                        )
                         if history:
                             destination_client.log_batch(
                                 run_id=destination_run.info.run_id,
@@ -101,14 +120,20 @@ def build_aggregate_tracking_dir(root_path: Path, source_tracking_dirs: list[Pat
                                 run_id=destination_run.info.run_id,
                                 key=key,
                                 value=float(value),
-                                timestamp=int(source_run.info.end_time or source_run.info.start_time or 0),
+                                timestamp=int(
+                                    source_run.info.end_time
+                                    or source_run.info.start_time
+                                    or 0
+                                ),
                                 step=0,
                             )
 
                 destination_client.set_terminated(
                     run_id=destination_run.info.run_id,
                     status=str(source_run.info.status),
-                    end_time=int(source_run.info.end_time or source_run.info.start_time or 0),
+                    end_time=int(
+                        source_run.info.end_time or source_run.info.start_time or 0
+                    ),
                 )
 
     return aggregate_dir

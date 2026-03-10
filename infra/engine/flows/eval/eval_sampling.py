@@ -16,7 +16,9 @@ def build_eval_samples(val_sets, label_mapping: Dict[int, int]) -> List[Dict]:
         dataset_name = str(Path(dataset_pair.ann_file).resolve().parent.name)
         image_ids = sorted(coco.getImgIds())
         categories = sorted(coco.loadCats(coco.getCatIds()), key=lambda cat: cat["id"])
-        category_id_to_contiguous = {cat["id"]: idx for idx, cat in enumerate(categories)}
+        category_id_to_contiguous = {
+            cat["id"]: idx for idx, cat in enumerate(categories)
+        }
 
         for image_id in image_ids:
             image_meta = coco.loadImgs([image_id])[0]
@@ -45,7 +47,9 @@ def build_eval_samples(val_sets, label_mapping: Dict[int, int]) -> List[Dict]:
                     continue
 
                 contiguous_label = int(category_id_to_contiguous[category_id])
-                mapped_label = int(normalized_mapping.get(contiguous_label, contiguous_label))
+                mapped_label = int(
+                    normalized_mapping.get(contiguous_label, contiguous_label)
+                )
 
                 boxes_xyxy.append([x1, y1, x2, y2])
                 labels.append(mapped_label)

@@ -38,14 +38,19 @@ class MlflowVisualizationLogger:
         if len(parent_parts) == 2 and parent_parts[1].strip():
             return parent_parts[1].strip()
 
-        if tracking_dir.name == "mlflow" and tracking_dir.parent.name == "visualization":
+        if (
+            tracking_dir.name == "mlflow"
+            and tracking_dir.parent.name == "visualization"
+        ):
             return tracking_dir.parent.parent.name
         return tracking_dir.parent.name
 
     @staticmethod
     def _compose_run_name(base_run_name: str, run_context_dir: Path) -> str:
         resolved_base = str(base_run_name or "run").strip() or "run"
-        run_folder_name = MlflowVisualizationLogger._resolve_run_folder_name(run_context_dir)
+        run_folder_name = MlflowVisualizationLogger._resolve_run_folder_name(
+            run_context_dir
+        )
         suffix = f"__{run_folder_name}"
         if resolved_base.endswith(suffix):
             return resolved_base
@@ -79,7 +84,9 @@ class MlflowVisualizationLogger:
             client = self._mlflow.tracking.MlflowClient(tracking_uri=tracking_uri)
             experiment = client.get_experiment_by_name(experiment_name)
             if experiment is None:
-                client.create_experiment(experiment_name, artifact_location=artifact_root.as_uri())
+                client.create_experiment(
+                    experiment_name, artifact_location=artifact_root.as_uri()
+                )
             self._mlflow.set_experiment(experiment_name)
         else:
             tracking_uri = self._tracking_dir.as_uri()
@@ -87,7 +94,9 @@ class MlflowVisualizationLogger:
             client = self._mlflow.tracking.MlflowClient(tracking_uri=tracking_uri)
             experiment = client.get_experiment_by_name(experiment_name)
             if experiment is None:
-                client.create_experiment(experiment_name, artifact_location=artifact_root.as_uri())
+                client.create_experiment(
+                    experiment_name, artifact_location=artifact_root.as_uri()
+                )
             self._mlflow.set_experiment(experiment_name)
         active_run = self._mlflow.active_run()
         if active_run is None:

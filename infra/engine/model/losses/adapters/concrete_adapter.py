@@ -8,8 +8,20 @@ from .common_adapter import AgnosticYoloCriterionAdapter
 class ConcreteCriterionAdapter(AgnosticYoloCriterionAdapter):
     name = "concrete"
 
-    _dfl_output_keys = ("pred_distri", "pred_dist", "pred_distributions", "pred_ltrb_dist", "distributions")
-    _dfl_precomputed_keys = ("loss_dfl", "dfl_loss", "loss_distribution_focal", "dfl_logits", "dfl_targets")
+    _dfl_output_keys = (
+        "pred_distri",
+        "pred_dist",
+        "pred_distributions",
+        "pred_ltrb_dist",
+        "distributions",
+    )
+    _dfl_precomputed_keys = (
+        "loss_dfl",
+        "dfl_loss",
+        "loss_distribution_focal",
+        "dfl_logits",
+        "dfl_targets",
+    )
 
     def owns(self, loss_key: str, resolver=None) -> bool:
         lowered = str(loss_key).strip().lower()
@@ -27,7 +39,9 @@ class ConcreteCriterionAdapter(AgnosticYoloCriterionAdapter):
             key in outputs for key in self._dfl_precomputed_keys
         )
 
-    def forward(self, loss_dict, default_weight_dict: Dict[str, float], resolver) -> Dict[str, object]:
+    def forward(
+        self, loss_dict, default_weight_dict: Dict[str, float], resolver
+    ) -> Dict[str, object]:
         transformed = super().forward(
             loss_dict=loss_dict,
             default_weight_dict=default_weight_dict,

@@ -28,16 +28,29 @@ def run_onnx(args, logger) -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    providers = ["CUDAExecutionProvider", "CPUExecutionProvider"] if args.device == "cuda" else ["CPUExecutionProvider"]
+    providers = (
+        ["CUDAExecutionProvider", "CPUExecutionProvider"]
+        if args.device == "cuda"
+        else ["CPUExecutionProvider"]
+    )
     session = ort.InferenceSession(args.onnx_model, providers=providers)
     input_name = session.get_inputs()[0].name
 
-    transforms = build_image_preprocess_from_loader(runtime.app_config.data.val_dataloader, logger=logger, default_size=640)
+    transforms = build_image_preprocess_from_loader(
+        runtime.app_config.data.val_dataloader, logger=logger, default_size=640
+    )
     image_paths = list_images(args.input_dir)
 
-    logger.info("[mangr_inference] backend=onnx device={} images={} input={}", args.device, len(image_paths), args.input_dir)
+    logger.info(
+        "[mangr_inference] backend=onnx device={} images={} input={}",
+        args.device,
+        len(image_paths),
+        args.input_dir,
+    )
     if not image_paths:
-        logger.warning("[mangr_inference] no supported images found; nothing to process")
+        logger.warning(
+            "[mangr_inference] no supported images found; nothing to process"
+        )
         return
 
     records = []
@@ -45,13 +58,27 @@ def run_onnx(args, logger) -> None:
     for start in range(0, len(image_paths), args.batch_size):
         batch_paths = image_paths[start : start + args.batch_size]
         original_images = [load_pil_image(path) for path in batch_paths]
-        batch_tensor = torch.stack([transforms(image) for image in original_images], dim=0)
-        orig_sizes = torch.tensor([[image.size[0], image.size[1]] for image in original_images], dtype=torch.int64)
+        batch_tensor = torch.stack(
+            [transforms(image) for image in original_images], dim=0
+        )
+        orig_sizes = torch.tensor(
+            [[image.size[0], image.size[1]] for image in original_images],
+            dtype=torch.int64,
+        )
 
-        ort_outputs = session.run(None, {input_name: batch_tensor.numpy(), "orig_target_sizes": orig_sizes.numpy()})
-        labels_batch, boxes_batch, scores_batch = ort_outputs[0], ort_outputs[1], ort_outputs[2]
+        ort_outputs = session.run(
+            None,
+            {input_name: batch_tensor.numpy(), "orig_target_sizes": orig_sizes.numpy()},
+        )
+        labels_batch, boxes_batch, scores_batch = (
+            ort_outputs[0],
+            ort_outputs[1],
+            ort_outputs[2],
+        )
 
-        for image_path, image, labels, boxes, scores in zip(batch_paths, original_images, labels_batch, boxes_batch, scores_batch):
+        for image_path, image, labels, boxes, scores in zip(
+            batch_paths, original_images, labels_batch, boxes_batch, scores_batch
+        ):
             rendered = render_prediction_with_yolo_caption(
                 image=np.asarray(image.convert("RGB")),
                 prediction={"labels": labels, "boxes": boxes, "scores": scores},

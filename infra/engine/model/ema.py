@@ -8,7 +8,12 @@ from torch import nn
 
 
 class EMAModel:
-    def __init__(self, model: nn.Module, decay: float = 0.9999, device: Optional[torch.device] = None) -> None:
+    def __init__(
+        self,
+        model: nn.Module,
+        decay: float = 0.9999,
+        device: Optional[torch.device] = None,
+    ) -> None:
         self.decay = decay
         self.ema_model = deepcopy(model).eval()
         if device is not None:
@@ -47,7 +52,9 @@ class EMAModel:
                     ema_value.mul_(self.decay).add_(model_value, alpha=1.0 - self.decay)
 
     def store(self, model: nn.Module) -> None:
-        self._shadow_backup = {k: v.detach().clone() for k, v in model.state_dict().items()}
+        self._shadow_backup = {
+            k: v.detach().clone() for k, v in model.state_dict().items()
+        }
 
     def copy_to(self, model: nn.Module) -> None:
         model.load_state_dict(self.ema_model.state_dict(), strict=True)

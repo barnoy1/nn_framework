@@ -7,7 +7,15 @@ import shutil
 import importlib.util
 import os
 
-from .shared import find_available_port, free_port_for_reuse, get_running_process, is_port_in_use, read_log_tail, register_process, wait_for_service
+from .shared import (
+    find_available_port,
+    free_port_for_reuse,
+    get_running_process,
+    is_port_in_use,
+    read_log_tail,
+    register_process,
+    wait_for_service,
+)
 
 
 def _build_subprocess_env() -> dict[str, str]:
@@ -16,7 +24,9 @@ def _build_subprocess_env() -> dict[str, str]:
     existing_path = env.get("PATH", "")
     path_entries = [entry for entry in existing_path.split(os.pathsep) if entry]
     if venv_bin not in path_entries:
-        env["PATH"] = os.pathsep.join([venv_bin, *path_entries]) if path_entries else venv_bin
+        env["PATH"] = (
+            os.pathsep.join([venv_bin, *path_entries]) if path_entries else venv_bin
+        )
     return env
 
 
@@ -74,9 +84,14 @@ def start_mlflow_ui_service(
     if not launcher_prefix:
         mlflow_main_spec = importlib.util.find_spec("mlflow.__main__")
         if mlflow_main_spec is not None and mlflow_main_spec.origin:
-            launcher_prefix = [sys.executable, str(Path(mlflow_main_spec.origin).resolve())]
+            launcher_prefix = [
+                sys.executable,
+                str(Path(mlflow_main_spec.origin).resolve()),
+            ]
     if not launcher_prefix:
-        raise RuntimeError("Could not find a runnable mlflow launcher in the active environment")
+        raise RuntimeError(
+            "Could not find a runnable mlflow launcher in the active environment"
+        )
     command = [
         *launcher_prefix,
         "ui",
@@ -100,7 +115,9 @@ def start_mlflow_ui_service(
 
     if wait_for_service(host=host, port=selected_port, timeout_seconds=15.0):
         logger_port.info("MLflow UI is up: {}", url)
-        logger_port.info("MLflow tracking store: {} ({})", resolved_tracking_dir, backend)
+        logger_port.info(
+            "MLflow tracking store: {} ({})", resolved_tracking_dir, backend
+        )
     elif process.poll() is not None:
         tail = read_log_tail(service_log)
         if tail:

@@ -91,7 +91,9 @@ class MlflowVisualizationConfig(BaseModel):
 
 class VisualizationConfig(BaseModel):
     num_samples: int = 16
-    tensorboard: TensorBoardVisualizationConfig = Field(default_factory=TensorBoardVisualizationConfig)
+    tensorboard: TensorBoardVisualizationConfig = Field(
+        default_factory=TensorBoardVisualizationConfig
+    )
     mlflow: MlflowVisualizationConfig = Field(default_factory=MlflowVisualizationConfig)
 
 
@@ -99,7 +101,9 @@ class RuntimeConfig(BaseModel):
     description: Optional[str] = None
     common: CommonConfig = Field(default_factory=CommonConfig)
     visualization: VisualizationConfig = Field(default_factory=VisualizationConfig)
-    data_preparation: DataPreparationConfig = Field(default_factory=DataPreparationConfig)
+    data_preparation: DataPreparationConfig = Field(
+        default_factory=DataPreparationConfig
+    )
     export: ExportConfig = Field(default_factory=ExportConfig)
     actions: Dict[str, Dict] = Field(default_factory=dict)
 

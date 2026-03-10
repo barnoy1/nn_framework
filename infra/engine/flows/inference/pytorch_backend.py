@@ -29,8 +29,15 @@ def run_pytorch(args, logger) -> None:
     )
     state = runtime.wrapper.load_checkpoint_state(args.checkpoint)
     runtime.wrapper.validate_checkpoint_class_compatibility(runtime.built.model, state)
-    loaded, skipped, missing = runtime.wrapper.safe_load_state_dict(runtime.built.model, state)
-    logger.info("Loaded checkpoint tensors={}, skipped_shape={}, missing={}", loaded, skipped, missing)
+    loaded, skipped, missing = runtime.wrapper.safe_load_state_dict(
+        runtime.built.model, state
+    )
+    logger.info(
+        "Loaded checkpoint tensors={}, skipped_shape={}, missing={}",
+        loaded,
+        skipped,
+        missing,
+    )
 
     model = runtime.built.model
     postprocessor = runtime.built.postprocessor
@@ -47,17 +54,32 @@ def run_pytorch(args, logger) -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    transforms = build_image_preprocess_from_loader(runtime.app_config.data.val_dataloader, logger=logger, default_size=640)
+    transforms = build_image_preprocess_from_loader(
+        runtime.app_config.data.val_dataloader, logger=logger, default_size=640
+    )
     label_id_remap = build_label_id_remap_from_config_and_annotations(
         remap_mscoco_category=bool(runtime.app_config.data.remap_mscoco_category),
-        class_id_to_name={int(k): str(v) for k, v in (runtime.app_config.data.class_id_to_name or {}).items()},
-        annotation_files=[str(dataset_pair.ann_file) for dataset_pair in runtime.app_config.data.val_sets],
+        class_id_to_name={
+            int(k): str(v)
+            for k, v in (runtime.app_config.data.class_id_to_name or {}).items()
+        },
+        annotation_files=[
+            str(dataset_pair.ann_file)
+            for dataset_pair in runtime.app_config.data.val_sets
+        ],
     )
     image_paths = list_images(args.input_dir)
 
-    logger.info("[mangr_inference] backend=pytorch device={} images={} input={}", args.device, len(image_paths), args.input_dir)
+    logger.info(
+        "[mangr_inference] backend=pytorch device={} images={} input={}",
+        args.device,
+        len(image_paths),
+        args.input_dir,
+    )
     if not image_paths:
-        logger.warning("[mangr_inference] no supported images found; nothing to process")
+        logger.warning(
+            "[mangr_inference] no supported images found; nothing to process"
+        )
         return
 
     records = []
@@ -65,8 +87,12 @@ def run_pytorch(args, logger) -> None:
     for start in range(0, len(image_paths), args.batch_size):
         batch_paths = image_paths[start : start + args.batch_size]
         original_images = [load_pil_image(path) for path in batch_paths]
-        batch_tensor = torch.stack([transforms(image) for image in original_images], dim=0).to(device)
-        orig_sizes = torch.tensor([[image.size[0], image.size[1]] for image in original_images], device=device)
+        batch_tensor = torch.stack(
+            [transforms(image) for image in original_images], dim=0
+        ).to(device)
+        orig_sizes = torch.tensor(
+            [[image.size[0], image.size[1]] for image in original_images], device=device
+        )
 
         with torch.no_grad():
             outputs = model(batch_tensor)
@@ -89,11 +115,22 @@ def run_pytorch(args, logger) -> None:
             )
             Image.fromarray(rendered).save(output_dir / image_path.name)
 
-            records.append({"image": image_path.name, "labels": labels.tolist(), "boxes": boxes.tolist(), "scores": scores.tolist()})
+            records.append(
+                {
+                    "image": image_path.name,
+                    "labels": labels.tolist(),
+                    "boxes": boxes.tolist(),
+                    "scores": scores.tolist(),
+                }
+            )
             processed += 1
 
         logger.info("[mangr_inference] processed {}/{}", processed, len(image_paths))
 
     with (output_dir / "detections.json").open("w", encoding="utf-8") as file:
         json.dump(records, file, indent=2)
-    logger.info("[mangr_inference] done. wrote {} images + {}", processed, output_dir / "detections.json")
+    logger.info(
+        "[mangr_inference] done. wrote {} images + {}",
+        processed,
+        output_dir / "detections.json",
+    )

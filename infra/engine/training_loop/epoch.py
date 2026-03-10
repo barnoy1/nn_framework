@@ -48,7 +48,11 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
 
         if not targets_have_valid_boxes(targets):
             if trainer.accelerator.is_main_process:
-                trainer.logger.warning("Skipping batch with invalid target boxes at epoch={} step={}", epoch, step)
+                trainer.logger.warning(
+                    "Skipping batch with invalid target boxes at epoch={} step={}",
+                    epoch,
+                    step,
+                )
             continue
 
         if trainer.model_wrapper is not None:
@@ -90,11 +94,20 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
         trainer.optimizer.zero_grad(set_to_none=True)
         trainer.accelerator.backward(loss)
         if trainer.app_config.train.grad_clip_norm > 0:
-            trainer.accelerator.clip_grad_norm_(trainer.model.parameters(), trainer.app_config.train.grad_clip_norm)
+            trainer.accelerator.clip_grad_norm_(
+                trainer.model.parameters(), trainer.app_config.train.grad_clip_norm
+            )
         trainer.optimizer.step()
 
-        if trainer.accelerator.is_main_process and epoch == 0 and step < 3 and step not in trainer._saved_train_batch_steps:
-            save_train_batch_visualization_for_trainer(trainer, images=images, targets=targets, step=step)
+        if (
+            trainer.accelerator.is_main_process
+            and epoch == 0
+            and step < 3
+            and step not in trainer._saved_train_batch_steps
+        ):
+            save_train_batch_visualization_for_trainer(
+                trainer, images=images, targets=targets, step=step
+            )
             trainer._saved_train_batch_steps.add(step)
 
         running_loss += float(loss.detach().item())
@@ -117,9 +130,15 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
         for loss_key, loss_value in loss_dict.items():
             if loss_value is None:
                 continue
-            numeric = float(loss_value.detach().item()) if torch.is_tensor(loss_value) else float(loss_value)
+            numeric = (
+                float(loss_value.detach().item())
+                if torch.is_tensor(loss_value)
+                else float(loss_value)
+            )
             metrics[f"train/criterion/{loss_key}"] = numeric
-            component_sums[str(loss_key)] = component_sums.get(str(loss_key), 0.0) + numeric
+            component_sums[str(loss_key)] = (
+                component_sums.get(str(loss_key), 0.0) + numeric
+            )
         trainer.callbacks.on_batch_end(trainer, epoch, step, metrics)
 
         if pbar is not None:
@@ -138,8 +157,13 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
                 refresh=False,
             )
 
-        if step % trainer.app_config.train.log_every_n_steps == 0 and trainer.accelerator.is_main_process:
-            trainer.logger.debug("epoch={} step={} loss={:.6f}", epoch, step, metrics["train/loss"])
+        if (
+            step % trainer.app_config.train.log_every_n_steps == 0
+            and trainer.accelerator.is_main_process
+        ):
+            trainer.logger.debug(
+                "epoch={} step={} loss={:.6f}", epoch, step, metrics["train/loss"]
+            )
 
     if pbar is not None:
         pbar.close()
@@ -154,7 +178,12 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
         "dfl_loss": running_dfl_loss / float(denom),
         "custom_loss": running_custom_loss / float(denom),
     }
-    epoch_metrics.update({f"criterion/{key}": total / float(denom) for key, total in component_sums.items()})
+    epoch_metrics.update(
+        {
+            f"criterion/{key}": total / float(denom)
+            for key, total in component_sums.items()
+        }
+    )
 
     if is_main_process:
         trainer.logger.info(

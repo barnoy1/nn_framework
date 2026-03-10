@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Any, Callable, Mapping
 
 
-def constructor_accepts_parameter(*, module: str, class_name: str, parameter_name: str) -> bool:
+def constructor_accepts_parameter(
+    *, module: str, class_name: str, parameter_name: str
+) -> bool:
     model_module = import_module(module)
     constructor = getattr(model_module, class_name).__init__
     signature = inspect.signature(constructor)
@@ -32,7 +34,9 @@ def patch_yaml_class_section(
 
     changed = False
     for key, value in injected.items():
-        supports_key = constructor_accepts_parameter(module=module, class_name=class_name, parameter_name=key)
+        supports_key = constructor_accepts_parameter(
+            module=module, class_name=class_name, parameter_name=key
+        )
         if value is None:
             if key in class_payload:
                 class_payload.pop(key, None)
@@ -52,7 +56,9 @@ def patch_yaml_class_section(
     return changed
 
 
-def patch_yaml_include_tokens(*, payload: dict[str, Any], replacements: Mapping[str, str]) -> bool:
+def patch_yaml_include_tokens(
+    *, payload: dict[str, Any], replacements: Mapping[str, str]
+) -> bool:
     includes = payload.get("__include__")
     if not isinstance(includes, list):
         return False

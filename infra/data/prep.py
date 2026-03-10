@@ -21,7 +21,9 @@ def load_json(path: Path) -> dict:
 
 def rectangle_to_polygon(exterior: List[List[float]]) -> List[float]:
     if len(exterior) != 2:
-        raise ValueError(f"Rectangle exterior must contain exactly 2 points, got {len(exterior)}")
+        raise ValueError(
+            f"Rectangle exterior must contain exactly 2 points, got {len(exterior)}"
+        )
     (x1, y1), (x2, y2) = exterior
     x_min, x_max = sorted([float(x1), float(x2)])
     y_min, y_max = sorted([float(y1), float(y2)])
@@ -60,7 +62,9 @@ def normalize_bbox(polygon: Sequence[float], width: int, height: int) -> List[fl
     return [x_min, y_min, w, h]
 
 
-def convert_split(split_dir: Path, ann_subdir: str = "ann", img_subdir: str = "img") -> dict:
+def convert_split(
+    split_dir: Path, ann_subdir: str = "ann", img_subdir: str = "img"
+) -> dict:
     ann_dir = split_dir / ann_subdir
     img_dir = split_dir / img_subdir
     if not ann_dir.exists():
@@ -91,12 +95,21 @@ def convert_split(split_dir: Path, ann_subdir: str = "ann", img_subdir: str = "i
         if not image_path.exists():
             continue
 
-        images.append({"id": image_id, "file_name": image_path.name, "width": width, "height": height})
+        images.append(
+            {
+                "id": image_id,
+                "file_name": image_path.name,
+                "width": width,
+                "height": height,
+            }
+        )
 
         for obj in sample.get("objects", []):
             geometry_type = obj.get("geometryType")
             if geometry_type == "rectangle":
-                polygon = rectangle_to_polygon(obj.get("points", {}).get("exterior", []))
+                polygon = rectangle_to_polygon(
+                    obj.get("points", {}).get("exterior", [])
+                )
             elif geometry_type == "polygon":
                 exterior = obj.get("points", {}).get("exterior", [])
                 polygon = [float(v) for pt in exterior for v in pt]
@@ -110,7 +123,11 @@ def convert_split(split_dir: Path, ann_subdir: str = "ann", img_subdir: str = "i
             if source_class_id not in source_to_contiguous:
                 contiguous_id = len(source_to_contiguous)
                 source_to_contiguous[source_class_id] = contiguous_id
-                categories[source_class_id] = {"id": contiguous_id, "name": class_name, "supercategory": "none"}
+                categories[source_class_id] = {
+                    "id": contiguous_id,
+                    "name": class_name,
+                    "supercategory": "none",
+                }
 
             category_id = source_to_contiguous[source_class_id]
             bbox = normalize_bbox(polygon, width, height)
@@ -134,9 +151,14 @@ def convert_split(split_dir: Path, ann_subdir: str = "ann", img_subdir: str = "i
         image_id += 1
 
     ordered_categories = [
-        categories[src_id] for src_id, _ in sorted(source_to_contiguous.items(), key=lambda item: item[1])
+        categories[src_id]
+        for src_id, _ in sorted(source_to_contiguous.items(), key=lambda item: item[1])
     ]
-    return {"images": images, "annotations": annotations, "categories": ordered_categories}
+    return {
+        "images": images,
+        "annotations": annotations,
+        "categories": ordered_categories,
+    }
 
 
 def convert_dataset(
@@ -161,7 +183,9 @@ def convert_dataset(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Convert Supervisely annotations to COCO RLE")
+    parser = argparse.ArgumentParser(
+        description="Convert Supervisely annotations to COCO RLE"
+    )
     parser.add_argument("--dataset_root", type=Path, required=True)
     parser.add_argument("--output_dir", type=Path, required=True)
     parser.add_argument("--splits", type=str, nargs="+", default=["train", "valid"])

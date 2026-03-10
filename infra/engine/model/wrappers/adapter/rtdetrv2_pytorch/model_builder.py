@@ -5,7 +5,12 @@ from pathlib import Path
 
 from torch import nn
 
-from .schemes import MODEL_REPO_ROOT_TOKEN, REPO_ROOT_TOKEN, RUNTIME_FUNCTION_PATCHES, YAML_CLASS_PATCHES
+from .schemes import (
+    MODEL_REPO_ROOT_TOKEN,
+    REPO_ROOT_TOKEN,
+    RUNTIME_FUNCTION_PATCHES,
+    YAML_CLASS_PATCHES,
+)
 from infra.engine.model.wrappers.common import ReflectiveYamlAdapterModelBuilderBase
 
 

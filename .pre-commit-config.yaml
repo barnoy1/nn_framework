@@ -1,0 +1,50 @@
+files: ^(experiment|infra)/
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-executables-have-shebangs
+      - id: check-case-conflict
+      - id: check-added-large-files
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+
+  - repo: https://github.com/JoC0de/pre-commit-prettier
+    rev: v3.8.1 # using tag; previously pinned SHA when tags were not persistent
+    hooks:
+      - id: prettier
+        files: ^(experiment|infra)/.*\.(ya?ml)$
+        # https://prettier.io/docs/en/options.html#print-width
+        args: ["--print-width=120"]
+
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.37.1
+    hooks:
+      - id: yamllint
+        files: ^(experiment|infra)/.*\.(ya?ml)$
+        args:
+          [
+            "-d",
+            "{extends: default, rules: {line-length: {max: 120}, braces: {min-spaces-inside: 1, max-spaces-inside: 1}, truthy: disable, document-start: disable}}",
+          ]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.5
+    hooks:
+      - id: ruff-check
+        files: ^(experiment|infra)/.*\.(py)$
+        args: [--fix]
+      - id: ruff-format
+        files: ^(experiment|infra)/.*\.(py)$
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.2
+    hooks:
+      - id: codespell
+        # args: [--write-changes]
+        additional_dependencies:
+          - tomli

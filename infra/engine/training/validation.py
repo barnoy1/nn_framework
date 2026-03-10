@@ -21,7 +21,9 @@ def use_ema_weights_for_eval(ema_model, unwrapped_model, logger):
                 ema_model.restore(unwrapped_model)
             except Exception:
                 pass
-            logger.warning("EMA copy skipped during validate due to state mismatch: {}", error)
+            logger.warning(
+                "EMA copy skipped during validate due to state mismatch: {}", error
+            )
             use_ema = False
 
     try:
@@ -31,7 +33,10 @@ def use_ema_weights_for_eval(ema_model, unwrapped_model, logger):
             try:
                 ema_model.restore(unwrapped_model)
             except RuntimeError as error:
-                logger.warning("EMA restore skipped after validate due to state mismatch: {}", error)
+                logger.warning(
+                    "EMA restore skipped after validate due to state mismatch: {}",
+                    error,
+                )
 
 
 @torch.no_grad()
@@ -65,7 +70,9 @@ def compute_validation_loss_components(
         for key, value in loss_dict.items():
             if value is None:
                 continue
-            numeric = float(value.detach().item()) if torch.is_tensor(value) else float(value)
+            numeric = (
+                float(value.detach().item()) if torch.is_tensor(value) else float(value)
+            )
             component_sums[str(key)] = component_sums.get(str(key), 0.0) + numeric
 
         parts = splitter.split(loss_dict)
@@ -84,5 +91,10 @@ def compute_validation_loss_components(
         "dfl_loss": running_dfl / float(denom),
         "custom_loss": running_custom / float(denom),
     }
-    metrics.update({f"criterion/{key}": total / float(denom) for key, total in component_sums.items()})
+    metrics.update(
+        {
+            f"criterion/{key}": total / float(denom)
+            for key, total in component_sums.items()
+        }
+    )
     return metrics

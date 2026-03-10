@@ -35,7 +35,9 @@ class TrainConfig(BaseModel):
 
     @field_validator("metrics_key")
     @classmethod
-    def validate_metrics_key(cls, value: Union[str, list[str]]) -> Union[str, list[str]]:
+    def validate_metrics_key(
+        cls, value: Union[str, list[str]]
+    ) -> Union[str, list[str]]:
         if isinstance(value, str):
             normalized = value.strip()
             if not normalized:

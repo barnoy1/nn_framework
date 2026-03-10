@@ -1,4 +1,8 @@
-from .context import get_active_app_config, set_active_app_config, try_get_active_app_config
+from .context import (
+    get_active_app_config,
+    set_active_app_config,
+    try_get_active_app_config,
+)
 from .schemas import AppConfig, DataConfig, ModelConfig, RuntimeConfig, TrainConfig
 
 __all__ = [

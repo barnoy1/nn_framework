@@ -13,28 +13,30 @@ class ResolvedLossTarget:
 
 
 class CriterionSpecResolver(Protocol):
-    def resolve(self, loss_key: str, default_weight_dict: Dict[str, float]) -> ResolvedLossTarget:
-        ...
+    def resolve(
+        self, loss_key: str, default_weight_dict: Dict[str, float]
+    ) -> ResolvedLossTarget: ...
 
 
 class DFLossProvider(Protocol):
-    def __call__(self, *, outputs, targets, indices, num_boxes: float) -> Dict[str, torch.Tensor]:
-        ...
+    def __call__(
+        self, *, outputs, targets, indices, num_boxes: float
+    ) -> Dict[str, torch.Tensor]: ...
 
 
 class LossCriterionAdapter(Protocol):
     name: str
 
-    def owns(self, loss_key: str, resolver: Optional[CriterionSpecResolver] = None) -> bool:
-        ...
+    def owns(
+        self, loss_key: str, resolver: Optional[CriterionSpecResolver] = None
+    ) -> bool: ...
 
     def forward(
         self,
         loss_dict,
         default_weight_dict: Dict[str, float],
         resolver: CriterionSpecResolver,
-    ) -> Dict[str, object]:
-        ...
+    ) -> Dict[str, object]: ...
 
     def get_loss(
         self,
@@ -42,16 +44,14 @@ class LossCriterionAdapter(Protocol):
         loss_dict,
         default_weight_dict: Dict[str, float],
         resolver: CriterionSpecResolver,
-    ) -> Dict[str, object]:
-        ...
+    ) -> Dict[str, object]: ...
 
     def transform(
         self,
         loss_dict,
         default_weight_dict: Dict[str, float],
         resolver: CriterionSpecResolver,
-    ) -> Dict[str, object]:
-        ...
+    ) -> Dict[str, object]: ...
 
 
 class YoloLossAdapterBase:
@@ -66,9 +66,19 @@ class YoloLossAdapterBase:
                 return lowered[:marker_index]
         return lowered
 
-    def _scale_value(self, key_text: str, value, default_weight_dict: Dict[str, float], resolver: CriterionSpecResolver):
+    def _scale_value(
+        self,
+        key_text: str,
+        value,
+        default_weight_dict: Dict[str, float],
+        resolver: CriterionSpecResolver,
+    ):
         target = resolver.resolve(key_text, default_weight_dict)
-        base_coef = float(default_weight_dict.get(key_text, default_weight_dict.get(self._base_key(key_text), 1.0)))
+        base_coef = float(
+            default_weight_dict.get(
+                key_text, default_weight_dict.get(self._base_key(key_text), 1.0)
+            )
+        )
         scale = 0.0 if base_coef == 0.0 else float(target.coef) / base_coef
 
         if torch.is_tensor(value):
@@ -79,10 +89,24 @@ class YoloLossAdapterBase:
 class ModelAgnosticDetCriterionAdapterBase(YoloLossAdapterBase):
     losses = ("boxes", "vfl", "focal", "dfl")
 
-    def transform(self, loss_dict, default_weight_dict: Dict[str, float], resolver: CriterionSpecResolver) -> Dict[str, object]:
-        return self.forward(loss_dict=loss_dict, default_weight_dict=default_weight_dict, resolver=resolver)
+    def transform(
+        self,
+        loss_dict,
+        default_weight_dict: Dict[str, float],
+        resolver: CriterionSpecResolver,
+    ) -> Dict[str, object]:
+        return self.forward(
+            loss_dict=loss_dict,
+            default_weight_dict=default_weight_dict,
+            resolver=resolver,
+        )
 
-    def forward(self, loss_dict, default_weight_dict: Dict[str, float], resolver: CriterionSpecResolver) -> Dict[str, object]:
+    def forward(
+        self,
+        loss_dict,
+        default_weight_dict: Dict[str, float],
+        resolver: CriterionSpecResolver,
+    ) -> Dict[str, object]:
         merged: Dict[str, object] = {}
         for loss_name in self.losses:
             merged.update(
@@ -95,7 +119,13 @@ class ModelAgnosticDetCriterionAdapterBase(YoloLossAdapterBase):
             )
         return merged
 
-    def get_loss(self, loss_name: str, loss_dict, default_weight_dict: Dict[str, float], resolver: CriterionSpecResolver):
+    def get_loss(
+        self,
+        loss_name: str,
+        loss_dict,
+        default_weight_dict: Dict[str, float],
+        resolver: CriterionSpecResolver,
+    ):
         loss_map = {
             "boxes": self.loss_boxes,
             "vfl": self.loss_labels_vfl,
@@ -129,7 +159,12 @@ class ModelAgnosticDetCriterionAdapterBase(YoloLossAdapterBase):
             )
         return collected
 
-    def loss_boxes(self, loss_dict, default_weight_dict: Dict[str, float], resolver: CriterionSpecResolver):
+    def loss_boxes(
+        self,
+        loss_dict,
+        default_weight_dict: Dict[str, float],
+        resolver: CriterionSpecResolver,
+    ):
         return self._collect_scaled(
             loss_dict=loss_dict,
             default_weight_dict=default_weight_dict,
@@ -137,7 +172,12 @@ class ModelAgnosticDetCriterionAdapterBase(YoloLossAdapterBase):
             base_terms=("loss_bbox", "loss_giou"),
         )
 
-    def loss_labels_vfl(self, loss_dict, default_weight_dict: Dict[str, float], resolver: CriterionSpecResolver):
+    def loss_labels_vfl(
+        self,
+        loss_dict,
+        default_weight_dict: Dict[str, float],
+        resolver: CriterionSpecResolver,
+    ):
         return self._collect_scaled(
             loss_dict=loss_dict,
             default_weight_dict=default_weight_dict,
@@ -145,7 +185,12 @@ class ModelAgnosticDetCriterionAdapterBase(YoloLossAdapterBase):
             base_terms=("loss_vfl",),
         )
 
-    def loss_labels_focal(self, loss_dict, default_weight_dict: Dict[str, float], resolver: CriterionSpecResolver):
+    def loss_labels_focal(
+        self,
+        loss_dict,
+        default_weight_dict: Dict[str, float],
+        resolver: CriterionSpecResolver,
+    ):
         return self._collect_scaled(
             loss_dict=loss_dict,
             default_weight_dict=default_weight_dict,
@@ -153,7 +198,12 @@ class ModelAgnosticDetCriterionAdapterBase(YoloLossAdapterBase):
             base_terms=("loss_focal",),
         )
 
-    def loss_dfl(self, loss_dict, default_weight_dict: Dict[str, float], resolver: CriterionSpecResolver):
+    def loss_dfl(
+        self,
+        loss_dict,
+        default_weight_dict: Dict[str, float],
+        resolver: CriterionSpecResolver,
+    ):
         return self._collect_scaled(
             loss_dict=loss_dict,
             default_weight_dict=default_weight_dict,
