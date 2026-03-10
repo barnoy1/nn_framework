@@ -4,8 +4,11 @@ from typing import Dict, Optional
 
 from ..flows.eval.eval_artifacts import run_eval_artifacts
 from ..training import use_ema_weights_for_eval
+from .display import log_yolo_header
+from .progress import build_common_bucket_names, build_progress_row
 from .utils import (
     compute_validation_loss_components_for_trainer,
+    gpu_mem_reserved_gb,
     save_eval_batch_visualizations_for_trainer,
     save_val_batch_visualizations_for_trainer,
 )
@@ -52,6 +55,22 @@ def validate_epoch(
         trainer.last_validation_confusion_matrix = diagnostics.get("confusion_matrix")
         trainer.last_validation_confusion_labels = diagnostics.get(
             "confusion_labels", []
+        )
+
+    if trainer.accelerator.is_main_process:
+        common_bucket_names = build_common_bucket_names(trainer)
+        log_yolo_header(trainer.logger, common_bucket_names=common_bucket_names)
+        trainer.logger.info(
+            "{}",
+            build_progress_row(
+                epoch_index=epoch,
+                total_epochs=trainer.total_epochs,
+                gpu_mem_gb=gpu_mem_reserved_gb(trainer),
+                values=metrics,
+                common_bucket_names=common_bucket_names,
+                instances=0,
+                image_size="-",
+            ),
         )
 
     trainer.callbacks.on_validation_end(trainer, epoch, metrics)

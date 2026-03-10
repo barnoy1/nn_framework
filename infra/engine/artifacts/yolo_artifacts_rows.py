@@ -8,17 +8,13 @@ RESULTS_FIELDNAMES = [
     "epoch",
     "time",
     "train/total_loss",
-    "train/box_loss",
-    "train/cls_loss",
-    "train/dfl_loss",
+    "train/custom_loss",
     "metrics/precision(B)",
     "metrics/recall(B)",
     "metrics/mAP50(B)",
     "metrics/mAP50-95(B)",
     "val/total_loss",
-    "val/box_loss",
-    "val/cls_loss",
-    "val/dfl_loss",
+    "val/custom_loss",
     "val_map",
     "lr/pg0",
     "lr/pg1",
@@ -48,9 +44,7 @@ def build_epoch_row(
         "epoch": float(epoch + 1),
         "time": float(epoch + 1),
         "train/total_loss": float(metrics.get("train_loss", 0.0)),
-        "train/box_loss": float(metrics.get("train_box_loss", 0.0)),
-        "train/cls_loss": float(metrics.get("train_cls_loss", 0.0)),
-        "train/dfl_loss": float(metrics.get("train_dfl_loss", 0.0)),
+        "train/custom_loss": float(metrics.get("train_custom_loss", 0.0)),
         "metrics/precision(B)": float(precision),
         "metrics/recall(B)": float(recall),
         "metrics/F1(B)": float(f1),
@@ -60,9 +54,7 @@ def build_epoch_row(
             metrics.get("val_bbox_map", metrics.get("val_map", 0.0))
         ),
         "val/total_loss": float(metrics.get("val_loss", 0.0)),
-        "val/box_loss": float(metrics.get("val_box_loss", 0.0)),
-        "val/cls_loss": float(metrics.get("val_cls_loss", 0.0)),
-        "val/dfl_loss": float(metrics.get("val_dfl_loss", 0.0)),
+        "val/custom_loss": float(metrics.get("val_custom_loss", 0.0)),
         "val_map": float(metrics.get("val_map", metrics.get("val_bbox_map", 0.0))),
         "lr/pg0": float(lr0),
         "lr/pg1": float(lr1),
@@ -70,6 +62,18 @@ def build_epoch_row(
         "val/bbox_map_75": float(metrics.get("val_bbox_map_75", 0.0)),
         "val/bbox_mar_100": float(metrics.get("val_bbox_mar_100", 0.0)),
     }
+
+    for key, value in metrics.items():
+        if not (key.startswith("train_") or key.startswith("val_")):
+            continue
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            continue
+        metric_path = key.replace("_", "/", 1)
+        if metric_path in row:
+            continue
+        row[metric_path] = numeric
 
     for key, value in metrics.items():
         try:

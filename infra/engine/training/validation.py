@@ -50,10 +50,7 @@ def compute_validation_loss_components(
 ) -> Dict[str, float]:
     model.eval()
     running_total = 0.0
-    running_box = 0.0
-    running_cls = 0.0
-    running_dfl = 0.0
-    running_custom = 0.0
+    running_parts: Dict[str, float] = {}
     component_sums: Dict[str, float] = {}
     num_steps = 0
 
@@ -77,20 +74,16 @@ def compute_validation_loss_components(
 
         parts = splitter.split(loss_dict)
         running_total += float(total_loss.detach().item())
-        running_box += float(parts["box_loss"])
-        running_cls += float(parts["cls_loss"])
-        running_dfl += float(parts["dfl_loss"])
-        running_custom += float(parts["custom_loss"])
+        for key, value in parts.items():
+            running_parts[key] = running_parts.get(key, 0.0) + float(value)
         num_steps += 1
 
     denom = max(1, num_steps)
-    metrics = {
-        "loss": running_total / float(denom),
-        "box_loss": running_box / float(denom),
-        "cls_loss": running_cls / float(denom),
-        "dfl_loss": running_dfl / float(denom),
-        "custom_loss": running_custom / float(denom),
-    }
+    metrics = {"loss": running_total / float(denom)}
+    metrics.update(
+        {key: total / float(denom) for key, total in running_parts.items()}
+    )
+    metrics.setdefault("custom_loss", 0.0)
     metrics.update(
         {
             f"criterion/{key}": total / float(denom)

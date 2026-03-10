@@ -37,3 +37,5 @@ train_dataloader:
         epoch: 117
   collate_fn:
     scales: ~
+
+eval_spatial_size: [512, 512]

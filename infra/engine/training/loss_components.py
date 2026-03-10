@@ -12,32 +12,34 @@ class LossComponentSplitter:
         self._terms = terms
 
     def has_dfl_terms(self) -> bool:
-        return any(str(term).strip() for term in self._terms.get("dfl", []))
+        return any(str(term).strip() for term in self._terms.get("common_dfl", []))
 
     @classmethod
     def from_config(cls, app_config) -> "LossComponentSplitter":
         configured_pairs = app_config.model.losses.criterion_pairs
+        common_terms = list(
+            dict.fromkeys(
+                [
+                    canonical_loss_alias(str(item.loss))
+                    for item in configured_pairs.iter_adapter_common()
+                ]
+            )
+        )
+        dfl_terms = list(
+            dict.fromkeys(
+                [canonical_loss_alias(str(item.loss)) for item in configured_pairs.dfl]
+            )
+        )
+        concrete_terms = [
+            canonical_loss_alias(str(item.loss))
+            for item in configured_pairs.iter_concrete_model()
+        ]
+
         terms = {
-            "box": [
-                canonical_loss_alias(str(item.loss)) for item in configured_pairs.box
-            ],
-            "cls": [
-                canonical_loss_alias(str(item.loss)) for item in configured_pairs.cls
-            ],
-            "dfl": [
-                canonical_loss_alias(str(item.loss)) for item in configured_pairs.dfl
-            ],
-            "custom": [
-                canonical_loss_alias(str(item.loss)) for item in configured_pairs.custom
-            ],
+            "common": common_terms,
+            "common_dfl": [term for term in dfl_terms if term in common_terms],
+            "custom": list(dict.fromkeys(concrete_terms)),
         }
-
-        if not terms["custom"]:
-            terms["custom"] = [
-                canonical_loss_alias(str(item.loss))
-                for item in configured_pairs.iter_concrete_model()
-            ]
-
         return cls(terms=terms)
 
     @staticmethod
@@ -55,9 +57,9 @@ class LossComponentSplitter:
         return False
 
     def split(self, loss_dict: Dict[str, torch.Tensor]) -> Dict[str, float]:
-        box_loss = 0.0
-        cls_loss = 0.0
-        dfl_loss = 0.0
+        common_totals = {
+            term: 0.0 for term in self._terms.get("common", []) if str(term).strip()
+        }
         custom_loss = 0.0
 
         for key, value in loss_dict.items():
@@ -66,18 +68,20 @@ class LossComponentSplitter:
             numeric = (
                 float(value.detach().item()) if torch.is_tensor(value) else float(value)
             )
-            if self._matches_any(str(key), self._terms["custom"]):
+            if self._matches_any(str(key), self._terms.get("custom", [])):
                 custom_loss += numeric
-            elif self._matches_any(str(key), self._terms["dfl"]):
-                dfl_loss += numeric
-            elif self._matches_any(str(key), self._terms["box"]):
-                box_loss += numeric
-            elif self._matches_any(str(key), self._terms["cls"]):
-                cls_loss += numeric
+                continue
 
-        return {
-            "box_loss": box_loss,
-            "cls_loss": cls_loss,
-            "dfl_loss": dfl_loss,
-            "custom_loss": custom_loss,
+            for term in self._terms.get("common", []):
+                if self._matches_any(str(key), [term]):
+                    common_totals[term] = common_totals.get(term, 0.0) + numeric
+                    break
+
+        per_common = {
+            f"common_{str(term).rstrip('_')}": float(total)
+            for term, total in common_totals.items()
         }
+
+        payload = {"custom_loss": custom_loss}
+
+        return payload | per_common

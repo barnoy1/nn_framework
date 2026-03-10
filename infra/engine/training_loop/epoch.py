@@ -4,7 +4,8 @@ from typing import Dict
 
 import torch
 
-from .display import create_epoch_progress_bar, log_yolo_header, yolo_progress_row
+from .display import create_epoch_progress_bar, log_yolo_header
+from .progress import build_common_bucket_names, build_progress_row, recover_if_cuda_oom
 from .utils import (
     batch_instances,
     gpu_mem_reserved_gb,
@@ -20,19 +21,15 @@ from .utils import (
 def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
     trainer.model.train()
     running_loss = 0.0
-    running_box_loss = 0.0
-    running_cls_loss = 0.0
-    running_dfl_loss = 0.0
-    running_custom_loss = 0.0
+    running_parts: Dict[str, float] = {}
     running_instances = 0.0
     last_size = "-"
     component_sums: Dict[str, float] = {}
     num_steps = 0
-    dfl_enabled = bool(getattr(trainer._loss_splitter, "has_dfl_terms", lambda: True)())
-
+    common_bucket_names = build_common_bucket_names(trainer)
     is_main_process = bool(trainer.accelerator.is_main_process)
     if is_main_process:
-        log_yolo_header(trainer.logger, dfl_enabled=dfl_enabled)
+        log_yolo_header(trainer.logger, common_bucket_names=common_bucket_names)
 
     train_iterable = trainer.train_loader
     pbar = None
@@ -77,6 +74,10 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
                 )
             trainer.optimizer.zero_grad(set_to_none=True)
             continue
+        except (torch.OutOfMemoryError, RuntimeError) as error:
+            if recover_if_cuda_oom(trainer, epoch=epoch, step=step, error=error):
+                continue
+            raise
 
         if not torch.isfinite(loss):
             if trainer.accelerator.is_main_process:
@@ -92,12 +93,17 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
         warn_unmatched_configured_losses(trainer, loss_dict)
 
         trainer.optimizer.zero_grad(set_to_none=True)
-        trainer.accelerator.backward(loss)
-        if trainer.app_config.train.grad_clip_norm > 0:
-            trainer.accelerator.clip_grad_norm_(
-                trainer.model.parameters(), trainer.app_config.train.grad_clip_norm
-            )
-        trainer.optimizer.step()
+        try:
+            trainer.accelerator.backward(loss)
+            if trainer.app_config.train.grad_clip_norm > 0:
+                trainer.accelerator.clip_grad_norm_(
+                    trainer.model.parameters(), trainer.app_config.train.grad_clip_norm
+                )
+            trainer.optimizer.step()
+        except (torch.OutOfMemoryError, RuntimeError) as error:
+            if recover_if_cuda_oom(trainer, epoch=epoch, step=step, error=error):
+                continue
+            raise
 
         if (
             trainer.accelerator.is_main_process
@@ -112,21 +118,15 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
 
         running_loss += float(loss.detach().item())
         parts = split_loss_components(trainer, loss_dict)
-        running_box_loss += float(parts["box_loss"])
-        running_cls_loss += float(parts["cls_loss"])
-        running_dfl_loss += float(parts["dfl_loss"])
-        running_custom_loss += float(parts["custom_loss"])
+        for key, value in parts.items():
+            running_parts[key] = running_parts.get(key, 0.0) + float(value)
         running_instances += float(current_instances)
         num_steps += 1
         trainer.global_step += 1
 
-        metrics = {
-            "train/loss": float(loss.detach().item()),
-            "train/box_loss": float(parts["box_loss"]),
-            "train/cls_loss": float(parts["cls_loss"]),
-            "train/dfl_loss": float(parts["dfl_loss"]),
-            "train/custom_loss": float(parts["custom_loss"]),
-        }
+        metrics = {"train/loss": float(loss.detach().item())}
+        for key, value in parts.items():
+            metrics[f"train/{key}"] = float(value)
         for loss_key, loss_value in loss_dict.items():
             if loss_value is None:
                 continue
@@ -143,14 +143,12 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
 
         if pbar is not None:
             pbar.set_description(
-                yolo_progress_row(
+                build_progress_row(
                     epoch_index=epoch,
                     total_epochs=trainer.total_epochs,
                     gpu_mem_gb=gpu_mem_reserved_gb(trainer),
-                    box_loss=float(parts["box_loss"]),
-                    cls_loss=float(parts["cls_loss"]),
-                    dfl_loss=float(parts["dfl_loss"]),
-                    dfl_enabled=dfl_enabled,
+                    values=parts,
+                    common_bucket_names=common_bucket_names,
                     instances=int(current_instances),
                     image_size=current_size,
                 ),
@@ -171,13 +169,11 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
     trainer.scheduler.step()
     denom = max(1, num_steps)
     avg_instances = running_instances / float(denom)
-    epoch_metrics = {
-        "loss": running_loss / float(denom),
-        "box_loss": running_box_loss / float(denom),
-        "cls_loss": running_cls_loss / float(denom),
-        "dfl_loss": running_dfl_loss / float(denom),
-        "custom_loss": running_custom_loss / float(denom),
-    }
+    epoch_metrics = {"loss": running_loss / float(denom)}
+    epoch_metrics.update(
+        {key: total / float(denom) for key, total in running_parts.items()}
+    )
+    epoch_metrics.setdefault("custom_loss", 0.0)
     epoch_metrics.update(
         {
             f"criterion/{key}": total / float(denom)
@@ -188,14 +184,12 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
     if is_main_process:
         trainer.logger.info(
             "{}",
-            yolo_progress_row(
+            build_progress_row(
                 epoch_index=epoch,
                 total_epochs=trainer.total_epochs,
                 gpu_mem_gb=gpu_mem_reserved_gb(trainer),
-                box_loss=float(epoch_metrics["box_loss"]),
-                cls_loss=float(epoch_metrics["cls_loss"]),
-                dfl_loss=float(epoch_metrics["dfl_loss"]),
-                dfl_enabled=dfl_enabled,
+                values=epoch_metrics,
+                common_bucket_names=common_bucket_names,
                 instances=int(round(avg_instances)),
                 image_size=last_size,
             ),

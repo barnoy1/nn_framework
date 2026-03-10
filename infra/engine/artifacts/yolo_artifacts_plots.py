@@ -130,14 +130,29 @@ def render_training_artifact_plots(
     plt.close(metrics_fig)
 
     for prefix in ("train", "val"):
+        common_component_fields = sorted(
+            {
+                field
+                for row in rows
+                for field in row.keys()
+                if field.startswith(f"{prefix}/")
+                and field.startswith(f"{prefix}/common_")
+            }
+        )
+        common_component_fields = [
+            field for field in common_component_fields if all(field in row for row in rows)
+        ]
+
         plt.figure(figsize=(9, 5))
-        for name in ("box_loss", "cls_loss", "dfl_loss"):
-            field = f"{prefix}/{name}"
+        for field in common_component_fields:
+            label = field.removeprefix(f"{prefix}/")
+            if label.startswith("common_"):
+                label = label.removeprefix("common_")
             plt.plot(
                 epochs,
                 [row[field] for row in rows],
                 marker="o",
-                label=name.removesuffix("_loss"),
+                label=label,
             )
         plt.xlabel("epoch")
         plt.ylabel("loss")

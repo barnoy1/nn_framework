@@ -145,7 +145,11 @@ class CheckpointCallback(Callback):
         if not trainer.accelerator.is_main_process:
             return
 
-        if (epoch + 1) % self.save_every_n_epochs == 0:
+        total_epochs = int(getattr(trainer, "total_epochs", 0) or 0)
+        is_last_epoch = total_epochs > 0 and (epoch + 1) >= total_epochs
+        is_periodic_epoch = (epoch + 1) % self.save_every_n_epochs == 0
+
+        if is_periodic_epoch or is_last_epoch:
             self._save(trainer, f"checkpoint_epoch_{epoch + 1}.pt")
         self._save(trainer, "last.pt")
 

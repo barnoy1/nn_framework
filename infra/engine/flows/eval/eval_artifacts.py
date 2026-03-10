@@ -152,7 +152,16 @@ def _update_eval_history_files(
 
 def _build_eval_metric_payload(metrics: Dict[str, float]) -> Dict[str, float]:
     payload: Dict[str, float] = {}
-    loss_keys = {"loss", "box_loss", "cls_loss", "dfl_loss", "custom_loss"}
+    loss_keys = {
+        "loss",
+        "box_loss",
+        "cls_loss",
+        "dfl_loss",
+        "custom_loss",
+        "vfl_loss",
+        "focal_loss",
+        "giou_loss",
+    }
 
     for key, value in metrics.items():
         try:
@@ -161,7 +170,12 @@ def _build_eval_metric_payload(metrics: Dict[str, float]) -> Dict[str, float]:
             continue
 
         payload[f"eval/{key}"] = numeric
-        if key in loss_keys or key.startswith("criterion/"):
+        if (
+            key in loss_keys
+            or key.startswith("criterion/")
+            or key.startswith("common_")
+            or key.endswith("_loss")
+        ):
             payload[f"evaluation/losses/{key}"] = numeric
         else:
             payload[f"evaluation/coco/{key}"] = numeric

@@ -25,22 +25,18 @@ model:
     fallback_to_model_default: true
     criterion_pairs:
       adapter_common:
-        # Model-agnostic defaults aligned with YOLO-style gains where RT-DETR terms exist:
-        #   - box ~= 7.5  -> loss_bbox
-        #   - cls ~= 0.5  -> loss_vfl/loss_focal
-        #   - dfl ~= 1.5  -> loss_dfl (requires a model DFL provider to produce non-zero values)
+        # Active model-agnostic losses in the 2-stage pipeline for RT-DETRv2 outputs.
+        # DFL is intentionally omitted (no DFL provider in this runtime path).
         - loss: loss_bbox
-          coef: 7.5
+          coef: 5.0
         - loss: loss_giou
           coef: 2.0
         - loss: loss_vfl
-          coef: 0.5
+          coef: 1.0
         - loss: loss_focal
-          coef: 0.5
-        - loss: loss_dfl
-          coef: 1.5
+          coef: 0.25
       concrete_model:
-        # RT-DETRv2-specific auxiliary supervision variants.
+        # RT-DETRv2-specific decoder auxiliary supervision variants (suffix: _aux_{i}).
         - loss: loss_bbox_aux_
           coef: 5.0
         - loss: loss_giou_aux_
@@ -50,7 +46,7 @@ model:
         - loss: loss_focal_aux_
           coef: 5.0
 
-        # RT-DETRv2-specific denoising supervision variants.
+        # RT-DETRv2-specific denoising supervision variants (suffix: _dn_{i}).
         - loss: loss_bbox_dn_
           coef: 5.0
         - loss: loss_giou_dn_
@@ -60,7 +56,7 @@ model:
         - loss: loss_focal_dn_
           coef: 1.0
 
-        # RT-DETRv2-specific encoder supervision variants.
+        # RT-DETRv2-specific encoder supervision variants (suffix: _enc_{i}).
         - loss: loss_bbox_enc_
           coef: 5.0
         - loss: loss_giou_enc_
@@ -72,9 +68,9 @@ model:
 
 train:
   # Per-step training batch size.
-  batch_size: 8
+  batch_size: 1
   # Per-step validation batch size.
-  val_batch_size: 8
+  val_batch_size: 1
   # Base optimizer learning rate.
   lr: 0.00002
   # Multiplier applied to backbone LR relative to base LR.
@@ -242,7 +238,7 @@ data:
           # Image-only grayscale conversion (keeps 3 channels).
           - { type: ToGray, p: 0.2 }
           # Final spatial normalization to model input size.
-          - { type: Resize, size: [640, 640] }
+          - { type: Resize, size: [512, 512] }
           # Convert image to float tensor-like representation with scaling.
           - { type: ConvertPILImage, dtype: "float32", scale: true }
           # Convert GT boxes to normalized cxcywh expected by model/loss.
@@ -255,7 +251,7 @@ data:
       # Batch collation strategy.
       type: BatchImageCollateFunction
       # Multi-scale training candidate sizes.
-      scales: [480, 512, 544, 576, 608, 640]
+      scales: [384, 416, 448, 480, 512]
 
   val_dataloader:
     # Loader implementation type.
@@ -275,7 +271,7 @@ data:
         type: Compose
         ops:
           # Deterministic resize for validation/inference parity.
-          - { type: LetterBox, size: [640, 640], fill_value: 114 }
+          - { type: LetterBox, size: [512, 512], fill_value: 114 }
           # Convert image to scaled float representation.
           - { type: ConvertPILImage, dtype: "float32", scale: true }
     # Keep deterministic order for reproducible eval.

@@ -1,29 +1,44 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Dict
 
 from tqdm.auto import tqdm
 
-_HEADER_FORMAT = "%11s" * 7
-_ROW_FORMAT = "%11s%11s%11s%11s%11s%11d%11s"
+_COL_WIDTH = 11
 
 
-def _format_loss_value(value: Optional[float], enabled: bool) -> str:
-    if not enabled or value is None:
-        return "N/A"
+def _format_loss_value(value: float | None) -> str:
+    if value is None:
+        return "0.00000"
     return f"{float(value):.5f}"
 
 
-def log_yolo_header(logger, *, dfl_enabled: bool = True) -> None:
-    header = _HEADER_FORMAT % (
+def _render_row(columns: list[object]) -> str:
+    return " ".join(f"{str(value):>{_COL_WIDTH}}" for value in columns)
+
+
+def _display_bucket_name(bucket_name: str) -> str:
+    normalized = str(bucket_name).strip()
+    if normalized.startswith("common_"):
+        return normalized[len("common_") :]
+    return normalized
+
+
+def log_yolo_header(
+    logger,
+    *,
+    common_bucket_names: list[str],
+) -> None:
+    display_bucket_names = [_display_bucket_name(name) for name in common_bucket_names]
+    header_columns = [
         "Epoch",
         "GPU_mem",
-        "box_loss",
-        "cls_loss",
-        "dfl_loss" if dfl_enabled else "dfl(N/A)",
+        *display_bucket_names,
+        "custom_loss",
         "Instances",
         "Size",
-    )
+    ]
+    header = _render_row(header_columns)
     logger.info("\n{}", header)
 
 
@@ -32,21 +47,25 @@ def yolo_progress_row(
     epoch_index: int,
     total_epochs: int,
     gpu_mem_gb: float,
-    box_loss: float,
-    cls_loss: float,
-    dfl_loss: Optional[float],
-    dfl_enabled: bool,
+    custom_loss: float,
+    common_bucket_names: list[str],
+    common_bucket_values: Dict[str, float],
     instances: int,
     image_size: str,
 ) -> str:
-    return _ROW_FORMAT % (
-        f"{epoch_index + 1}/{total_epochs}",
-        f"{gpu_mem_gb:.3f}G",
-        _format_loss_value(box_loss, True),
-        _format_loss_value(cls_loss, True),
-        _format_loss_value(dfl_loss, dfl_enabled),
-        int(instances),
-        str(image_size),
+    common_values = [
+        _format_loss_value(common_bucket_values.get(name, 0.0))
+        for name in common_bucket_names
+    ]
+    return _render_row(
+        [
+            f"{epoch_index + 1}/{total_epochs}",
+            f"{gpu_mem_gb:.3f}G",
+            _format_loss_value(custom_loss),
+            *common_values,
+            int(instances),
+            str(image_size),
+        ]
     )
 
 

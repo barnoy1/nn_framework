@@ -20,55 +20,47 @@ model:
     # Concrete criterion loss-to-coefficient pairing (used for optimization + reporting groups).
     # Grouping policy:
     #   - adapter_common: framework-agnostic/common (YOLO-like) losses
-    #   - concrete_model: model-specific (RT-DETRv2) losses
-    # Prefix entries (for example: loss_bbox_aux_) match all indexed losses like loss_bbox_aux_0, loss_bbox_aux_1, ...
+    #   - concrete_model: model-specific (RF-DETR SetCriterion) losses
+    # Prefix entries (for example: loss_bbox_) match indexed losses like loss_bbox_0, loss_bbox_1, ...
     fallback_to_model_default: true
     criterion_pairs:
       adapter_common:
-        # Model-agnostic defaults aligned with YOLO-style gains where RT-DETR terms exist:
-        #   - box ~= 7.5  -> loss_bbox
-        #   - cls ~= 0.5  -> loss_vfl/loss_focal
-        #   - dfl ~= 1.5  -> loss_dfl (requires a model DFL provider to produce non-zero values)
+        # Model-agnostic losses produced by the framework common criterion.
+        # These are applied on top of concrete-model losses in the 2-stage pipeline.
+        - loss: cls_loss
+          coef: 1.0
         - loss: loss_bbox
-          coef: 7.5
+          coef: 5.0
         - loss: loss_giou
           coef: 2.0
         - loss: loss_vfl
-          coef: 0.5
+          coef: 1.0
         - loss: loss_focal
-          coef: 0.5
-        - loss: loss_dfl
-          coef: 1.5
+          coef: 0.25
       concrete_model:
-        # RT-DETRv2-specific auxiliary supervision variants.
-        - loss: loss_bbox_aux_
-          coef: 5.0
-        - loss: loss_giou_aux_
+        # RF-DETR classification + mask terms.
+        - loss: loss_ce
           coef: 2.0
-        - loss: loss_vfl_aux_
+        - loss: loss_mask_ce
           coef: 5.0
-        - loss: loss_focal_aux_
+        - loss: loss_mask_dice
           coef: 5.0
 
-        # RT-DETRv2-specific denoising supervision variants.
-        - loss: loss_bbox_dn_
+        # RF-DETR decoder auxiliary losses are suffixed with _{i}.
+        - loss: loss_bbox_
           coef: 5.0
-        - loss: loss_giou_dn_
+        - loss: loss_giou_
           coef: 2.0
-        - loss: loss_vfl_dn_
-          coef: 1.0
-        - loss: loss_focal_dn_
-          coef: 1.0
+        - loss: loss_ce_
+          coef: 2.0
 
-        # RT-DETRv2-specific encoder supervision variants.
-        - loss: loss_bbox_enc_
+        # RF-DETR encoder auxiliary losses are suffixed with _enc.
+        - loss: loss_bbox_enc
           coef: 5.0
-        - loss: loss_giou_enc_
+        - loss: loss_giou_enc
           coef: 2.0
-        - loss: loss_vfl_enc_
-          coef: 5.0
-        - loss: loss_focal_enc_
-          coef: 5.0
+        - loss: loss_ce_enc
+          coef: 2.0
 
 train:
   # Per-step training batch size.

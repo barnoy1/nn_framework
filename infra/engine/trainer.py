@@ -88,6 +88,7 @@ class Trainer:
 
         self.global_step = 0
         self.current_epoch = 0
+        self._oom_skip_count = 0
         self._saved_train_batch_steps: set[int] = set()
         self._warned_unmatched_configured_losses = False
         self.last_validation_confusion_matrix: Optional[np.ndarray] = None
