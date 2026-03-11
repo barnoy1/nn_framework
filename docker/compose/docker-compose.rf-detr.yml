@@ -1,10 +1,12 @@
 services:
   model:
+    container_name: nn-framework-rf-detr-model
     env_file:
       - compose/.env.rf-detr
     build:
       context: ..
       dockerfile: infra/engine/model/wrappers/adapter/rf_detr/Dockerfile
+      network: host
     image: rf-detr-model:local
     networks:
       - nn-net

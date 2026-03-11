@@ -21,8 +21,7 @@ dist/
 artifacts/
 input_data/
 
-# Large/raw model sources are not needed in runner image
-raw_models/
+# Keep raw_models available for adapter image builds.
 
 # Local editor / OS files
 .vscode/

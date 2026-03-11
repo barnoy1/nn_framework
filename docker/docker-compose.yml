@@ -1,8 +1,12 @@
+name: nn-framework
+
 services:
   runner:
+    container_name: nn-framework-runner
     build:
       context: ..
       dockerfile: docker/Dockerfile
+      network: host
     image: nn-framework-runner:local
     working_dir: /workspace
     environment:
@@ -24,6 +28,8 @@ services:
       - ../:/workspace
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ${XAUTHORITY:-/dev/null}:/root/.Xauthority:ro
+      - /tmp:/tmp
+      - /ho
     deploy:
       resources:
         reservations:

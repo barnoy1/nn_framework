@@ -1,10 +1,12 @@
 services:
   model:
+    container_name: nn-framework-rtdetrv2-model
     env_file:
       - compose/.env.rtdetrv2
     build:
       context: ..
       dockerfile: infra/engine/model/wrappers/adapter/rtdetrv2_pytorch/Dockerfile
+      network: host
     image: rtdetrv2-model:local
     networks:
       - nn-net
