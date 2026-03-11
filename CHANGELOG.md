@@ -6,6 +6,7 @@
 
 ### ci
 
+- **docker**: build docker runner+model
 - **docker**: add framework dockerfiles
 
 ## [v3.1.0](https://github.com/barnoy1/nn_framework/releases/tag/v3.1.0) (2026-03-10) ([diff](https://github.com/barnoy1/nn_framework/compare/v3.0.1...v3.1.0))
