@@ -4,6 +4,8 @@ tag_format = "v$version"
 version_scheme = "semver"
 version_provider = "uv"
 update_changelog_on_bump = true
+changelog_file = "CHANGELOG.md"
+template = ".cz_changelog.j2"
 
 [tool.commitizen.customize]
 schema = "<type>(<scope>): <subject>"

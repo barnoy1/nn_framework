@@ -1,5 +1,9 @@
 ## Unreleased ([diff](https://github.com/barnoy1/nn_framework/compare/v3.1.0...HEAD))
 
+### docs
+
+- **changelog**: adding changelog template w hyperlinks versions
+
 ### ci
 
 - **docker**: add framework dockerfiles
