@@ -89,10 +89,17 @@ def segmentation_enabled(app_config) -> bool:
     if "segm" in iou_types:
         return True
     concrete_specs = (
-        getattr(getattr(app_config.model.losses, "criterion_pairs", None), "concrete_model", [])
+        getattr(
+            getattr(app_config.model.losses, "criterion_pairs", None),
+            "concrete_model",
+            [],
+        )
         or []
     )
-    return any("mask" in str(getattr(item, "loss", "")).strip().lower() for item in concrete_specs)
+    return any(
+        "mask" in str(getattr(item, "loss", "")).strip().lower()
+        for item in concrete_specs
+    )
 
 
 def _resolve_model_variant(config_name: str) -> str:

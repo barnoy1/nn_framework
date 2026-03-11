@@ -57,8 +57,3 @@ type = "confirm"
 name = "is_breaking"
 message = "Is this a BREAKING CHANGE? Correlates with MAJOR in SemVer"
 default = false
-
-[[tool.commitizen.customize.questions]]
-type = "input"
-name = "footer"
-message = "Footer. Information about Breaking Changes and reference issues that this commit closes"

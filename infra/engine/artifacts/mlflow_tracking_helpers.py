@@ -67,7 +67,9 @@ def extract_run_metadata_from_experiment_yaml(
     if not isinstance(payload, dict):
         return {}
 
-    runtime_cfg = payload.get("runtime") if isinstance(payload.get("runtime"), dict) else {}
+    runtime_cfg = (
+        payload.get("runtime") if isinstance(payload.get("runtime"), dict) else {}
+    )
     model_cfg = payload.get("model") if isinstance(payload.get("model"), dict) else {}
 
     description = str(runtime_cfg.get("description") or "").strip()
