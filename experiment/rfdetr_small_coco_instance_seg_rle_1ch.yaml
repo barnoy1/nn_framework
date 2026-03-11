@@ -38,13 +38,19 @@ model:
         - loss: loss_focal
           coef: 0.25
       concrete_model:
+        # Logging/debug-only RF-DETR outputs: keep visible in metrics but force zero contribution.
+        - loss: class_error
+          coef: 0.0
+        - loss: cardinality_error
+          coef: 0.0
+
         # RF-DETR classification + mask terms.
         - loss: loss_ce
           coef: 2.0
-        - loss: loss_mask_ce
-          coef: 5.0
-        - loss: loss_mask_dice
-          coef: 5.0
+        # - loss: loss_mask_ce
+        #   coef: 5.0
+        # - loss: loss_mask_dice
+        #   coef: 5.0
 
         # RF-DETR decoder auxiliary losses are suffixed with _{i}.
         - loss: loss_bbox_
@@ -53,6 +59,10 @@ model:
           coef: 2.0
         - loss: loss_ce_
           coef: 2.0
+        # - loss: loss_mask_ce_
+        #   coef: 5.0
+        # - loss: loss_mask_dice_
+        #   coef: 5.0
 
         # RF-DETR encoder auxiliary losses are suffixed with _enc.
         - loss: loss_bbox_enc
@@ -61,12 +71,16 @@ model:
           coef: 2.0
         - loss: loss_ce_enc
           coef: 2.0
+        # - loss: loss_mask_ce_enc
+        #   coef: 5.0
+        # - loss: loss_mask_dice_enc
+        #   coef: 5.0
 
 train:
   # Per-step training batch size.
-  batch_size: 8
+  batch_size: 2
   # Per-step validation batch size.
-  val_batch_size: 8
+  val_batch_size: 2
   # Base optimizer learning rate.
   lr: 0.00002
   # Multiplier applied to backbone LR relative to base LR.
@@ -82,9 +96,9 @@ train:
   # Logging cadence in training steps.
   log_every_n_steps: 20
   # Validation cadence in epochs.
-  val_every_n_epochs: 1
+  val_every_n_epochs: 5
   # Checkpoint save cadence in epochs.
-  save_every_n_epochs: 1
+  save_every_n_epochs: 10
   # Enable Exponential Moving Average model weights.
   use_ema: true
   # EMA decay factor (higher = slower update).
@@ -234,7 +248,7 @@ data:
           # Image-only contrast/brightness change.
           - { type: RandomBrightnessContrast, p: 0.3 }
           # Final spatial normalization to model input size.
-          - { type: Resize, size: [616, 616] }
+          - { type: Resize, size: [512, 512] }
           # Convert image to float tensor-like representation with scaling.
           - { type: ConvertPILImage, dtype: "float32", scale: true }
           # Convert GT boxes to normalized cxcywh expected by model/loss.
@@ -247,7 +261,7 @@ data:
       # Batch collation strategy.
       type: BatchImageCollateFunction
       # Multi-scale training candidate sizes.
-      scales: [448, 476, 504, 532, 560, 588]
+      scales: [384, 416, 448, 480, 512]
 
   val_dataloader:
     # Loader implementation type.
@@ -267,7 +281,7 @@ data:
         type: Compose
         ops:
           # Deterministic resize for validation/inference parity.
-          - { type: LetterBox, size: [588, 588], fill_value: 114 }
+          - { type: LetterBox, size: [512, 512], fill_value: 114 }
           # Image-only grayscale conversion for 1-channel model parity.
           - { type: ToGray, p: 1.0, num_output_channels: 1 }
           # Convert image to scaled float representation.
@@ -286,7 +300,7 @@ runtime:
     # Runtime default output root.
     output_dir: out
     # Shared checkpoint path for train/eval/inference defaults.
-    checkpoint: ""
+    checkpoint: ${oc.env:HOME}/.cache/torch/hub/checkpoints/rf_detr/rf-detr-small.pth
     # Execution device.
     device: cuda
     # Hardware backend toggles.
@@ -297,7 +311,7 @@ runtime:
     # Iteration logging interval for runtime tools.
     log_iter: 20
     # Runtime epoch override.
-    epoches: 20
+    epoches: 250
     # Shared confidence threshold for evaluation metrics (train validation + eval flow).
     score_threshold: 0.35
     # Generic runtime batch size used by utility flows.

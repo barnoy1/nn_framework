@@ -86,7 +86,13 @@ def apply_single_channel_backbone_policy(*, config_payload: dict[str, object]) -
 
 def segmentation_enabled(app_config) -> bool:
     iou_types = list(getattr(app_config.data.evaluator, "iou_types", []) or [])
-    return "segm" in iou_types
+    if "segm" in iou_types:
+        return True
+    concrete_specs = (
+        getattr(getattr(app_config.model.losses, "criterion_pairs", None), "concrete_model", [])
+        or []
+    )
+    return any("mask" in str(getattr(item, "loss", "")).strip().lower() for item in concrete_specs)
 
 
 def _resolve_model_variant(config_name: str) -> str:
@@ -158,7 +164,13 @@ def build_model_config(*, app_config, config_path: Path):
     }
 
     losses_cfg = app_config.model.losses
-    for key in ("cls_loss_coef", "bbox_loss_coef", "giou_loss_coef"):
+    for key in (
+        "cls_loss_coef",
+        "bbox_loss_coef",
+        "giou_loss_coef",
+        "mask_ce_loss_coef",
+        "mask_dice_loss_coef",
+    ):
         value = getattr(losses_cfg, key, None)
         if value is not None:
             config_kwargs[key] = float(value)

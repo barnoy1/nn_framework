@@ -1,0 +1,30 @@
+# VCS / metadata
+.git
+.gitmodules
+.github
+
+# Python cache / virtual envs
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Build and test artifacts
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.coverage
+
+# Runtime artifacts
+artifacts/
+input_data/
+
+# Large/raw model sources are not needed in runner image
+raw_models/
+
+# Local editor / OS files
+.vscode/
+.idea/
+.DS_Store

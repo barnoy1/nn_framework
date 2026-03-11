@@ -1,0 +1,41 @@
+services:
+  runner:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: nn-framework-runner:local
+    working_dir: /workspace
+    environment:
+      MODEL_BACKEND: ${MODEL_BACKEND:-rf_detr}
+      MODEL_SERVICE_URL: ${MODEL_SERVICE_URL:-http://model:8080}
+      MODEL_TIMEOUT_SECONDS: ${MODEL_TIMEOUT_SECONDS:-120}
+      RUN_MODE: ${RUN_MODE:-train}
+      ENABLE_DEBUGPY: ${ENABLE_DEBUGPY:-0}
+      DEBUGPY_HOST: ${DEBUGPY_HOST:-0.0.0.0}
+      DEBUGPY_PORT: ${DEBUGPY_PORT:-5678}
+      DEBUGPY_WAIT_FOR_CLIENT: ${DEBUGPY_WAIT_FOR_CLIENT:-1}
+      DISPLAY: ${DISPLAY:-:0}
+      XAUTHORITY: /root/.Xauthority
+    entrypoint: ["/bin/bash", "-lc"]
+    command: ["trap : TERM INT; sleep infinity & wait"]
+    stdin_open: true
+    tty: true
+    volumes:
+      - ../:/workspace
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTHORITY:-/dev/null}:/root/.Xauthority:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    ports:
+      - "${DEBUGPY_PORT:-5678}:${DEBUGPY_PORT:-5678}"
+    networks:
+      - nn-net
+
+networks:
+  nn-net:
+    driver: bridge

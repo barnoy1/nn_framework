@@ -38,13 +38,19 @@ model:
         - loss: loss_focal
           coef: 0.25
       concrete_model:
+        # Logging/debug-only RF-DETR outputs: keep visible in metrics but force zero contribution.
+        - loss: class_error
+          coef: 0.0
+        - loss: cardinality_error
+          coef: 0.0
+
         # RF-DETR classification + mask terms.
         - loss: loss_ce
           coef: 2.0
-        - loss: loss_mask_ce
-          coef: 5.0
-        - loss: loss_mask_dice
-          coef: 5.0
+        # - loss: loss_mask_ce
+        #   coef: 5.0
+        # - loss: loss_mask_dice
+        #   coef: 5.0
 
         # RF-DETR decoder auxiliary losses are suffixed with _{i}.
         - loss: loss_bbox_
@@ -53,6 +59,10 @@ model:
           coef: 2.0
         - loss: loss_ce_
           coef: 2.0
+        # - loss: loss_mask_ce_
+        #   coef: 5.0
+        # - loss: loss_mask_dice_
+        #   coef: 5.0
 
         # RF-DETR encoder auxiliary losses are suffixed with _enc.
         - loss: loss_bbox_enc
@@ -61,6 +71,10 @@ model:
           coef: 2.0
         - loss: loss_ce_enc
           coef: 2.0
+        # - loss: loss_mask_ce_enc
+        #   coef: 5.0
+        # - loss: loss_mask_dice_enc
+        #   coef: 5.0
 
 train:
   # Per-step training batch size.

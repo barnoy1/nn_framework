@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pickle
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
@@ -34,7 +35,16 @@ def resolve_checkpoint_path(path: str) -> Path:
 
 def load_checkpoint_state(path: str) -> Dict[str, torch.Tensor]:
     checkpoint_path = resolve_checkpoint_path(path)
-    checkpoint = torch.load(str(checkpoint_path), map_location="cpu")
+    try:
+        checkpoint = torch.load(str(checkpoint_path), map_location="cpu")
+    except pickle.UnpicklingError:
+        logger.warning(
+            "Retrying checkpoint load with weights_only=False for {}",
+            checkpoint_path,
+        )
+        checkpoint = torch.load(
+            str(checkpoint_path), map_location="cpu", weights_only=False
+        )
     if isinstance(checkpoint, dict):
         if "ema" in checkpoint:
             return checkpoint["ema"].get("module", checkpoint["ema"])
