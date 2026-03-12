@@ -16,12 +16,16 @@ fi
 cd "${PROJECT_ROOT}"
 "${COMPOSE[@]}" --progress=plain \
   -f docker/docker-compose.yml \
-  -f docker/compose/docker-compose.rtdetrv2.yml \
   build runner
 
 "${COMPOSE[@]}" --progress=plain \
   -f docker/docker-compose.yml \
   -f docker/compose/docker-compose.rtdetrv2.yml \
-  build model
+  build runner
 
-echo "Built RTDETRv2 flavor images: nn-framework-runner:local + rtdetrv2-model:local"
+"${COMPOSE[@]}" \
+  -f docker/docker-compose.yml \
+  -f docker/compose/docker-compose.rtdetrv2.yml \
+  up -d runner
+
+echo "Built base runner + RTDETRv2 flavored runner image and started container: rtdetrv2-model:local"

@@ -6,30 +6,23 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-      network: host
     image: nn-framework-runner:local
     working_dir: /workspace
     environment:
-      MODEL_BACKEND: ${MODEL_BACKEND:-rf_detr}
-      MODEL_SERVICE_URL: ${MODEL_SERVICE_URL:-http://model:8080}
-      MODEL_TIMEOUT_SECONDS: ${MODEL_TIMEOUT_SECONDS:-120}
-      RUN_MODE: ${RUN_MODE:-train}
-      ENABLE_DEBUGPY: ${ENABLE_DEBUGPY:-0}
-      DEBUGPY_HOST: ${DEBUGPY_HOST:-0.0.0.0}
-      DEBUGPY_PORT: ${DEBUGPY_PORT:-5678}
-      DEBUGPY_WAIT_FOR_CLIENT: ${DEBUGPY_WAIT_FOR_CLIENT:-1}
       DISPLAY: ${DISPLAY:-:0}
-      XAUTHORITY: /root/.Xauthority
-    entrypoint: ["/bin/bash", "-lc"]
-    command: ["trap : TERM INT; sleep infinity & wait"]
+      XAUTHORITY: /tmp/.Xauthority
     stdin_open: true
     tty: true
+    shm_size: "${SHM_SIZE:-8gb}"
     volumes:
       - ../:/workspace
+      - ../experiment:/workspace/experiments
+      - ../docker/scripts:/workspace/scripts
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - ${XAUTHORITY:-/dev/null}:/root/.Xauthority:ro
+      - ${XAUTHORITY:-/dev/null}:/tmp/.Xauthority:ro
       - /tmp:/tmp
-      - /ho
+      - ${HOME}/.cache/torch:/root/.cache/torch:rw
+      - ${HOME}/repo/datasets:/root/repo/datasets:rw
     deploy:
       resources:
         reservations:
@@ -39,9 +32,4 @@ services:
               capabilities: [gpu]
     ports:
       - "${DEBUGPY_PORT:-5678}:${DEBUGPY_PORT:-5678}"
-    networks:
-      - nn-net
-
-networks:
-  nn-net:
-    driver: bridge
+      - "${MLFLOW_PORT:-5000}:${MLFLOW_PORT:-5000}"

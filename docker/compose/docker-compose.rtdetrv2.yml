@@ -1,21 +1,10 @@
 services:
-  model:
+  runner:
     container_name: nn-framework-rtdetrv2-model
     env_file:
       - compose/.env.rtdetrv2
     build:
       context: ..
       dockerfile: infra/engine/model/wrappers/adapter/rtdetrv2_pytorch/Dockerfile
-      network: host
     image: rtdetrv2-model:local
-    networks:
-      - nn-net
 
-  runner:
-    env_file:
-      - compose/.env.rtdetrv2
-    environment:
-      MODEL_BACKEND: rtdetrv2
-      RUN_CONFIG: experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml
-    depends_on:
-      - model

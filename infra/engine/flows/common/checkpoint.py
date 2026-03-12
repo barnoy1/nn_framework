@@ -7,30 +7,17 @@ from typing import Dict, Optional, Tuple
 import torch
 from torch import nn
 
+from infra.common import RuntimePathResolver
 from infra.common.logging import logger
 
 
+_CHECKPOINT_PATH_RESOLVER = RuntimePathResolver(
+    repo_root=Path(__file__).resolve().parents[3]
+)
+
+
 def resolve_checkpoint_path(path: str) -> Path:
-    candidate = Path(path).expanduser()
-    if candidate.exists():
-        return candidate.resolve()
-
-    repo_root = Path(__file__).resolve().parents[3]
-
-    candidates = []
-    if not candidate.is_absolute():
-        candidates.append((repo_root / candidate).resolve())
-
-    candidates.append((repo_root / "weights" / candidate.name).resolve())
-    candidates.append((repo_root.parent / "weights" / candidate.name).resolve())
-
-    for fallback in candidates:
-        if fallback.exists():
-            logger.warning("checkpoint not found at {}, using {}", candidate, fallback)
-            return fallback
-
-    checked = "\n  - ".join(str(p) for p in [candidate, *candidates])
-    raise FileNotFoundError(f"Checkpoint file not found. Checked:\n  - {checked}")
+    return _CHECKPOINT_PATH_RESOLVER.resolve_checkpoint(path)
 
 
 def load_checkpoint_state(path: str) -> Dict[str, torch.Tensor]:

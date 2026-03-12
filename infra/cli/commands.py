@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
-import os
-import re
 from pathlib import Path
 from types import SimpleNamespace
 
-from infra.common.logging import logger
+from infra.common import RuntimePathResolver
 
 from .config_defaults import (
     load_config_payload,
@@ -23,18 +21,7 @@ MODEL_ROOT_TOKEN = "@MODEL_ROOT/"
 
 
 def _expand_runtime_env_tokens(path: str) -> str:
-    raw = str(path or "").strip()
-    if not raw:
-        return raw
-
-    pattern = re.compile(r"\$\{(?:oc\.env|env):([^}]+)\}")
-
-    def _replace(match: re.Match[str]) -> str:
-        variable_name = match.group(1).strip()
-        return os.environ.get(variable_name, match.group(0))
-
-    expanded = pattern.sub(_replace, raw)
-    return os.path.expandvars(expanded)
+    return RuntimePathResolver.expand_runtime_tokens(path)
 
 
 def resolve_model_root(config_path: str) -> Path:
@@ -92,18 +79,16 @@ def resolve_runtime_path(path: str, *, config_path: str | None = None) -> str:
 
 def resolve_checkpoint_path(path: str, *, config_path: str | None = None) -> str:
     resolved_input = resolve_runtime_path(path, config_path=config_path)
-    candidate = Path(resolved_input).expanduser()
-    if candidate.exists():
-        return str(candidate.resolve())
-
+    extra_roots = []
     if config_path:
         model_root = resolve_model_root(config_path)
-        fallback = model_root / "weights" / candidate.name
-        if fallback.exists():
-            logger.warning("checkpoint not found at {}, using {}", candidate, fallback)
-            return str(fallback.resolve())
+        extra_roots.append(model_root / "weights")
 
-    return resolved_input
+    resolver = RuntimePathResolver(repo_root=REPO_ROOT, extra_search_roots=extra_roots)
+    try:
+        return str(resolver.resolve_checkpoint(resolved_input))
+    except FileNotFoundError:
+        return str(Path(resolved_input).expanduser())
 
 
 def run_train(args: argparse.Namespace) -> None:

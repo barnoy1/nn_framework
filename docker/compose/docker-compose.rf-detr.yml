@@ -1,21 +1,9 @@
 services:
-  model:
+  runner:
     container_name: nn-framework-rf-detr-model
     env_file:
       - compose/.env.rf-detr
     build:
       context: ..
       dockerfile: infra/engine/model/wrappers/adapter/rf_detr/Dockerfile
-      network: host
     image: rf-detr-model:local
-    networks:
-      - nn-net
-
-  runner:
-    env_file:
-      - compose/.env.rf-detr
-    environment:
-      MODEL_BACKEND: rf_detr
-      RUN_CONFIG: experiment/rfdetr_small_coco_instance_seg_rle.yaml
-    depends_on:
-      - model

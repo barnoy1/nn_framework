@@ -226,9 +226,9 @@ data:
       type: CocoDetection
       datasets:
         # Training image directory.
-        - img_folder: /home/ronbar/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/train/img
+        - img_folder: ${oc.env:HOME}/repo/datasets/drone-dataset-(uav)-DatasetNinja/train/img
           # Training COCO annotation file.
-          ann_file: /home/ronbar/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_train.json
+          ann_file: ${oc.env:HOME}/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_train.json
       # Ask dataset to prepare segmentation masks.
       return_masks: true
       transforms:
@@ -271,9 +271,9 @@ data:
       type: CocoDetection
       datasets:
         # Validation image directory.
-        - img_folder: /home/ronbar/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/valid/img
+        - img_folder: ${oc.env:HOME}/repo/datasets/drone-dataset-(uav)-DatasetNinja/valid/img
           # Validation COCO annotation file.
-          ann_file: /home/ronbar/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_valid.json
+          ann_file: ${oc.env:HOME}/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_valid.json
       # Keep masks available for segm evaluation.
       return_masks: true
       transforms:
@@ -359,25 +359,25 @@ runtime:
   actions:
     inference:
       # Input directory for image inference.
-      input_dir: /home/ronbar/repo/nn_framework/input_data
+      input_dir: input_data
 
     inference_onnx:
       # ONNX model file for ONNX inference path.
-      onnx_model: /home/ronbar/repo/nn_framework/raw_models/RT-DETR/rf_detr/exported_models/model.onnx
+      onnx_model: raw_models/RT-DETR/rf_detr/exported_models/model.onnx
       # Input directory for ONNX inference.
-      input_dir: /home/ronbar/repo/nn_framework/input_data
+      input_dir: input_data
 
     export_onnx:
       # Source checkpoint for ONNX export.
       checkpoint: ""
       # Destination ONNX path.
-      onnx_model: /home/ronbar/repo/nn_framework/raw_models/RT-DETR/rf_detr/exported_models/model.onnx
+      onnx_model: raw_models/RT-DETR/rf_detr/exported_models/model.onnx
 
     export_coco_rle:
       # Dataset root for COCO-RLE conversion utility.
-      dataset_root: /home/ronbar/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja
+      dataset_root: ${oc.env:HOME}/repo/datasets/drone-dataset-(uav)-DatasetNinja
       # Output directory for converted artifacts.
-      output_dir: /home/ronbar/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja
+      output_dir: ${oc.env:HOME}/repo/datasets/drone-dataset-(uav)-DatasetNinja
       # Splits to export.
       splits: [train, valid]
       # Annotation and image subfolder names for exporter.

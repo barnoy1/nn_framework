@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import os
 import pickle
-import re
 from pathlib import Path
 from typing import Dict, Iterable, Tuple
 
 import torch
 from torch import nn
 
+from infra.common import RuntimePathResolver
 from infra.common.logging import logger
 from infra.engine.model.wrappers.contracts import CheckpointAdapter
 
@@ -22,50 +21,13 @@ class GenericCheckpointAdapter(CheckpointAdapter):
     ) -> None:
         self.repo_root = repo_root
         self.extra_search_roots = tuple(extra_search_roots)
-
-    @staticmethod
-    def _expand_runtime_path(path: str) -> str:
-        raw = str(path or "").strip()
-        if not raw:
-            return raw
-
-        # Support Hydra/OmegaConf env interpolation syntax when unresolved
-        # by upstream config loading (e.g. ${oc.env:HOME}, ${env:HOME}).
-        pattern = re.compile(r"\$\{(?:oc\.env|env):([^}]+)\}")
-
-        def _replace(match: re.Match[str]) -> str:
-            variable_name = match.group(1).strip()
-            return os.environ.get(variable_name, match.group(0))
-
-        expanded = pattern.sub(_replace, raw)
-        return os.path.expandvars(expanded)
+        self._path_resolver = RuntimePathResolver(
+            repo_root=repo_root,
+            extra_search_roots=extra_search_roots,
+        )
 
     def resolve_checkpoint_path(self, path: str) -> Path:
-        resolved_input = self._expand_runtime_path(path)
-        candidate = Path(resolved_input).expanduser()
-        if candidate.exists():
-            return candidate.resolve()
-
-        candidates = []
-        if not candidate.is_absolute():
-            candidates.append((self.repo_root / candidate).resolve())
-
-        search_roots = [
-            (self.repo_root / "weights").resolve(),
-            (self.repo_root.parent / "weights").resolve(),
-            *[Path(root).resolve() for root in self.extra_search_roots],
-        ]
-        candidates.extend((root / candidate.name).resolve() for root in search_roots)
-
-        for fallback in candidates:
-            if fallback.exists():
-                logger.warning(
-                    "checkpoint not found at {}, using {}", candidate, fallback
-                )
-                return fallback
-
-        checked = "\n  - ".join(str(p) for p in [candidate, *candidates])
-        raise FileNotFoundError(f"Checkpoint file not found. Checked:\n  - {checked}")
+        return self._path_resolver.resolve_checkpoint(path)
 
     def load_checkpoint_state(self, path: str) -> Dict[str, torch.Tensor]:
         checkpoint_path = self.resolve_checkpoint_path(path)

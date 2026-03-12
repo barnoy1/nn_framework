@@ -16,7 +16,16 @@ fi
 cd "${PROJECT_ROOT}"
 "${COMPOSE[@]}" \
   -f docker/docker-compose.yml \
-  -f docker/compose/docker-compose.rf-detr.yml \
-  build runner model
+  build runner
 
-echo "Built RF-DETR flavor images: nn-framework-runner:local + rf-detr-model:local"
+"${COMPOSE[@]}" \
+  -f docker/docker-compose.yml \
+  -f docker/compose/docker-compose.rf-detr.yml \
+  build runner
+
+"${COMPOSE[@]}" \
+  -f docker/docker-compose.yml \
+  -f docker/compose/docker-compose.rf-detr.yml \
+  up -d runner
+
+echo "Built base runner + RF-DETR flavored runner image and started container: rf-detr-model:local"

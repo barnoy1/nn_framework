@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    XAUTHORITY=/root/.Xauthority
+    XAUTHORITY=/tmp/.Xauthority
 
 WORKDIR /workspace
 
@@ -64,8 +64,8 @@ RUN wget -qO- https://packages.microsoft.com/keys/microsoft.asc \
     && apt-get install -y --no-install-recommends code \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
-    && ln -s /root/.local/bin/uv /usr/local/bin/uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh \
+    && chmod 0755 /usr/local/bin/uv
 
 COPY requirements.txt /workspace/requirements.txt
 RUN uv pip install --system -r /workspace/requirements.txt \
@@ -75,6 +75,7 @@ COPY docker/runner_entrypoint.sh /usr/local/bin/runner_entrypoint.sh
 RUN chmod +x /usr/local/bin/runner_entrypoint.sh
 
 COPY . /workspace
+RUN chmod +x /workspace/docker/scripts/*.sh \
+    && chmod +x /workspace/docker/scripts/gui/*.sh
 
 ENTRYPOINT ["/usr/local/bin/runner_entrypoint.sh"]
-CMD ["--help"]
