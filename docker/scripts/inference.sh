@@ -4,19 +4,11 @@ set -euo pipefail
 REPO_ROOT="/workspace"
 PYTHON_BIN="${NN_PYTHON_BIN:-python}"
 
-backend="${MODEL_BACKEND:-rtdetrv2}"
-default_config="experiments/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml"
-default_checkpoint="weights/rtdetrv2/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth"
-if [[ "$backend" == "rf_detr" || "$backend" == "rfdetr" ]]; then
-  default_config="experiments/rfdetr_small_coco_instance_seg_rle.yaml"
-  default_checkpoint="weights/rfdetr_small_1ch.pth"
-fi
-
-CONFIG_PATH="${NN_EXPERIMENT_CONFIG:-$default_config}"
-OUTPUT_DIR="${NN_OUTPUT_DIR:-${REPO_ROOT}/out}"
-INPUT_DIR="${NN_INPUT_DIR:-${REPO_ROOT}/input_data}"
-DEVICE="${NN_DEVICE:-cuda}"
-CHECKPOINT_PATH="${NN_CHECKPOINT:-$default_checkpoint}"
+CONFIG_PATH="${NN_EXPERIMENT_CONFIG:-}"
+OUTPUT_DIR="${NN_OUTPUT_DIR:-}"
+INPUT_DIR="${NN_INPUT_DIR:-}"
+DEVICE="${NN_DEVICE:-}"
+CHECKPOINT_PATH="${NN_CHECKPOINT:-}"
 MODEL_SOURCE_ROOT="${NN_MODEL_SOURCE_ROOT:-}"
 
 has_arg() {
@@ -59,7 +51,7 @@ Example (inside docker):
     --output-dir /workspace/out \
     --device cuda
 
-Defaults come from MODEL_BACKEND and NN_* env vars when flags are omitted.
+Defaults come from NN_* env vars exposed inside the container.
 EOF
 }
 
@@ -73,16 +65,24 @@ cd "$REPO_ROOT"
 CMD=("$PYTHON_BIN" cli.py inference)
 
 if ! has_arg "--config" "$@"; then
-  CMD+=(--config "$CONFIG_PATH")
+  if [[ -n "$CONFIG_PATH" ]]; then
+    CMD+=(--config "$CONFIG_PATH")
+  fi
 fi
 if ! has_arg "--output-dir" "$@"; then
-  CMD+=(--output-dir "$OUTPUT_DIR")
+  if [[ -n "$OUTPUT_DIR" ]]; then
+    CMD+=(--output-dir "$OUTPUT_DIR")
+  fi
 fi
 if ! has_arg "--input-dir" "$@"; then
-  CMD+=(--input-dir "$INPUT_DIR")
+  if [[ -n "$INPUT_DIR" ]]; then
+    CMD+=(--input-dir "$INPUT_DIR")
+  fi
 fi
 if ! has_arg "--device" "$@"; then
-  CMD+=(--device "$DEVICE")
+  if [[ -n "$DEVICE" ]]; then
+    CMD+=(--device "$DEVICE")
+  fi
 fi
 if ! has_arg "--checkpoint" "$@"; then
   if [[ -z "$CHECKPOINT_PATH" ]]; then

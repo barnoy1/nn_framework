@@ -4,28 +4,48 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-  COMPOSE=(docker compose)
-elif command -v docker-compose >/dev/null 2>&1; then
-  COMPOSE=(docker-compose)
-else
-  echo "Error: neither 'docker compose' nor 'docker-compose' is available." >&2
+if ! command -v docker >/dev/null 2>&1; then
+  echo "Error: docker is not available." >&2
   exit 1
 fi
 
+if ! docker compose version >/dev/null 2>&1; then
+  echo "Error: docker compose plugin is not available." >&2
+  exit 1
+fi
+
+print_usage() {
+  cat <<'EOF'
+Usage: docker/scripts/build_rtdetrv2.sh [options]
+
+Thin wrapper around:
+  docker compose -f docker/docker-compose.yml \
+    -f docker/compose/docker-compose.rtdetrv2.yml up -d --build runner
+
+Options:
+  -h, --help       Show this help message.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      print_usage
+      exit 0
+      ;;
+    *)
+      echo "Error: unknown option: $1" >&2
+      print_usage
+      exit 1
+      ;;
+  esac
+done
+
 cd "${PROJECT_ROOT}"
-"${COMPOSE[@]}" --progress=plain \
-  -f docker/docker-compose.yml \
-  build runner
 
-"${COMPOSE[@]}" --progress=plain \
+docker compose \
   -f docker/docker-compose.yml \
   -f docker/compose/docker-compose.rtdetrv2.yml \
-  build runner
+  up -d --build runner
 
-"${COMPOSE[@]}" \
-  -f docker/docker-compose.yml \
-  -f docker/compose/docker-compose.rtdetrv2.yml \
-  up -d runner
-
-echo "Built base runner + RTDETRv2 flavored runner image and started container: rtdetrv2-model:local"
+echo "Started RTDETRv2 container with compose build check: rtdetrv2-model:local"
