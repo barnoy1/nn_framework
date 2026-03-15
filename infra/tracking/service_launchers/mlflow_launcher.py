@@ -30,6 +30,15 @@ def _build_subprocess_env() -> dict[str, str]:
     return env
 
 
+def _is_containerized_runtime() -> bool:
+    if Path("/.dockerenv").exists():
+        return True
+    return os.environ.get("container", "").strip().lower() in {
+        "docker",
+        "podman",
+    }
+
+
 def start_mlflow_ui_service(
     *,
     tracking_dir: Path,
@@ -44,17 +53,26 @@ def start_mlflow_ui_service(
     artifact_root.mkdir(parents=True, exist_ok=True)
     backend = str(tracking_backend).strip().lower()
     requested_port = int(port)
-    url = f"http://{host}:{requested_port}"
-    service_key = f"mlflow:{host}:{requested_port}:{resolved_tracking_dir}:{backend}:{sqlite_db_name}"
+    requested_host = str(host)
+    bind_host = requested_host
+    if _is_containerized_runtime() and requested_host in {"127.0.0.1", "localhost"}:
+        bind_host = "0.0.0.0"
+    probe_host = "127.0.0.1" if bind_host == "0.0.0.0" else bind_host
+    public_host = str(os.environ.get("MLFLOW_PUBLIC_HOST") or requested_host)
+    if public_host in {"0.0.0.0", "::"}:
+        public_host = "127.0.0.1"
+
+    url = f"http://{public_host}:{requested_port}"
+    service_key = f"mlflow:{bind_host}:{requested_port}:{resolved_tracking_dir}:{backend}:{sqlite_db_name}"
     existing = get_running_process(service_key)
     if existing is not None:
         logger_port.info("MLflow UI is up: {}", url)
         return url
 
     selected_port = requested_port
-    if is_port_in_use(host, requested_port):
-        if not free_port_for_reuse(host, requested_port, logger_port):
-            selected_port = find_available_port(host, requested_port)
+    if is_port_in_use(probe_host, requested_port):
+        if not free_port_for_reuse(probe_host, requested_port, logger_port):
+            selected_port = find_available_port(probe_host, requested_port)
             if selected_port != requested_port:
                 logger_port.warning(
                     "MLflow UI port {} still in use; using {} instead.",
@@ -62,8 +80,8 @@ def start_mlflow_ui_service(
                     selected_port,
                 )
 
-    url = f"http://{host}:{selected_port}"
-    service_key = f"mlflow:{host}:{selected_port}:{resolved_tracking_dir}:{backend}:{sqlite_db_name}"
+    url = f"http://{public_host}:{selected_port}"
+    service_key = f"mlflow:{bind_host}:{selected_port}:{resolved_tracking_dir}:{backend}:{sqlite_db_name}"
 
     if backend == "sqlite":
         sqlite_path = (resolved_tracking_dir / str(sqlite_db_name)).resolve()
@@ -100,7 +118,7 @@ def start_mlflow_ui_service(
         "--default-artifact-root",
         artifact_root.as_uri(),
         "--host",
-        str(host),
+        str(bind_host),
         "--port",
         str(selected_port),
     ]
@@ -113,7 +131,7 @@ def start_mlflow_ui_service(
     )
     register_process(service_key, process)
 
-    if wait_for_service(host=host, port=selected_port, timeout_seconds=15.0):
+    if wait_for_service(host=probe_host, port=selected_port, timeout_seconds=15.0):
         logger_port.info("MLflow UI is up: {}", url)
         logger_port.info(
             "MLflow tracking store: {} ({})", resolved_tracking_dir, backend

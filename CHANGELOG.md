@@ -6,6 +6,7 @@
 
 ### ci
 
+- **assembling runner docker**: integrate concreate model runner execution on docker
 - **docker**: build docker runner+model
 - **docker**: add framework dockerfiles
 

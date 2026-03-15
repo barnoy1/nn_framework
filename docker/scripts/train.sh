@@ -43,6 +43,9 @@ Runs inside the container and forwards args to:
 
   Working directory is set to /workspace before execution.
 
+  Default settings:
+    /workspace/scripts/train.sh
+
 Example (inside docker):
     /workspace/scripts/train.sh \
       --config experiments/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml \

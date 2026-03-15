@@ -47,6 +47,9 @@ Runs inside the container and forwards args to:
 
   Working directory is set to /workspace before execution.
 
+  Default settings:
+    /workspace/scripts/eval.sh
+
 Example (inside docker):
     /workspace/scripts/eval.sh \
       --config experiments/rfdetr_small_coco_instance_seg_rle_1ch.yaml \

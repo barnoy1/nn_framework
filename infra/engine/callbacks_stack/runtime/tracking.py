@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import webbrowser
 from pathlib import Path
 from typing import Dict, Optional, TYPE_CHECKING
@@ -22,6 +23,17 @@ if TYPE_CHECKING:
 
 
 class MLflowCallback(Callback):
+    @staticmethod
+    def _should_auto_open_browser() -> bool:
+        if Path("/.dockerenv").exists():
+            return False
+        if str(os.environ.get("container", "")).strip().lower() in {
+            "docker",
+            "podman",
+        }:
+            return False
+        return bool(str(os.environ.get("DISPLAY", "")).strip())
+
     @staticmethod
     def _resolve_model_name(trainer: "Trainer") -> str:
         source_root = str(getattr(trainer.app_config.model, "source_root", "") or "")
@@ -106,7 +118,8 @@ class MLflowCallback(Callback):
                     experiment_url = (
                         f"{mlflow_url}/#/experiments/{experiment.experiment_id}"
                     )
-                    webbrowser.open(experiment_url, new=0)
+                    if self._should_auto_open_browser():
+                        webbrowser.open(experiment_url, new=0)
                     trainer.logger.info("MLflow experiment URL: {}", experiment_url)
             except Exception as error:
                 trainer.logger.warning("MLflow UI service startup failed: {}", error)

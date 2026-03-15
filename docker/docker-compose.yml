@@ -8,12 +8,18 @@ services:
       dockerfile: docker/Dockerfile
     image: nn-framework-runner:local
     working_dir: /workspace
+    ipc: host
     environment:
       DISPLAY: ${DISPLAY:-:0}
       XAUTHORITY: /tmp/.Xauthority
+    ulimits:
+      memlock: -1
+      stack: 67108864
     stdin_open: true
     tty: true
-    shm_size: "${SHM_SIZE:-8gb}"
+    mem_limit: "${CONTAINER_MEMORY_LIMIT:-32g}"
+    memswap_limit: "${CONTAINER_MEMORY_SWAP_LIMIT:-32g}"
+    shm_size: "32gb"
     volumes:
       - ../:/workspace
       - ../experiment:/workspace/experiments
