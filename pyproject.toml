@@ -1,3 +1,8 @@
+[project]
+name = "nn-framework"
+version = "3.1.0"
+requires-python = ">=3.10"
+
 [tool.commitizen]
 name = "cz_customize"
 tag_format = "v$version"
@@ -10,7 +15,7 @@ template = ".cz_changelog.j2"
 [tool.commitizen.customize]
 schema = "<type>(<scope>): <subject>"
 schema_pattern = "^(fix|feat|docs|style|refactor|perf|test|build|ci|chore)(\\([^)]+\\))?:\\s.+"
-bump_pattern = "^(BREAKING CHANGE|feat|fix)"
+bump_pattern = "^(BREAKING CHANGE|feat|fix|docs|build|ci)"
 change_type_order = ["BREAKING CHANGE", "feat", "fix", "refactor", "perf", "docs", "style", "test", "build", "ci", "chore"]
 info = "Use conventional commits: <type>(<scope>): <subject>"
 commit_parser = "^(?P<change_type>feat|fix|docs|style|refactor|perf|test|build|ci|chore)(?:\\((?P<scope>[^\\n()]+)\\))?: (?P<message>.+)?"
@@ -21,6 +26,9 @@ message_template = "{{change_type}}{% if scope %}({{scope}}){% endif %}: {{messa
 "BREAKING CHANGE" = "MAJOR"
 feat = "MINOR"
 fix = "PATCH"
+docs = "PATCH"
+build = "PATCH"
+ci = "PATCH"
 
 [[tool.commitizen.customize.questions]]
 type = "list"

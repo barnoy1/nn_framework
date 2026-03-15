@@ -209,3 +209,5 @@ __marimo__/
 input_data/
 out/
 mlruns/
+./root
+uv.lock

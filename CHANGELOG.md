@@ -1,8 +1,13 @@
-## Unreleased ([diff](https://github.com/barnoy1/nn_framework/compare/v3.1.0...HEAD))
+## Unreleased
 
 ### docs
 
 - **changelog**: adding changelog template w hyperlinks versions
+
+### build
+
+- **docker**: mlflow dashboard exposed from inside the docker
+- **docker**: functional train execution cycle inside docker
 
 ### ci
 

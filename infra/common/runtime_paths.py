@@ -18,7 +18,9 @@ class RuntimePathResolver:
         extra_search_roots: Iterable[Path] = (),
     ) -> None:
         self.repo_root = Path(repo_root).resolve()
-        self.extra_search_roots = tuple(Path(root).resolve() for root in extra_search_roots)
+        self.extra_search_roots = tuple(
+            Path(root).resolve() for root in extra_search_roots
+        )
 
     @classmethod
     def expand_runtime_tokens(cls, path: str) -> str:
@@ -57,10 +59,20 @@ class RuntimePathResolver:
         search_roots = self.checkpoint_search_roots()
         relative_to_weights = self._weights_suffix(candidate)
         if relative_to_weights is not None:
-            candidates.extend((root / relative_to_weights).resolve() for root in search_roots)
+            candidates.extend(
+                (root / relative_to_weights).resolve() for root in search_roots
+            )
 
-        if not candidate.is_absolute() and candidate.parts and candidate.parts[0] == "weights":
-            tail = Path(*candidate.parts[1:]) if len(candidate.parts) > 1 else Path(candidate.name)
+        if (
+            not candidate.is_absolute()
+            and candidate.parts
+            and candidate.parts[0] == "weights"
+        ):
+            tail = (
+                Path(*candidate.parts[1:])
+                if len(candidate.parts) > 1
+                else Path(candidate.name)
+            )
             candidates.extend((root / tail).resolve() for root in search_roots)
 
         candidates.extend((root / candidate.name).resolve() for root in search_roots)
@@ -82,7 +94,9 @@ class RuntimePathResolver:
         candidates = self._checkpoint_candidates(candidate)
         for fallback in candidates:
             if fallback.exists():
-                logger.warning("checkpoint not found at {}, using {}", candidate, fallback)
+                logger.warning(
+                    "checkpoint not found at {}, using {}", candidate, fallback
+                )
                 return fallback
 
         for root in self.checkpoint_search_roots():
@@ -91,7 +105,9 @@ class RuntimePathResolver:
             matches = sorted(root.rglob(candidate.name))
             if matches:
                 fallback = matches[0].resolve()
-                logger.warning("checkpoint not found at {}, using {}", candidate, fallback)
+                logger.warning(
+                    "checkpoint not found at {}, using {}", candidate, fallback
+                )
                 return fallback
 
         checked = "\n  - ".join(str(p) for p in [candidate, *candidates])
