@@ -1,0 +1,13 @@
+services:
+  runner:
+    container_name: nn-framework-rtdetrv2-model
+    env_file:
+      - ${PWD}/infra/adapter/rtdetrv2_pytorch/docker/.env
+    build:
+      context: ${PWD}
+      dockerfile: infra/adapter/rtdetrv2_pytorch/docker/Dockerfile
+    image: rtdetrv2-model:local
+
+    volumes:
+      - ${PWD}/infra/adapter/rtdetrv2_pytorch/experiments:/workspace/experiments:rw
+

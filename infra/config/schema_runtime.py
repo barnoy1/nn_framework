@@ -16,15 +16,15 @@ class CommonConfig(BaseModel):
     use_mlu: bool = False
     use_npu: bool = False
     log_iter: int = 20
-    epoches: Optional[int] = None
+    epochs: Optional[int] = None
     score_threshold: float = 0.3
     seed: int = 42
 
-    @field_validator("epoches")
+    @field_validator("epochs")
     @classmethod
-    def validate_epoches(cls, value: Optional[int]) -> Optional[int]:
+    def validate_epochs(cls, value: Optional[int]) -> Optional[int]:
         if value is not None and value <= 0:
-            raise ValueError("runtime.common.epoches must be > 0 when provided")
+            raise ValueError("runtime.common.epochs must be > 0 when provided")
         return value
 
     @field_validator("score_threshold")
@@ -140,8 +140,8 @@ class RuntimeConfig(BaseModel):
         return self.common.num_workers
 
     @property
-    def epoches(self) -> Optional[int]:
-        return self.common.epoches
+    def epochs(self) -> Optional[int]:
+        return self.common.epochs
 
     @property
     def seed(self) -> int:

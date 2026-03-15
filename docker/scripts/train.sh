@@ -8,6 +8,23 @@ CONFIG_PATH="${NN_EXPERIMENT_CONFIG:-}"
 OUTPUT_DIR="${NN_OUTPUT_DIR:-}"
 MODEL_SOURCE_ROOT="${NN_MODEL_SOURCE_ROOT:-}"
 
+resolve_config_path() {
+  local raw_path="$1"
+  if [[ -z "$raw_path" ]]; then
+    echo ""
+    return
+  fi
+  if [[ "$raw_path" == /* ]]; then
+    echo "$raw_path"
+    return
+  fi
+  if [[ -f "$REPO_ROOT/$raw_path" ]]; then
+    echo "$raw_path"
+    return
+  fi
+  echo "experiments/$raw_path"
+}
+
 has_arg() {
   local flag="$1"
   shift
@@ -55,6 +72,7 @@ if has_arg "-h" "$@" || has_arg "--help" "$@"; then
 fi
 
 cd "$REPO_ROOT"
+CONFIG_PATH="$(resolve_config_path "$CONFIG_PATH")"
 
 CMD=("$PYTHON_BIN" cli.py train)
 

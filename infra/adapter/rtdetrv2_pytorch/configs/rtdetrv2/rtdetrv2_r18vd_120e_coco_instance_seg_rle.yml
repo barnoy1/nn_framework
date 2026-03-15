@@ -22,7 +22,7 @@ HybridEncoder:
 RTDETRTransformerv2:
   num_layers: 3
 
-epoches: 120
+epochs: 120
 
 optimizer:
   type: AdamW

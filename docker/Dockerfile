@@ -76,6 +76,6 @@ RUN chmod +x /usr/local/bin/runner_entrypoint.sh
 
 COPY . /workspace
 RUN chmod +x /workspace/docker/scripts/*.sh \
-    && chmod +x /workspace/docker/scripts/gui/*.sh
+    && chmod +x /workspace/docker/scripts/utilities/*.sh
 
 ENTRYPOINT ["/usr/local/bin/runner_entrypoint.sh"]

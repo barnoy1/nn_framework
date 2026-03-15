@@ -2,9 +2,9 @@
 
 model:
   # Filesystem root of the concrete model repository implementation.
-  source_root: raw_models/RT-DETR/rtdetrv2_pytorch
+  source_root: raw_models/rf-detr
   # Baseline model recipe used by wrapper/model builder.
-  model_config_path: configs/rtdetrv2/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yml
+  model_config_path: dinov2_configs/dinov2_small.json
   # Number of classifier outputs expected from the head.
   num_classes: 80
   # Number of object queries decoded per image.
@@ -20,13 +20,15 @@ model:
     # Concrete criterion loss-to-coefficient pairing (used for optimization + reporting groups).
     # Grouping policy:
     #   - adapter_common: framework-agnostic/common (YOLO-like) losses
-    #   - concrete_model: model-specific (RT-DETRv2) losses
-    # Prefix entries (for example: loss_bbox_aux_) match all indexed losses like loss_bbox_aux_0, loss_bbox_aux_1, ...
+    #   - concrete_model: model-specific (RF-DETR SetCriterion) losses
+    # Prefix entries (for example: loss_bbox_) match indexed losses like loss_bbox_0, loss_bbox_1, ...
     fallback_to_model_default: true
     criterion_pairs:
       adapter_common:
-        # Active model-agnostic losses in the 2-stage pipeline for RT-DETRv2 outputs.
-        # DFL is intentionally omitted (no DFL provider in this runtime path).
+        # Model-agnostic losses produced by the framework common criterion.
+        # These are applied on top of concrete-model losses in the 2-stage pipeline.
+        - loss: cls_loss
+          coef: 1.0
         - loss: loss_bbox
           coef: 5.0
         - loss: loss_giou
@@ -36,35 +38,43 @@ model:
         - loss: loss_focal
           coef: 0.25
       concrete_model:
-        # RT-DETRv2-specific decoder auxiliary supervision variants (suffix: _aux_{i}).
-        - loss: loss_bbox_aux_
-          coef: 5.0
-        - loss: loss_giou_aux_
-          coef: 2.0
-        - loss: loss_vfl_aux_
-          coef: 5.0
-        - loss: loss_focal_aux_
-          coef: 5.0
+        # Logging/debug-only RF-DETR outputs: keep visible in metrics but force zero contribution.
+        - loss: class_error
+          coef: 0.0
+        - loss: cardinality_error
+          coef: 0.0
 
-        # RT-DETRv2-specific denoising supervision variants (suffix: _dn_{i}).
-        - loss: loss_bbox_dn_
-          coef: 5.0
-        - loss: loss_giou_dn_
+        # RF-DETR classification + mask terms.
+        - loss: loss_ce
           coef: 2.0
-        - loss: loss_vfl_dn_
-          coef: 1.0
-        - loss: loss_focal_dn_
-          coef: 1.0
+        # - loss: loss_mask_ce
+        #   coef: 5.0
+        # - loss: loss_mask_dice
+        #   coef: 5.0
 
-        # RT-DETRv2-specific encoder supervision variants (suffix: _enc_{i}).
-        - loss: loss_bbox_enc_
+        # RF-DETR decoder auxiliary losses are suffixed with _{i}.
+        - loss: loss_bbox_
           coef: 5.0
-        - loss: loss_giou_enc_
+        - loss: loss_giou_
           coef: 2.0
-        - loss: loss_vfl_enc_
+        - loss: loss_ce_
+          coef: 2.0
+        # - loss: loss_mask_ce_
+        #   coef: 5.0
+        # - loss: loss_mask_dice_
+        #   coef: 5.0
+
+        # RF-DETR encoder auxiliary losses are suffixed with _enc.
+        - loss: loss_bbox_enc
           coef: 5.0
-        - loss: loss_focal_enc_
-          coef: 5.0
+        - loss: loss_giou_enc
+          coef: 2.0
+        - loss: loss_ce_enc
+          coef: 2.0
+        # - loss: loss_mask_ce_enc
+        #   coef: 5.0
+        # - loss: loss_mask_dice_enc
+        #   coef: 5.0
 
 train:
   # Per-step training batch size.
@@ -238,7 +248,7 @@ data:
           # Image-only grayscale conversion (keeps 3 channels).
           - { type: ToGray, p: 0.2 }
           # Final spatial normalization to model input size.
-          - { type: Resize, size: [512, 512] }
+          - { type: Resize, size: [616, 616] }
           # Convert image to float tensor-like representation with scaling.
           - { type: ConvertPILImage, dtype: "float32", scale: true }
           # Convert GT boxes to normalized cxcywh expected by model/loss.
@@ -251,7 +261,7 @@ data:
       # Batch collation strategy.
       type: BatchImageCollateFunction
       # Multi-scale training candidate sizes.
-      scales: [384, 416, 448, 480, 512]
+      scales: [448, 476, 504, 532, 560, 588]
 
   val_dataloader:
     # Loader implementation type.
@@ -271,7 +281,7 @@ data:
         type: Compose
         ops:
           # Deterministic resize for validation/inference parity.
-          - { type: LetterBox, size: [512, 512], fill_value: 114 }
+          - { type: LetterBox, size: [588, 588], fill_value: 114 }
           # Convert image to scaled float representation.
           - { type: ConvertPILImage, dtype: "float32", scale: true }
     # Keep deterministic order for reproducible eval.
@@ -283,12 +293,12 @@ data:
       type: BatchImageCollateFunction
 
 runtime:
-  description: drone_fine_tune_rtdetrv2_r18vd_120e_coco
+  description: drone_fine_tune_rf_detr_r18vd_120e_coco
   common:
     # Runtime default output root.
     output_dir: out
     # Shared checkpoint path for train/eval/inference defaults.
-    checkpoint: ${oc.env:HOME}/.cache/torch/hub/checkpoints/rtdetrv2/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
+    checkpoint: ""
     # Execution device.
     device: cuda
     # Hardware backend toggles.
@@ -299,13 +309,13 @@ runtime:
     # Iteration logging interval for runtime tools.
     log_iter: 20
     # Runtime epoch override.
-    epoches: 20
+    epochs: 20
     # Runtime seed used by evaluation visualization sampling and runtime stochastic behavior.
     seed: 42
     # Shared confidence threshold for evaluation metrics (train validation + eval flow).
     score_threshold: 0.35
     # Generic runtime batch size used by utility flows.
-    batch_size: 8
+    batch_size: 1
     # Generic runtime worker count.
     num_workers: 2
   visualization:
@@ -353,15 +363,15 @@ runtime:
 
     inference_onnx:
       # ONNX model file for ONNX inference path.
-      onnx_model: raw_models/RT-DETR/rtdetrv2_pytorch/exported_models/model.onnx
+      onnx_model: raw_models/RT-DETR/rf_detr/exported_models/model.onnx
       # Input directory for ONNX inference.
       input_dir: input_data
 
     export_onnx:
       # Source checkpoint for ONNX export.
-      checkpoint: weights/rtdetrv2/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
+      checkpoint: ""
       # Destination ONNX path.
-      onnx_model: raw_models/RT-DETR/rtdetrv2_pytorch/exported_models/model.onnx
+      onnx_model: raw_models/RT-DETR/rf_detr/exported_models/model.onnx
 
     export_coco_rle:
       # Dataset root for COCO-RLE conversion utility.

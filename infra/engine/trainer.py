@@ -94,8 +94,8 @@ class Trainer:
         self.last_validation_confusion_matrix: Optional[np.ndarray] = None
         self.last_validation_confusion_labels: list[str] = []
         self.total_epochs = (
-            int(self.app_config.runtime.epoches)
-            if self.app_config.runtime.epoches is not None
+            int(self.app_config.runtime.epochs)
+            if self.app_config.runtime.epochs is not None
             else int(self.app_config.train.epochs)
         )
         self._loss_splitter = LossComponentSplitter.from_config(self.app_config)

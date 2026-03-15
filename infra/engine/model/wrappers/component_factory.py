@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ....config import AppConfig
-from .adapter import RFDETRModelBuilder, RTDETRv2ModelBuilder
+from infra.adapter import RFDETRModelBuilder, RTDETRv2ModelBuilder
 from .adapter_runtime import FrameworkModelAdapter
 from .contracts import ModelWrapperAdapter
 

@@ -12,7 +12,7 @@
       "pathMappings": [
         {
           "localRoot": "${workspaceFolder}",
-          "remoteRoot": "/app"
+          "remoteRoot": "/workspace"
         }
       ],
       "justMyCode": true
@@ -28,7 +28,7 @@
       "args": [
         "train",
         "--config",
-        "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
+        "infra/adapter/rtdetrv2_pytorch/experiments/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
         "--output-dir",
         "${workspaceFolder}/out"
       ],
@@ -49,7 +49,7 @@
       "args": [
         "train",
         "--config",
-        "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle_1ch.yaml",
+        "infra/adapter/rtdetrv2_pytorch/experiments/rtdetrv2_r18vd_120e_coco_instance_seg_rle_1ch.yaml",
         "--output-dir",
         "${workspaceFolder}/out"
       ],
@@ -70,7 +70,7 @@
       "args": [
         "eval",
         "--config",
-        "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle_1ch.yaml",
+        "infra/adapter/rtdetrv2_pytorch/experiments/rtdetrv2_r18vd_120e_coco_instance_seg_rle_1ch.yaml",
         "--output-dir",
         "${workspaceFolder}/out",
         "--checkpoint",
@@ -95,7 +95,7 @@
       "args": [
         "inference",
         "--config",
-        "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
+        "infra/adapter/rtdetrv2_pytorch/experiments/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
         "--checkpoint",
         "${workspaceFolder}/weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth",
         "--input-dir",
@@ -122,7 +122,7 @@
       "args": [
         "train",
         "--config",
-        "experiment/rfdetr_small_coco_instance_seg_rle.yaml",
+        "infra/adapter/rf_detr/experiments/rfdetr_small_coco_instance_seg_rle.yaml",
         "--output-dir",
         "${workspaceFolder}/out"
       ],
@@ -143,7 +143,7 @@
       "args": [
         "train",
         "--config",
-        "experiment/rfdetr_small_coco_instance_seg_rle_1ch.yaml",
+        "infra/adapter/rf_detr/experiments/rfdetr_small_coco_instance_seg_rle_1ch.yaml",
         "--output-dir",
         "${workspaceFolder}/out"
       ],
@@ -164,7 +164,7 @@
       "args": [
         "eval",
         "--config",
-        "experiment/rfdetr_small_coco_instance_seg_rle_1ch.yaml",
+        "infra/adapter/rf_detr/experiments/rfdetr_small_coco_instance_seg_rle_1ch.yaml",
         "--output-dir",
         "${workspaceFolder}/out",
         "--checkpoint",
@@ -189,7 +189,7 @@
       "args": [
         "inference",
         "--config",
-        "experiment/rfdetr_small_coco_instance_seg_rle_1ch.yaml",
+        "infra/adapter/rf_detr/experiments/rfdetr_small_coco_instance_seg_rle_1ch.yaml",
         "--checkpoint",
         "${workspaceFolder}/weights/rfdetr_small_1ch.pth",
         "--input-dir",
@@ -216,7 +216,7 @@
       "args": [
         "inference-onnx",
         "--config",
-        "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
+        "infra/adapter/rtdetrv2_pytorch/experiments/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
         "--model-profile",
         "r18",
         "--onnx-model",
@@ -245,7 +245,7 @@
       "args": [
         "export-onnx",
         "--config",
-        "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
+        "infra/adapter/rtdetrv2_pytorch/experiments/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
         "--checkpoint",
         "${workspaceFolder}/weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth",
         "--onnx-model",
@@ -268,7 +268,7 @@
       "args": [
         "export-coco-rle",
         "--config",
-        "experiment/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
+        "infra/adapter/rtdetrv2_pytorch/experiments/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
         "--dataset_root",
         "${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja",
         "--output_dir",
