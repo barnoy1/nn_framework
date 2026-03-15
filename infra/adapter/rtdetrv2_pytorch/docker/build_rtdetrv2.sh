@@ -19,6 +19,14 @@ print_usage() {
 Usage: infra/adapter/rtdetrv2_pytorch/docker/build_rtdetrv2.sh [options]
 
 Thin wrapper around:
+  docker compose -f docker/docker-compose.yml build runner
+  docker compose -f docker/docker-compose.yml \
+    -f infra/adapter/rtdetrv2_pytorch/docker/docker-compose.yml up -d --build runner
+
+Ensures base image exists first:
+  nn-framework-runner:local
+
+Previous behavior:
   docker compose -f docker/docker-compose.yml \
     -f infra/adapter/rtdetrv2_pytorch/docker/docker-compose.yml up -d --build runner
 
@@ -42,6 +50,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 cd "${PROJECT_ROOT}"
+
+docker compose \
+  -f docker/docker-compose.yml \
+  build runner
 
 docker compose \
   -f docker/docker-compose.yml \

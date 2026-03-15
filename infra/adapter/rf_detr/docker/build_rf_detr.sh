@@ -19,8 +19,12 @@ print_usage() {
 Usage: infra/adapter/rf_detr/docker/build_rf_detr.sh [options]
 
 Thin wrapper around:
+  docker compose -f docker/docker-compose.yml build runner
   docker compose -f docker/docker-compose.yml \
     -f infra/adapter/rf_detr/docker/docker-compose.yml up -d --build runner
+
+Ensures base image exists first:
+  nn-framework-runner:local
 
 Options:
   -h, --help       Show this help message.
@@ -42,6 +46,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 cd "${PROJECT_ROOT}"
+
+docker compose \
+  -f docker/docker-compose.yml \
+  build runner
 
 docker compose \
   -f docker/docker-compose.yml \
