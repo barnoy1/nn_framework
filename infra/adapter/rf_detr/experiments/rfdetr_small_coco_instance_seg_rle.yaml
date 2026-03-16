@@ -5,8 +5,8 @@ model:
   source_root: raw_models/rf-detr
   # Baseline model recipe used by wrapper/model builder.
   model_config_path: dinov2_configs/dinov2_small.json
-
-  config_name: 
+  # Model variant selector for model config class lookup (schemes.py).
+  config_variant_name: "small" 
   # Number of classifier outputs expected from the head.
   num_classes: 80
   # Number of object queries decoded per image.

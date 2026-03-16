@@ -3,7 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, Optional, Any
 
+import cv2
 import numpy as np
+
+
+DEFAULT_BBOX_ALPHA = 0.4
+DEFAULT_BBOX_FILL_COLOR = (0, 255, 0)
 
 
 def rtdetr_output_to_sv_detections(
@@ -50,11 +55,13 @@ def save_side_by_side(
 
     if gt.mask is not None:
         gt_frame = mask_annotator.annotate(gt_frame, gt)
+    gt_frame = _apply_transparent_bbox_fill(gt_frame, gt)
     gt_frame = box_annotator.annotate(gt_frame, gt)
     gt_frame = label_annotator.annotate(gt_frame, gt, gt_labels)
 
     if pred.mask is not None:
         pred_frame = mask_annotator.annotate(pred_frame, pred)
+    pred_frame = _apply_transparent_bbox_fill(pred_frame, pred)
     pred_frame = box_annotator.annotate(pred_frame, pred)
     pred_frame = label_annotator.annotate(pred_frame, pred, pred_labels)
 
@@ -115,6 +122,32 @@ def _build_detection_labels(
     return labels
 
 
+def _apply_transparent_bbox_fill(
+    frame: np.ndarray,
+    detections: Any,
+    *,
+    alpha: float = DEFAULT_BBOX_ALPHA,
+    fill_color: tuple[int, int, int] = DEFAULT_BBOX_FILL_COLOR,
+) -> np.ndarray:
+    xyxy = getattr(detections, "xyxy", None)
+    if xyxy is None or len(xyxy) == 0 or alpha <= 0.0:
+        return frame
+
+    overlay = frame.copy()
+    height, width = frame.shape[:2]
+    for box in xyxy:
+        x1, y1, x2, y2 = [int(round(value)) for value in box]
+        x1 = max(0, min(x1, width - 1))
+        x2 = max(0, min(x2, width - 1))
+        y1 = max(0, min(y1, height - 1))
+        y2 = max(0, min(y2, height - 1))
+        if x2 <= x1 or y2 <= y1:
+            continue
+        cv2.rectangle(overlay, (x1, y1), (x2, y2), fill_color, thickness=-1)
+
+    return cv2.addWeighted(overlay, float(alpha), frame, 1.0 - float(alpha), 0.0)
+
+
 def draw_yolo_caption_detections(
     image: np.ndarray,
     boxes: np.ndarray,
@@ -134,6 +167,7 @@ def draw_yolo_caption_detections(
     captions = _build_detection_labels(detections, class_id_to_name)
 
     frame = image.copy()
+    frame = _apply_transparent_bbox_fill(frame, detections)
     frame = sv.BoxAnnotator().annotate(frame, detections)
     return sv.LabelAnnotator().annotate(frame, detections, captions)
 

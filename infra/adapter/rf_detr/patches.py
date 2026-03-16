@@ -86,6 +86,13 @@ def apply_single_channel_backbone_policy(*, config_payload: dict[str, object]) -
 
 
 def segmentation_enabled(app_config) -> bool:
+    configured_variant = str(
+        getattr(getattr(app_config, "model", object()), "config_variant_name", "")
+        or ""
+    ).strip()
+    if "seg" in configured_variant.lower():
+        return True
+
     iou_types = list(getattr(app_config.data.evaluator, "iou_types", []) or [])
     if "segm" in iou_types:
         return True
@@ -113,32 +120,69 @@ def _resolve_model_variant(config_name: str) -> str:
     return DEFAULT_MODEL_VARIANT
 
 
-def _resolve_model_config_class(*, config_name: str, use_segmentation: bool):
+def _normalize_variant_selector(value: str) -> str:
+    return str(value).strip().lower().replace("-", "_").replace(" ", "")
+
+
+def _resolve_selected_variant(*, app_config, config_name: str) -> str:
+    explicit_variant = str(getattr(app_config.model, "config_variant_name", "") or "").strip()
+    if explicit_variant:
+        return explicit_variant
+    return _resolve_model_variant(config_name)
+
+
+def _resolve_model_config_class(*, app_config, config_name: str):
     from rfdetr.config import __dict__ as config_symbols
 
-    from .schemes import (
-        DETECTION_MODEL_CONFIG_CLASS_BY_VARIANT,
-        SEGMENTATION_MODEL_CONFIG_CLASS_BY_VARIANT,
-    )
+    from .schemes import MODEL_CONFIG_CLASS_BY_VARIANT
 
-    variant = _resolve_model_variant(config_name)
-    mapping = (
-        SEGMENTATION_MODEL_CONFIG_CLASS_BY_VARIANT
-        if use_segmentation
-        else DETECTION_MODEL_CONFIG_CLASS_BY_VARIANT
+    selected_variant = _resolve_selected_variant(
+        app_config=app_config,
+        config_name=config_name,
     )
-    class_name = mapping.get(variant)
+    normalized_variant = _normalize_variant_selector(selected_variant)
+
+    if selected_variant in config_symbols:
+        return config_symbols[selected_variant], normalized_variant
+
+    class_name = MODEL_CONFIG_CLASS_BY_VARIANT.get(normalized_variant)
+    if class_name is None and normalized_variant.startswith("rfdetrseg"):
+        suffix = normalized_variant.replace("rfdetrseg", "", 1)
+        class_name = MODEL_CONFIG_CLASS_BY_VARIANT.get(f"seg_{suffix}")
+    if class_name is None and normalized_variant.startswith("rfdetr"):
+        suffix = normalized_variant.replace("rfdetr", "", 1)
+        class_name = MODEL_CONFIG_CLASS_BY_VARIANT.get(suffix)
+    if class_name is None and normalized_variant in {"nano", "small", "medium", "large"}:
+        if segmentation_enabled(app_config):
+            class_name = MODEL_CONFIG_CLASS_BY_VARIANT.get(f"seg_{normalized_variant}")
     if class_name is None:
-        fallback = "small" if not use_segmentation else "small"
-        class_name = mapping[fallback]
-    return config_symbols[class_name], variant
+        fallback = "seg_small" if segmentation_enabled(app_config) else "small"
+        class_name = MODEL_CONFIG_CLASS_BY_VARIANT[fallback]
+
+    return config_symbols[class_name], normalized_variant
 
 
-def _build_scheme_overrides(*, variant: str, use_segmentation: bool) -> dict[str, Any]:
+def _build_scheme_overrides(*, variant: str) -> dict[str, Any]:
     from .schemes import MODEL_CONFIG_OVERRIDES_BY_KEY
 
-    key = f"seg_{variant}" if use_segmentation else variant
-    return deepcopy(MODEL_CONFIG_OVERRIDES_BY_KEY.get(key, {}))
+    normalized = _normalize_variant_selector(variant)
+    override = MODEL_CONFIG_OVERRIDES_BY_KEY.get(normalized)
+    if override is not None:
+        return deepcopy(override)
+
+    if normalized.startswith("rfdetrseg"):
+        suffix = normalized.replace("rfdetrseg", "", 1)
+        override = MODEL_CONFIG_OVERRIDES_BY_KEY.get(f"seg_{suffix}")
+        if override is not None:
+            return deepcopy(override)
+
+    if normalized.startswith("rfdetr"):
+        suffix = normalized.replace("rfdetr", "", 1)
+        override = MODEL_CONFIG_OVERRIDES_BY_KEY.get(suffix)
+        if override is not None:
+            return deepcopy(override)
+
+    return {}
 
 
 def build_model_config(*, app_config, config_path: Path):
@@ -152,13 +196,10 @@ def build_model_config(*, app_config, config_path: Path):
     )
     use_segmentation = segmentation_enabled(app_config)
     config_cls, variant = _resolve_model_config_class(
+        app_config=app_config,
         config_name=config_name,
-        use_segmentation=use_segmentation,
     )
-    scheme_overrides = _build_scheme_overrides(
-        variant=variant,
-        use_segmentation=use_segmentation,
-    )
+    scheme_overrides = _build_scheme_overrides(variant=variant)
 
     config_kwargs: dict[str, Any] = {
         "num_classes": app_config.model.num_classes,

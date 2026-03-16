@@ -11,20 +11,17 @@ RUNTIME_FUNCTION_PATCHES = ()
 
 DEFAULT_MODEL_VARIANT = "small"
 
-DETECTION_MODEL_CONFIG_CLASS_BY_VARIANT = {
+MODEL_CONFIG_CLASS_BY_VARIANT = {
     "base": "RFDETRBaseConfig",
     "nano": "RFDETRNanoConfig",
     "small": "RFDETRSmallConfig",
     "medium": "RFDETRMediumConfig",
     "large": "RFDETRLargeConfig",
-}
-
-SEGMENTATION_MODEL_CONFIG_CLASS_BY_VARIANT = {
     "preview": "RFDETRSegPreviewConfig",
-    "nano": "RFDETRSegNanoConfig",
-    "small": "RFDETRSegSmallConfig",
-    "medium": "RFDETRSegMediumConfig",
-    "large": "RFDETRSegLargeConfig",
+    "seg_nano": "RFDETRSegNanoConfig",
+    "seg_small": "RFDETRSegSmallConfig",
+    "seg_medium": "RFDETRSegMediumConfig",
+    "seg_large": "RFDETRSegLargeConfig",
     "xlarge": "RFDETRSegXLargeConfig",
     "2xlarge": "RFDETRSeg2XLargeConfig",
     "xxlarge": "RFDETRSeg2XLargeConfig",
