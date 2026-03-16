@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Dict, Optional, Any
-import colorsys
 
 import numpy as np
-import cv2
 
 
 def rtdetr_output_to_sv_detections(
@@ -42,18 +40,23 @@ def save_side_by_side(
     import supervision as sv
 
     box_annotator = sv.BoxAnnotator()
+    label_annotator = sv.LabelAnnotator()
     mask_annotator = sv.MaskAnnotator()
 
     gt_frame = image.copy()
     pred_frame = image.copy()
+    gt_labels = _build_detection_labels(gt, class_names)
+    pred_labels = _build_detection_labels(pred, class_names)
 
     if gt.mask is not None:
         gt_frame = mask_annotator.annotate(gt_frame, gt)
     gt_frame = box_annotator.annotate(gt_frame, gt)
+    gt_frame = label_annotator.annotate(gt_frame, gt, gt_labels)
 
     if pred.mask is not None:
         pred_frame = mask_annotator.annotate(pred_frame, pred)
     pred_frame = box_annotator.annotate(pred_frame, pred)
+    pred_frame = label_annotator.annotate(pred_frame, pred, pred_labels)
 
     combined = np.concatenate([gt_frame, pred_frame], axis=1)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -66,21 +69,50 @@ def _label_name(class_id: int, class_id_to_name: Optional[Dict[int, str]]) -> st
     return class_id_to_name.get(int(class_id), str(class_id))
 
 
-def _pastel_bgr_for_class(class_id: int) -> tuple[int, int, int]:
-    class_index = int(class_id) % 360
-    hue = (class_index * 0.618033988749895) % 1.0
-    saturation = 0.45
-    value = 0.95
-    red, green, blue = colorsys.hsv_to_rgb(hue, saturation, value)
-    return int(blue * 255), int(green * 255), int(red * 255)
+def _as_numpy_array(value: Any) -> np.ndarray:
+    if hasattr(value, "detach"):
+        value = value.detach().cpu().numpy()
+    return np.asarray(value)
 
 
-def _readable_text_color_for_bgr(
-    color_bgr: tuple[int, int, int],
-) -> tuple[int, int, int]:
-    blue, green, red = color_bgr
-    luminance = 0.114 * blue + 0.587 * green + 0.299 * red
-    return (20, 20, 20) if luminance > 170 else (245, 245, 245)
+def _build_sv_detections(
+    *,
+    boxes: np.ndarray,
+    labels: np.ndarray,
+    scores: np.ndarray,
+    confidence_threshold: float,
+):
+    import supervision as sv
+
+    scores_array = _as_numpy_array(scores).astype(float)
+    boxes_array = _as_numpy_array(boxes).astype(float)
+    labels_array = _as_numpy_array(labels).astype(int)
+
+    keep = scores_array >= float(confidence_threshold)
+    return sv.Detections(
+        xyxy=boxes_array[keep],
+        confidence=scores_array[keep],
+        class_id=labels_array[keep],
+    )
+
+
+def _build_detection_labels(
+    detections: Any,
+    class_id_to_name: Optional[Dict[int, str]],
+) -> list[str]:
+    class_ids = getattr(detections, "class_id", None)
+    if class_ids is None:
+        return []
+
+    confidences = getattr(detections, "confidence", None)
+    labels: list[str] = []
+    for index, class_id in enumerate(class_ids):
+        label = _label_name(int(class_id), class_id_to_name)
+        if confidences is None:
+            labels.append(label)
+            continue
+        labels.append(f"{label} {float(confidences[index]):.2f}")
+    return labels
 
 
 def draw_yolo_caption_detections(
@@ -91,47 +123,19 @@ def draw_yolo_caption_detections(
     class_id_to_name: Optional[Dict[int, str]] = None,
     confidence_threshold: float = 0.3,
 ) -> np.ndarray:
+    import supervision as sv
+
+    detections = _build_sv_detections(
+        boxes=boxes,
+        labels=labels,
+        scores=scores,
+        confidence_threshold=confidence_threshold,
+    )
+    captions = _build_detection_labels(detections, class_id_to_name)
+
     frame = image.copy()
-
-    for box, label, score in zip(boxes, labels, scores):
-        if float(score) < confidence_threshold:
-            continue
-
-        x1, y1, x2, y2 = [int(round(v)) for v in box]
-        x1 = max(0, min(x1, frame.shape[1] - 1))
-        x2 = max(0, min(x2, frame.shape[1] - 1))
-        y1 = max(0, min(y1, frame.shape[0] - 1))
-        y2 = max(0, min(y2, frame.shape[0] - 1))
-        if x2 <= x1 or y2 <= y1:
-            continue
-
-        class_name = _label_name(int(label), class_id_to_name)
-        caption = f"{class_name} {float(score):.1f}"
-        class_color = _pastel_bgr_for_class(int(label))
-        text_color = _readable_text_color_for_bgr(class_color)
-
-        cv2.rectangle(frame, (x1, y1), (x2, y2), class_color, 2)
-
-        (text_w, text_h), baseline = cv2.getTextSize(
-            caption, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1
-        )
-        box_top = max(0, y1 - text_h - baseline - 6)
-        box_bottom = max(text_h + baseline + 6, y1)
-        box_right = min(frame.shape[1] - 1, x1 + text_w + 6)
-
-        cv2.rectangle(frame, (x1, box_top), (box_right, box_bottom), class_color, -1)
-        cv2.putText(
-            frame,
-            caption,
-            (x1 + 3, box_bottom - baseline - 2),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            text_color,
-            1,
-            cv2.LINE_AA,
-        )
-
-    return frame
+    frame = sv.BoxAnnotator().annotate(frame, detections)
+    return sv.LabelAnnotator().annotate(frame, detections, captions)
 
 
 def render_prediction_with_yolo_caption(
@@ -140,22 +144,11 @@ def render_prediction_with_yolo_caption(
     class_id_to_name: Optional[Dict[int, str]] = None,
     confidence_threshold: float = 0.3,
 ) -> np.ndarray:
-    labels = prediction["labels"]
-    boxes = prediction["boxes"]
-    scores = prediction["scores"]
-
-    if hasattr(labels, "detach"):
-        labels = labels.detach().cpu().numpy()
-    if hasattr(boxes, "detach"):
-        boxes = boxes.detach().cpu().numpy()
-    if hasattr(scores, "detach"):
-        scores = scores.detach().cpu().numpy()
-
     return draw_yolo_caption_detections(
         image=image,
-        boxes=np.asarray(boxes),
-        labels=np.asarray(labels),
-        scores=np.asarray(scores),
+        boxes=_as_numpy_array(prediction["boxes"]),
+        labels=_as_numpy_array(prediction["labels"]),
+        scores=_as_numpy_array(prediction["scores"]),
         class_id_to_name=class_id_to_name,
         confidence_threshold=confidence_threshold,
     )

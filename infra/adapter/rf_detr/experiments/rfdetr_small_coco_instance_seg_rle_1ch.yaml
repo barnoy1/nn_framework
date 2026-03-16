@@ -369,7 +369,7 @@ runtime:
 
     export_onnx:
       # Source checkpoint for ONNX export.
-      checkpoint: ""
+      checkpoint: ${oc.env:HOME}/.cache/torch/hub/checkpoints/rf_detr/rf-detr-small.pth
       # Destination ONNX path.
       onnx_model: raw_models/RT-DETR/rf_detr/exported_models/model.onnx
 

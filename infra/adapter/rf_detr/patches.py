@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import pickle
 import sys
 from copy import deepcopy
 from pathlib import Path
@@ -182,8 +183,8 @@ def build_model_config(*, app_config, config_path: Path):
         if value is not None:
             config_kwargs[key] = float(value)
 
-    is_non_default_pretrain_geometry = num_channels != 3 or patch_size != 16
-    if is_non_default_pretrain_geometry:
+    disable_pretrain_weights = num_channels != 3
+    if disable_pretrain_weights:
         config_kwargs["pretrain_weights"] = None
 
     config_kwargs.update(scheme_overrides)
@@ -191,11 +192,17 @@ def build_model_config(*, app_config, config_path: Path):
 
 
 def maybe_download_pretrain_weights(model_config) -> None:
+    resolved_path = resolve_pretrain_weights_path(model_config)
+    if resolved_path is not None:
+        model_config.pretrain_weights = str(resolved_path)
+
+
+def resolve_pretrain_weights_path(model_config) -> str | None:
     from rfdetr.assets.model_weights import download_pretrain_weights
 
     pretrain_weights = getattr(model_config, "pretrain_weights", None)
     if pretrain_weights is None:
-        return
+        return None
 
     cache_dir = (
         Path.home() / ".cache" / "torch" / "hub" / "checkpoints" / "rf_detr"
@@ -213,4 +220,37 @@ def maybe_download_pretrain_weights(model_config) -> None:
         resolved_path.parent.mkdir(parents=True, exist_ok=True)
         download_pretrain_weights(str(resolved_path))
 
-    model_config.pretrain_weights = str(resolved_path.resolve())
+    return str(resolved_path.resolve())
+
+
+def load_partial_pretrained_weights(*, model, checkpoint_path: str) -> tuple[int, int]:
+    try:
+        checkpoint = torch.load(str(checkpoint_path), map_location="cpu")
+    except pickle.UnpicklingError:
+        checkpoint = torch.load(
+            str(checkpoint_path), map_location="cpu", weights_only=False
+        )
+
+    state_dict = checkpoint
+    if isinstance(checkpoint, dict):
+        if "ema" in checkpoint:
+            state_dict = checkpoint["ema"].get("module", checkpoint["ema"])
+        elif "model" in checkpoint:
+            state_dict = checkpoint["model"]
+
+    if not isinstance(state_dict, dict):
+        return 0, 0
+
+    model_state = model.state_dict()
+    compatible = {}
+    skipped = 0
+    for key, value in state_dict.items():
+        if key not in model_state:
+            continue
+        if model_state[key].shape != value.shape:
+            skipped += 1
+            continue
+        compatible[key] = value
+
+    model.load_state_dict(compatible, strict=False)
+    return len(compatible), skipped

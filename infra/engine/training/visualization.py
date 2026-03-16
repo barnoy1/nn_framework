@@ -4,8 +4,9 @@ import math
 from pathlib import Path
 
 import numpy as np
+import supervision as sv
 import torch
-from PIL import Image, ImageDraw
+from PIL import Image
 
 
 def _to_rgb_uint8(image_chw: torch.Tensor) -> np.ndarray:
@@ -26,6 +27,43 @@ def _to_rgb_uint8(image_chw: torch.Tensor) -> np.ndarray:
     return image
 
 
+def _target_to_sv_detections(target, image: np.ndarray) -> tuple[sv.Detections, list[str]]:
+    boxes = target["boxes"].detach().cpu().float().numpy()
+    labels_tensor = target.get("labels")
+    labels = (
+        labels_tensor.detach().cpu().numpy().astype(int)
+        if isinstance(labels_tensor, torch.Tensor)
+        else None
+    )
+    height, width = image.shape[0], image.shape[1]
+
+    xyxy_boxes = []
+    caption_labels: list[str] = []
+    for index, (cx, cy, bw, bh) in enumerate(boxes):
+        x1 = max(0, min(width - 1, int((cx - bw * 0.5) * width)))
+        y1 = max(0, min(height - 1, int((cy - bh * 0.5) * height)))
+        x2 = max(0, min(width - 1, int((cx + bw * 0.5) * width)))
+        y2 = max(0, min(height - 1, int((cy + bh * 0.5) * height)))
+        if x2 <= x1 or y2 <= y1:
+            continue
+        xyxy_boxes.append([x1, y1, x2, y2])
+        if labels is not None:
+            caption_labels.append(str(labels[index]))
+
+    if not xyxy_boxes:
+        return sv.Detections.empty(), []
+
+    detections = sv.Detections(
+        xyxy=np.asarray(xyxy_boxes, dtype=np.float32),
+        class_id=(
+            np.asarray([int(label) for label in caption_labels], dtype=int)
+            if caption_labels
+            else None
+        ),
+    )
+    return detections, caption_labels
+
+
 def _save_batch_visualization(
     *,
     output_root: Path,
@@ -36,24 +74,21 @@ def _save_batch_visualization(
     epoch_suffix: int | None = None,
     num_samples: int = 4,
 ) -> None:
+    box_annotator = sv.BoxAnnotator()
+    label_annotator = sv.LabelAnnotator()
     panels = []
     max_images = min(max(1, int(num_samples)), int(images.shape[0]))
     for index in range(max_images):
         image = _to_rgb_uint8(images[index])
-        pil_image = Image.fromarray(image)
-        draw = ImageDraw.Draw(pil_image)
-
-        boxes = targets[index]["boxes"].detach().cpu().float().numpy()
-        height, width = image.shape[0], image.shape[1]
-        for cx, cy, bw, bh in boxes:
-            x1 = max(0, min(width - 1, int((cx - bw * 0.5) * width)))
-            y1 = max(0, min(height - 1, int((cy - bh * 0.5) * height)))
-            x2 = max(0, min(width - 1, int((cx + bw * 0.5) * width)))
-            y2 = max(0, min(height - 1, int((cy + bh * 0.5) * height)))
-            if x2 > x1 and y2 > y1:
-                draw.rectangle([(x1, y1), (x2, y2)], outline=(255, 0, 0), width=2)
-
-        panels.append(np.asarray(pil_image))
+        detections, labels = _target_to_sv_detections(targets[index], image)
+        panel = box_annotator.annotate(scene=image.copy(), detections=detections)
+        if labels:
+            panel = label_annotator.annotate(
+                scene=panel,
+                detections=detections,
+                labels=labels,
+            )
+        panels.append(panel)
 
     if not panels:
         return

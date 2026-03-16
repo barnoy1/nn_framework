@@ -12,8 +12,10 @@ from .patches import (
     build_model_config,
     ensure_repo_import_paths,
     infer_model_profile,
+    load_partial_pretrained_weights,
     load_dino_config,
     maybe_download_pretrain_weights,
+    resolve_pretrain_weights_path,
 )
 
 from .schemes import (
@@ -64,8 +66,19 @@ class RFDETRModelBuilder(ReflectiveYamlAdapterModelBuilderBase):
             app_config=self.app_config,
             config_path=config_path,
         )
-        maybe_download_pretrain_weights(self.model_config)
-        self.model_api = Model(**self.model_config.model_dump())
+        num_channels = int(config_payload.get("num_channels", 3) or 3)
+        if num_channels == 1:
+            partial_pretrain_path = resolve_pretrain_weights_path(self.model_config)
+            self.model_config.pretrain_weights = None
+            self.model_api = Model(**self.model_config.model_dump())
+            if partial_pretrain_path:
+                load_partial_pretrained_weights(
+                    model=self.model_api.model,
+                    checkpoint_path=partial_pretrain_path,
+                )
+        else:
+            maybe_download_pretrain_weights(self.model_config)
+            self.model_api = Model(**self.model_config.model_dump())
         args = self.model_api.args
         self.args = args
         self.resolution = args.resolution

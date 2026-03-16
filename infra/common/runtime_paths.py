@@ -36,11 +36,25 @@ class RuntimePathResolver:
         return os.path.expandvars(expanded)
 
     def checkpoint_search_roots(self) -> list[Path]:
+        home = Path.home()
         return [
             (self.repo_root / "weights").resolve(),
             (self.repo_root.parent / "weights").resolve(),
+            (home / ".cache" / "torch" / "hub" / "checkpoints").resolve(),
+            (
+                home
+                / ".cache"
+                / "torch"
+                / "hub"
+                / "checkpoints"
+                / "rf_detr"
+            ).resolve(),
             *self.extra_search_roots,
         ]
+
+    @staticmethod
+    def _normalize_checkpoint_name(value: str) -> str:
+        return re.sub(r"[^a-z0-9]", "", str(value).lower())
 
     @staticmethod
     def _weights_suffix(value: Path) -> Path | None:
@@ -105,6 +119,23 @@ class RuntimePathResolver:
             matches = sorted(root.rglob(candidate.name))
             if matches:
                 fallback = matches[0].resolve()
+                logger.warning(
+                    "checkpoint not found at {}, using {}", candidate, fallback
+                )
+                return fallback
+
+        requested_name_norm = self._normalize_checkpoint_name(candidate.name)
+        suffix_pattern = f"*{candidate.suffix}" if candidate.suffix else "*"
+        for root in self.checkpoint_search_roots():
+            if not root.exists():
+                continue
+            for matched in sorted(root.rglob(suffix_pattern)):
+                if not matched.is_file():
+                    continue
+                matched_name_norm = self._normalize_checkpoint_name(matched.name)
+                if matched_name_norm != requested_name_norm:
+                    continue
+                fallback = matched.resolve()
                 logger.warning(
                     "checkpoint not found at {}, using {}", candidate, fallback
                 )
