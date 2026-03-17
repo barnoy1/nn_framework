@@ -1,5 +1,5 @@
 services:
-  runner-rtdetrv2:
+  runner:
     container_name: nn-framework-rtdetrv2-model
     env_file:
       - ${PWD}/infra/adapter/rtdetrv2_pytorch/docker/.env
@@ -15,4 +15,6 @@ services:
     volumes:
       - ${PWD}/docker/scripts:/workspace/scripts:rw
       - ${PWD}/infra/adapter/rtdetrv2_pytorch/experiments:/workspace/experiments:rw
+      - ${HOME}/repo/datasets:/root/repo/datasets:rw
+      - ${HOME}/.cache/torch:/root/.cache/torch:rw
 

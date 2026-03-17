@@ -1,7 +1,7 @@
 name: nn-framework
 
 services:
-  runner-base:
+  runner:
     container_name: nn-framework-runner
     build:
       context: ..

@@ -1,4 +1,4 @@
-## [v3.3.0](https://github.com/barnoy1/nn_framework/releases/tag/v3.3.0) (2026-03-17)
+## [v3.3.0](https://github.com/barnoy1/nn_framework/releases/tag/v3.3.0) (2026-03-17) ([diff](https://github.com/barnoy1/nn_framework/compare/v3.1.0...v3.3.0))
 
 ### docs
 

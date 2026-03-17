@@ -1,5 +1,5 @@
 services:
-  runner-rf-detr:
+  runner:
     container_name: nn-framework-rf-detr-model
     env_file:
       - ${PWD}/infra/adapter/rf_detr/docker/.env
@@ -15,3 +15,5 @@ services:
     volumes:
       - ${PWD}/docker/scripts:/workspace/scripts:rw
       - ${PWD}/infra/adapter/rf_detr/experiments:/workspace/experiments:rw
+      - ${HOME}/repo/datasets:/root/repo/datasets:rw
+      - ${HOME}/.cache/torch:/root/.cache/torch:rw
