@@ -9,6 +9,5 @@ ACTION_TO_RUNTIME_SECTION = {
     "eval": "eval",
     "inference": "inference",
     "inference-onnx": "inference_onnx",
-    "export-onnx": "export_onnx",
     "export-coco-rle": "export_coco_rle",
 }

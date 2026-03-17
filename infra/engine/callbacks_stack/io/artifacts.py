@@ -23,6 +23,7 @@ class YoloStyleArtifactsCallback(Callback):
         self.enabled = enabled
         self._results_csv: Optional[Path] = None
         self._rows: List[Dict[str, float]] = []
+        self._last_val_metrics: Dict[str, float] = {}
         self._last_precision = 0.0
         self._last_recall = 0.0
         self._last_f1 = 0.0
@@ -58,6 +59,16 @@ class YoloStyleArtifactsCallback(Callback):
     ) -> None:
         if not self.enabled or not trainer.accelerator.is_main_process:
             return
+        for key, value in metrics.items():
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                continue
+            prefixed_key = str(key)
+            if not prefixed_key.startswith("val_"):
+                prefixed_key = f"val_{prefixed_key}"
+            self._last_val_metrics[prefixed_key] = numeric
+
         matrix = getattr(trainer, "last_validation_confusion_matrix", None)
         names = getattr(trainer, "last_validation_confusion_labels", None)
         if matrix is None or names is None:
@@ -78,13 +89,18 @@ class YoloStyleArtifactsCallback(Callback):
     ) -> None:
         if not self.enabled or not trainer.accelerator.is_main_process:
             return
+        merged_metrics = dict(metrics)
+        has_val_metrics = any(str(key).startswith("val_") for key in merged_metrics)
+        if not has_val_metrics and self._last_val_metrics:
+            merged_metrics.update(self._last_val_metrics)
+
         optimizer_lrs = [
             float(group.get("lr", 0.0))
             for group in getattr(trainer.optimizer, "param_groups", [])
         ]
         row = build_epoch_row(
             epoch=epoch,
-            metrics=metrics,
+            metrics=merged_metrics,
             optimizer_lrs=optimizer_lrs,
             precision=self._last_precision,
             recall=self._last_recall,

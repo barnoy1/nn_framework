@@ -1,11 +1,12 @@
 name: nn-framework
 
 services:
-  runner:
+  runner-base:
     container_name: nn-framework-runner
     build:
       context: ..
       dockerfile: docker/Dockerfile
+      network: host
     image: nn-framework-runner:local
     working_dir: /workspace
     ipc: host

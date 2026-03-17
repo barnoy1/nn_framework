@@ -151,42 +151,6 @@ def run_inference(args: argparse.Namespace) -> None:
     )
 
 
-def run_export_onnx(args: argparse.Namespace) -> None:
-    if not args.checkpoint or not args.onnx_model:
-        raise ValueError("--checkpoint and --onnx-model are required for export-onnx")
-    experiment_config = str(resolve_config_path(args.config))
-    model_root = resolve_model_root(experiment_config)
-    model_config = resolve_model_config_path(experiment_config)
-
-    checkpoint_path = resolve_checkpoint_path(
-        args.checkpoint, config_path=experiment_config
-    )
-    output_onnx_path = resolve_runtime_path(
-        args.onnx_model, config_path=experiment_config
-    )
-    export_script = model_root / "tools" / "export_onnx.py"
-    spec = importlib.util.spec_from_file_location(
-        "rtdetr_export_onnx", str(export_script)
-    )
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Cannot load export script module: {export_script}")
-
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-
-    module.main(
-        SimpleNamespace(
-            config=str(model_config),
-            resume=checkpoint_path,
-            output_file=output_onnx_path,
-            input_size=640,
-            check=True,
-            simplify=True,
-            update=None,
-        )
-    )
-
-
 def run_export_coco_rle(args: argparse.Namespace) -> None:
     dataset_conf = args.dataset_conf or args.config
     if not dataset_conf:

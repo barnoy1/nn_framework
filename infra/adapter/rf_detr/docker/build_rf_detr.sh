@@ -18,10 +18,10 @@ print_usage() {
   cat <<'EOF'
 Usage: infra/adapter/rf_detr/docker/build_rf_detr.sh [options]
 
-Thin wrapper around:
-  docker compose -f docker/docker-compose.yml build runner
+wrapper around:
+  docker compose -f docker/docker-compose.yml build runner-base
   docker compose -f docker/docker-compose.yml \
-    -f infra/adapter/rf_detr/docker/docker-compose.yml up -d --build runner
+    -f infra/adapter/rf_detr/docker/docker-compose.yml up -d --build runner-rf-detr
 
 Ensures base image exists first:
   nn-framework-runner:local
@@ -49,11 +49,11 @@ cd "${PROJECT_ROOT}"
 
 docker compose \
   -f docker/docker-compose.yml \
-  build runner
+  build runner-base
 
 docker compose \
   -f docker/docker-compose.yml \
   -f infra/adapter/rf_detr/docker/docker-compose.yml \
-  up -d --build runner
+  up -d --build runner-rf-detr
 
 echo "Started RF-DETR container with compose build check: rf-detr-model:local"

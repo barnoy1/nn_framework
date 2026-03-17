@@ -11,3 +11,12 @@ cz_commit:
 	
 release:
 	uv run cz bump --changelog
+
+bump_patch:
+	uv run cz bump --increment PATCH
+
+bump_minor:
+	uv run cz bump --increment MINOR
+
+bump_major:
+	uv run cz bump --increment MAJOR

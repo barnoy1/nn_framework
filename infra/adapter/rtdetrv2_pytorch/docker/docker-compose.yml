@@ -1,13 +1,18 @@
 services:
-  runner:
+  runner-rtdetrv2:
     container_name: nn-framework-rtdetrv2-model
     env_file:
       - ${PWD}/infra/adapter/rtdetrv2_pytorch/docker/.env
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
     build:
       context: ${PWD}
       dockerfile: infra/adapter/rtdetrv2_pytorch/docker/Dockerfile
+      network: host
     image: rtdetrv2-model:local
 
     volumes:
+      - ${PWD}/docker/scripts:/workspace/scripts:rw
       - ${PWD}/infra/adapter/rtdetrv2_pytorch/experiments:/workspace/experiments:rw
 

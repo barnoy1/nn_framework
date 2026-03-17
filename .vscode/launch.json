@@ -32,7 +32,7 @@
       "justMyCode": true
     },
     {
-      "name": "nn_framework: cli train (rtdetrv2 3 channels)",
+      "name": "rtdetrv2_r18vd: train (3ch)",
       "type": "debugpy",
       "request": "launch",
       "subProcess": false,
@@ -53,7 +53,7 @@
       "justMyCode": true
     },
     {
-      "name": "nn_framework: cli train (rtdetrv2 1 channel)",
+      "name": "rtdetrv2_r18vd: train (1ch)",
       "type": "debugpy",
       "request": "launch",
       "subProcess": false,
@@ -74,7 +74,7 @@
       "justMyCode": true
     },
     {
-      "name": "nn_framework: cli eval (rtdetrv2 1 channel)",
+      "name": "rtdetrv2_r18vd: eval (1ch)",
       "type": "debugpy",
       "request": "launch",
       "subProcess": false,
@@ -99,7 +99,7 @@
       "justMyCode": true
     },
     {
-      "name": "nn_framework: cli inference (rtdetrv2 1 channel)",
+      "name": "rtdetrv2_r18vd: inference (1ch)",
       "type": "debugpy",
       "request": "launch",
       "subProcess": false,
@@ -126,7 +126,7 @@
       "justMyCode": true
     },
     {
-      "name": "nn_framework: cli train (rf-detr 3 channels)",
+      "name": "rfdetr_small: train (3ch)",
       "type": "debugpy",
       "request": "launch",
       "subProcess": false,
@@ -147,7 +147,7 @@
       "justMyCode": true
     },
     {
-      "name": "nn_framework: cli train (rf-detr 1 channel)",
+      "name": "rfdetr_small: train (1ch)",
       "type": "debugpy",
       "request": "launch",
       "subProcess": false,
@@ -168,7 +168,7 @@
       "justMyCode": true
     },
     {
-      "name": "nn_framework: cli eval (rf-detr 3 channel)",
+      "name": "rfdetr_small: eval (3ch)",
       "type": "debugpy",
       "request": "launch",
       "subProcess": false,
@@ -193,7 +193,7 @@
       "justMyCode": true
     },
     {
-      "name": "nn_framework: cli inference (rf-detr 1 channel)",
+      "name": "rfdetr_small: inference (1ch)",
       "type": "debugpy",
       "request": "launch",
       "subProcess": false,
@@ -220,7 +220,7 @@
       "justMyCode": true
     },
     {
-      "name": "nn_framework: cli inference onnx",
+      "name": "rtdetrv2_r18vd: inference onnx",
       "type": "debugpy",
       "request": "launch",
       "subProcess": false,
@@ -249,30 +249,7 @@
       "justMyCode": true
     },
     {
-      "name": "nn_framework: cli export onnx",
-      "type": "debugpy",
-      "request": "launch",
-      "subProcess": false,
-      "python": "${workspaceFolder}/.venv/bin/python",
-      "program": "${workspaceFolder}/cli.py",
-      "cwd": "${workspaceFolder}",
-      "args": [
-        "export-onnx",
-        "--config",
-        "infra/adapter/rtdetrv2_pytorch/experiments/rtdetrv2_r18vd_120e_coco_instance_seg_rle.yaml",
-        "--checkpoint",
-        "${workspaceFolder}/weights/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth",
-        "--onnx-model",
-        "${workspaceFolder}/raw_models/RT-DETR/rtdetrv2_pytorch/exported_models/model.onnx"
-      ],
-      "env": {
-        "PYTHONUNBUFFERED": "1"
-      },
-      "console": "integratedTerminal",
-      "justMyCode": true
-    },
-    {
-      "name": "nn_framework: cli export coco rle",
+      "name": "rtdetrv2_r18vd: export coco rle",
       "type": "debugpy",
       "request": "launch",
       "subProcess": false,
@@ -287,6 +264,58 @@
         "${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja",
         "--output_dir",
         "${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "rfdetr_small: export onnx (1ch)",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/infra/adapter/rf_detr/tools/export_onnx.py",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "--config",
+        "infra/adapter/rf_detr/experiments/rfdetr_small_coco_instance_seg_rle_1ch.yaml",
+        "--resume",
+        "${workspaceFolder}/out/2026-03-16__12-29-46/checkpoint/checkpoint_epoch_60.pt",
+        "--output_file",
+        "${workspaceFolder}/infra/adapter/rf_detr/rfdetr_small_1ch.onnx",
+        "--input_size",
+        "640",
+        "--check",
+        "--simplify"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "rfdetr_small: export onnx (3ch)",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/infra/adapter/rf_detr/tools/export_onnx.py",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "--config",
+        "infra/adapter/rf_detr/experiments/rfdetr_small_coco_instance_seg_rle.yaml",
+        "--resume",
+        "${env:HOME}/.cache/torch/hub/checkpoints/rf_detr/rf-detr-small.pth",
+        "--output_file",
+        "${workspaceFolder}/infra/adapter/rf_detr/rfdetr_small_3ch.onnx",
+        "--input_size",
+        "640",
+        "--check",
+        "--simplify"
       ],
       "env": {
         "PYTHONUNBUFFERED": "1"

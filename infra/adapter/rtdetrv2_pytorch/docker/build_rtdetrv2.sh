@@ -19,16 +19,12 @@ print_usage() {
 Usage: infra/adapter/rtdetrv2_pytorch/docker/build_rtdetrv2.sh [options]
 
 Thin wrapper around:
-  docker compose -f docker/docker-compose.yml build runner
+  docker compose -f docker/docker-compose.yml build runner-base
   docker compose -f docker/docker-compose.yml \
-    -f infra/adapter/rtdetrv2_pytorch/docker/docker-compose.yml up -d --build runner
+    -f infra/adapter/rtdetrv2_pytorch/docker/docker-compose.yml up -d --build runner-rtdetrv2
 
 Ensures base image exists first:
   nn-framework-runner:local
-
-Previous behavior:
-  docker compose -f docker/docker-compose.yml \
-    -f infra/adapter/rtdetrv2_pytorch/docker/docker-compose.yml up -d --build runner
 
 Options:
   -h, --help       Show this help message.
@@ -53,11 +49,11 @@ cd "${PROJECT_ROOT}"
 
 docker compose \
   -f docker/docker-compose.yml \
-  build runner
+  build runner-base
 
 docker compose \
   -f docker/docker-compose.yml \
   -f infra/adapter/rtdetrv2_pytorch/docker/docker-compose.yml \
-  up -d --build runner
+  up -d --build runner-rtdetrv2
 
 echo "Started RTDETRv2 container with compose build check: rtdetrv2-model:local"

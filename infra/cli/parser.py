@@ -6,7 +6,6 @@ from typing import Any, Callable
 from .commands import (
     run_eval,
     run_export_coco_rle,
-    run_export_onnx,
     run_inference,
     run_train,
 )
@@ -80,23 +79,6 @@ def register_inference_onnx_parser(
     infer_onnx_parser.set_defaults(handler=run_inference)
 
 
-def register_export_onnx_parser(
-    subparsers: argparse._SubParsersAction, defaults: dict[str, Any]
-) -> None:
-    export_onnx_parser = subparsers.add_parser("export-onnx", help="Export ONNX model")
-    export_onnx_parser.add_argument("--config", type=str, required=True)
-    export_onnx_parser.add_argument(
-        "--checkpoint", type=str, default=defaults["checkpoint"]
-    )
-    export_onnx_parser.add_argument(
-        "--onnx-model", type=str, default=defaults["onnx_model"]
-    )
-    export_onnx_parser.add_argument(
-        "--output-dir", type=str, default=defaults["output_dir"]
-    )
-    export_onnx_parser.set_defaults(handler=run_export_onnx)
-
-
 def register_export_coco_rle_parser(
     subparsers: argparse._SubParsersAction, defaults: dict[str, Any]
 ) -> None:
@@ -129,7 +111,6 @@ def parse_args() -> argparse.Namespace:
             "eval",
             "inference",
             "inference-onnx",
-            "export-onnx",
             "export-coco-rle",
         ],
     )
@@ -145,7 +126,6 @@ def parse_args() -> argparse.Namespace:
     register_eval_parser(subparsers, defaults)
     register_inference_parser(subparsers, defaults)
     register_inference_onnx_parser(subparsers, defaults)
-    register_export_onnx_parser(subparsers, defaults)
     register_export_coco_rle_parser(subparsers, defaults)
 
     args = parser.parse_args()

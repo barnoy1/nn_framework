@@ -1,0 +1,8 @@
+version = 1
+revision = 2
+requires-python = ">=3.10"
+
+[[package]]
+name = "nn-framework"
+version = "3.2.0"
+source = { virtual = "." }

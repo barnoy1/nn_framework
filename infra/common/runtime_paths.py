@@ -41,14 +41,6 @@ class RuntimePathResolver:
             (self.repo_root / "weights").resolve(),
             (self.repo_root.parent / "weights").resolve(),
             (home / ".cache" / "torch" / "hub" / "checkpoints").resolve(),
-            (
-                home
-                / ".cache"
-                / "torch"
-                / "hub"
-                / "checkpoints"
-                / "rf_detr"
-            ).resolve(),
             *self.extra_search_roots,
         ]
 

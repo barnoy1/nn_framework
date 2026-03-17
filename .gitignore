@@ -210,4 +210,7 @@ input_data/
 out/
 mlruns/
 ./root
-uv.lock
+uv.lockinfra/adapter/rf_detr/models/*.onnx
+infra/adapter/rf_detr/models/*.onnx.data
+infra/adapter/rtdetrv2_pytorch/models/*.onnx
+infra/adapter/rtdetrv2_pytorch/models/*.onnx.data

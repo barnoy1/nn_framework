@@ -1,4 +1,10 @@
-## Unreleased
+## [v3.2.0](https://github.com/barnoy1/nn_framework/releases/tag/v3.2.0) (2026-03-17)
+
+### feat
+
+- **inference onnx**: add inference onnx test compare source/onnx exported model for adapter
+
+## [v3.2.0](https://github.com/barnoy1/nn_framework/releases/tag/v3.2.0) (2026-03-15) ([diff](https://github.com/barnoy1/nn_framework/compare/v3.1.0...v3.2.0))
 
 ### docs
 
