@@ -20,6 +20,13 @@ dist/
 # Runtime artifacts
 artifacts/
 input_data/
+out/
+
+# Large local archives / model bundles
+rf-detr-model.tar.gz
+*.tar
+*.tar.gz
+*.tgz
 
 # Keep raw_models available for adapter image builds.
 

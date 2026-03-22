@@ -6,7 +6,7 @@ from torch import nn
 
 from infra.engine.model.wrappers.common import ReflectiveYamlAdapterModelBuilderBase
 
-from .patches import (
+from .runtime import (
     apply_local_dinov2_config,
     apply_single_channel_backbone_policy,
     build_model_config,

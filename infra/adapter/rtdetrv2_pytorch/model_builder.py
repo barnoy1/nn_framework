@@ -1,16 +1,22 @@
 from __future__ import annotations
 
-from importlib import import_module
 from pathlib import Path
 
 from torch import nn
 
+from infra.engine.model.wrappers.common import ReflectiveYamlAdapterModelBuilderBase
+
+from .runtime import (
+    apply_backbone_policy,
+    ensure_repo_import_paths,
+    load_model_components,
+    prepare_weights_policy,
+)
 from .schemes import (
     MODEL_REPO_ROOT_TOKEN,
     REPO_ROOT_TOKEN,
     YAML_CLASS_PATCHES,
 )
-from infra.engine.model.wrappers.common import ReflectiveYamlAdapterModelBuilderBase
 
 
 class RTDETRv2ModelBuilder(ReflectiveYamlAdapterModelBuilderBase):
@@ -26,15 +32,15 @@ class RTDETRv2ModelBuilder(ReflectiveYamlAdapterModelBuilderBase):
             adapter_root=Path(__file__).resolve().parent,
             config_subdir=self._CONFIG_SUBDIR,
         )
+        ensure_repo_import_paths(self.repo_root)
 
-    def _load_model_config(self):
-        core_module = import_module("src.core")
-        yaml_config_cls = getattr(core_module, "YAMLConfig")
+    def _resolve_runtime_config_path(self) -> Path:
         config_path = self._resolve_model_config_path()
-        config_path = self._materialize_runtime_compatible_config(config_path)
-        return yaml_config_cls(str(config_path))
+        return self._materialize_runtime_compatible_config(config_path)
 
     def build_model_stack(self) -> tuple[nn.Module, nn.Module, nn.Module]:
-        yaml_cfg = self._load_model_config()
-        criterion = yaml_cfg.criterion
-        return yaml_cfg.model, criterion, yaml_cfg.postprocessor
+        config_path = self._resolve_runtime_config_path()
+        config_path = apply_backbone_policy(config_path=config_path)
+        config_path = prepare_weights_policy(config_path=config_path)
+        model, criterion, postprocessor = load_model_components(config_path=config_path)
+        return model, criterion, postprocessor

@@ -1,0 +1,99 @@
+{
+  "threshold": 0.5,
+  "source_model": {
+    "name": "RFDETRSmall",
+    "num_detections": 4,
+    "top_detections": [
+      {
+        "label": "dog",
+        "score": 0.9650323987007141,
+        "bbox_xyxy": [
+          68.54608154296875,
+          247.7123260498047,
+          621.4073486328125,
+          929.9580078125
+        ]
+      },
+      {
+        "label": "backpack",
+        "score": 0.6538779735565186,
+        "bbox_xyxy": [
+          0.47344207763671875,
+          661.0230712890625,
+          443.7707214355469,
+          1268.20458984375
+        ]
+      },
+      {
+        "label": "person",
+        "score": 0.5867201089859009,
+        "bbox_xyxy": [
+          0.4374575614929199,
+          354.874755859375,
+          641.978515625,
+          1263.970703125
+        ]
+      },
+      {
+        "label": "car",
+        "score": 0.5160245895385742,
+        "bbox_xyxy": [
+          623.1668090820312,
+          715.6829223632812,
+          701.5993041992188,
+          787.1072998046875
+        ]
+      }
+    ]
+  },
+  "onnx_model": {
+    "path": "/home/ronbar/repo/nn_framework/infra/adapter/rf_detr/tools/../models/rfdetr_small_3ch.onnx",
+    "num_detections": 4,
+    "top_detections": [
+      {
+        "label": "dog",
+        "score": 0.9545297622680664,
+        "bbox_xyxy": [
+          69.16152954101562,
+          246.5831756591797,
+          628.6666259765625,
+          927.460693359375
+        ]
+      },
+      {
+        "label": "car",
+        "score": 0.8220427632331848,
+        "bbox_xyxy": [
+          625.567626953125,
+          728.5864868164062,
+          699.3782348632812,
+          788.0411376953125
+        ]
+      },
+      {
+        "label": "person",
+        "score": 0.7115233540534973,
+        "bbox_xyxy": [
+          1.767125129699707,
+          355.4426574707031,
+          640.416259765625,
+          1263.3995361328125
+        ]
+      },
+      {
+        "label": "backpack",
+        "score": 0.6008065342903137,
+        "bbox_xyxy": [
+          -0.453336238861084,
+          665.3057861328125,
+          446.42205810546875,
+          1270.81884765625
+        ]
+      }
+    ]
+  },
+  "outputs": {
+    "source_image": "/home/ronbar/repo/nn_framework/infra/adapter/rf_detr/tools/annotated_image_source.jpg",
+    "onnx_image": "/home/ronbar/repo/nn_framework/infra/adapter/rf_detr/tools/annotated_image_onnx.jpg"
+  }
+}

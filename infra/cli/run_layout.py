@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
 
 import yaml
@@ -8,15 +7,30 @@ import yaml
 from .constants import REPO_ROOT
 
 
-def prepare_run_layout(args) -> Path:
-    base_out = Path(args.output_dir).expanduser()
-    if not base_out.is_absolute():
-        base_out = (REPO_ROOT / base_out).resolve()
+def _resolve_base_output_dir(output_dir: str) -> Path:
+    base_out = Path(output_dir).expanduser()
+    if base_out.is_absolute():
+        return base_out
+    return (REPO_ROOT / base_out).resolve()
 
-    run_name = datetime.now().strftime("%Y-%m-%d__%H-%M-%S")
-    run_root = base_out / run_name
+
+def _create_run_layout(root: Path) -> None:
+    root.mkdir(parents=True, exist_ok=True)
     for subdir in ("logs", "configs", "inference", "dataset"):
-        (run_root / subdir).mkdir(parents=True, exist_ok=True)
+        (root / subdir).mkdir(parents=True, exist_ok=True)
+
+
+def prepare_run_layout(args) -> Path:
+    run_root = _resolve_base_output_dir(args.output_dir)
+
+    try:
+        _create_run_layout(run_root)
+    except PermissionError as error:
+        raise PermissionError(
+            "Output directory is not writable: "
+            f"'{run_root}'. Please grant write permission to this exact path "
+            "or pass a writable --output-dir."
+        ) from error
 
     payload = {
         "action": args.action,
