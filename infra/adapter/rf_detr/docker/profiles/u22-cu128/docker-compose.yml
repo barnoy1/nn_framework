@@ -1,0 +1,20 @@
+services:
+  runner:
+    container_name: nn-framework-rf-detr-model
+    env_file:
+      - ${PWD}/infra/adapter/rf_detr/docker/.env
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    build:
+      context: ${PWD}
+      dockerfile: infra/adapter/rf_detr/docker/Dockerfile
+      network: host
+    image: rf-detr-model:local
+
+    volumes:
+      - ${PWD}:/workspace:rw
+      - ${PWD}/docker/scripts:/workspace/scripts:rw
+      - ${PWD}/infra/adapter/rf_detr/experiments:/workspace/experiments:rw
+      - ${HOME}/repo/datasets:/root/repo/datasets:rw
+      - ${HOME}/.cache/torch:/root/.cache/torch:rw

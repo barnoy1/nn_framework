@@ -1,0 +1,41 @@
+name: nn-framework-u22-cu128
+
+services:
+  runner:
+    container_name: nn-framework-runner-u22-cu128
+    build:
+      context: ../../..
+      dockerfile: docker/profiles/u22-cu128/Dockerfile
+      network: host
+    image: nn-framework-runner:local
+    working_dir: /workspace
+    ipc: host
+    environment:
+      DISPLAY: ${DISPLAY:-:0}
+      XAUTHORITY: /tmp/.Xauthority
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    stdin_open: true
+    tty: true
+    mem_limit: "${CONTAINER_MEMORY_LIMIT:-32g}"
+    memswap_limit: "${CONTAINER_MEMORY_SWAP_LIMIT:-32g}"
+    shm_size: "32gb"
+    volumes:
+      - ../../../:/workspace
+      - ../../../docker/scripts:/workspace/scripts
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTHORITY:-/dev/null}:/tmp/.Xauthority:ro
+      - /tmp:/tmp
+      - ${HOME}/.cache/torch:/root/.cache/torch:rw
+      - ${HOME}/repo/datasets:/root/repo/datasets:rw
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    ports:
+      - "${DEBUGPY_PORT:-5678}:${DEBUGPY_PORT:-5678}"
+      - "${MLFLOW_PORT:-5000}:${MLFLOW_PORT:-5000}"

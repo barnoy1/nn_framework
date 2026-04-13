@@ -66,3 +66,62 @@ These scripts run the container with:
 ## Important note
 
 Do not use the development compose setup for offline deployment if it mounts the host repository into `/workspace`, because that can hide the code already baked into the image.
+
+## Unified profile layout
+
+Base runner profiles:
+- `docker/profiles/u22-cu128`
+- `docker/profiles/u20-cu128`
+
+Adapter profiles:
+- `infra/adapter/rf_detr/docker/profiles/u22-cu128`
+- `infra/adapter/rf_detr/docker/profiles/u20-cu128`
+- `infra/adapter/rtdetrv2_pytorch/docker/profiles/u22-cu128`
+- `infra/adapter/rtdetrv2_pytorch/docker/profiles/u20-cu128`
+
+## Ubuntu 20.04 + CUDA 12.8 compatibility profile
+
+This repository also provides an opt-in compatibility profile that keeps the default development flow unchanged.
+
+Compatibility base image and compose:
+- `docker/profiles/u20-cu128/Dockerfile`
+- `docker/profiles/u20-cu128/docker-compose.yml`
+
+Compatibility adapter build wrappers:
+- `infra/adapter/rf_detr/docker/profiles/u20-cu128/build.sh`
+- `infra/adapter/rtdetrv2_pytorch/docker/profiles/u20-cu128/build.sh`
+
+Build compatibility images:
+
+```bash
+bash docker/profiles/u20-cu128/build.sh
+bash infra/adapter/rf_detr/docker/profiles/u20-cu128/build.sh
+bash infra/adapter/rtdetrv2_pytorch/docker/profiles/u20-cu128/build.sh
+```
+
+Export compatibility adapter images:
+
+```bash
+docker save -o rf-detr-model-u20-cu128.tar rf-detr-model:u20-cu128
+docker save -o rtdetrv2-model-u20-cu128.tar rtdetrv2-model:u20-cu128
+```
+
+Load on the target Ubuntu 20.04 machine:
+
+```bash
+docker load -i rf-detr-model-u20-cu128.tar
+docker load -i rtdetrv2-model-u20-cu128.tar
+```
+
+Verify loaded images:
+
+```bash
+docker images | grep -E 'rf-detr-model|rtdetrv2-model|nn-framework-runner'
+```
+
+Run existing offline scripts with an image tag override:
+
+```bash
+IMAGE_TAG=u20-cu128 bash infra/adapter/rf_detr/docker/offline/run.sh
+IMAGE_TAG=u20-cu128 bash infra/adapter/rtdetrv2_pytorch/docker/offline/run.sh
+```

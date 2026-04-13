@@ -6,6 +6,8 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../../../.." && pwd)"
 ENV_FILE="${PROJECT_ROOT}/infra/adapter/rf_detr/docker/.env"
 RUNTIME_DIR="${PROJECT_ROOT}/runtime/rf_detr"
 XAUTH_FILE="${XAUTHORITY:-${HOME}/.Xauthority}"
+IMAGE_TAG="${IMAGE_TAG:-local}"
+IMAGE_NAME="${IMAGE_NAME:-rf-detr-model:${IMAGE_TAG}}"
 
 mkdir -p "${RUNTIME_DIR}"
 
@@ -26,5 +28,5 @@ docker run --rm -it \
   -v "${HOME}:${HOME}:rw" \
   -v "${RUNTIME_DIR}:/workspace/runtime:rw" \
   --name nn-framework-rf-detr-offline \
-  rf-detr-model:local \
+  "${IMAGE_NAME}" \
   /bin/bash

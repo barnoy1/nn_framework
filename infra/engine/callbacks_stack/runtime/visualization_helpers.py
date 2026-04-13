@@ -189,6 +189,7 @@ def sync_execution_tree_artifacts(
 ) -> None:
     if not output_dir.exists():
         return
+    output_root = output_dir.resolve()
     for candidate in sorted(output_dir.rglob("*")):
         if not candidate.is_file():
             continue
@@ -197,11 +198,15 @@ def sync_execution_tree_artifacts(
         except OSError:
             continue
         resolved = candidate.resolve()
+        try:
+            relative_path = resolved.relative_to(output_root)
+        except ValueError:
+            continue
+        if "mlruns" in relative_path.parts or relative_path.name == "mlflow.db":
+            continue
         previous_mtime = artifact_mtimes.get(resolved)
         if previous_mtime is not None and previous_mtime == mtime_ns:
             continue
-
-        relative_path = resolved.relative_to(output_dir.resolve())
         parent = relative_path.parent.as_posix()
         artifact_path = "" if parent == "." else parent
         logger.log_artifact(file_path=resolved, artifact_path=artifact_path)

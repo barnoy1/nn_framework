@@ -1,4 +1,4 @@
-## [v3.4.0](https://github.com/barnoy1/nn_framework/releases/tag/v3.4.0) (2026-03-22)
+## [v3.4.0](https://github.com/barnoy1/nn_framework/releases/tag/v3.4.0) (2026-03-22) ([diff](https://github.com/barnoy1/nn_framework/compare/v3.3.0...v3.4.0))
 
 ### refactor
 

@@ -87,6 +87,19 @@ class RFDETRModelBuilder(ReflectiveYamlAdapterModelBuilderBase):
     def build_model_stack(self) -> tuple[nn.Module, nn.Module, nn.Module]:
         runtime_args = self._build_runtime_args()
         model = self.model_api.model
+        self._realign_head_to_config(model, runtime_args)
         criterion, _ = self._build_criterion_and_postprocessors(runtime_args)
         postprocessor = self.model_api.postprocess
         return model, criterion, postprocessor
+
+    @staticmethod
+    def _realign_head_to_config(model: nn.Module, args) -> None:
+        configured = int(getattr(args, "num_classes", 0)) + 1
+        if configured <= 1:
+            return
+        class_embed = getattr(model, "class_embed", None)
+        if class_embed is None:
+            return
+        actual = class_embed.bias.shape[0]
+        if actual != configured:
+            model.reinitialize_detection_head(configured)

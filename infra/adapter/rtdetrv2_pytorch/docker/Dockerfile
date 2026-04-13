@@ -1,4 +1,5 @@
-FROM nn-framework-runner:local
+ARG BASE_IMAGE=nn-framework-runner:local
+FROM ${BASE_IMAGE}
 
 WORKDIR /model
 
