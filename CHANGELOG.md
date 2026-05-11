@@ -1,4 +1,4 @@
-## [v5.0.0](https://github.com/barnoy1/nn_framework/releases/tag/v5.0.0) (2026-05-11)
+## [v5.0.0](https://github.com/barnoy1/nn_framework/releases/tag/v5.0.0) (2026-05-11) ([diff](https://github.com/barnoy1/nn_framework/compare/v4.0.0...v5.0.0))
 
 ### feat
 
