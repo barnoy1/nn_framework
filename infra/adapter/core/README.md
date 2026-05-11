@@ -33,3 +33,5 @@ Both built-in adapters follow the same package shape:
 - One builder entrypoint (`builder_factory(app_config, repo_root)`)
 
 No YAML reflection knowledge is required to add a basic adapter.
+
+For a full, end-to-end recipe (including a dummy adapter scaffold), see `/guide.md`.

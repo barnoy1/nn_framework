@@ -1,0 +1,7 @@
+model:
+  # Raw concrete-model default (RGB).
+  in_channels: 3
+  num_classes: 2
+  base_channels: 16
+  # Optional checkpoint path; adapter will adapt first-conv weights for 1ch runtime.
+  checkpoint_path: ""

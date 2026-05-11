@@ -14,7 +14,7 @@ from .schemes import YAML_CLASS_PATCHES
 def create_manifest(*, builder_factory) -> AdapterManifest:
     return AdapterManifest(
         name="rtdetrv2_pytorch",
-        source_root_tokens=("rtdetrv2_pytorch",),
+        source_root_aliases=("rtdetrv2_pytorch",),
         builder_factory=builder_factory,
         config_subdir=("configs", "rtdetrv2"),
         yaml_class_patches=YAML_CLASS_PATCHES,
