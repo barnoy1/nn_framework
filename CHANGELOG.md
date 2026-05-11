@@ -1,3 +1,9 @@
+## [v5.0.0](https://github.com/barnoy1/nn_framework/releases/tag/v5.0.0) (2026-05-11)
+
+### feat
+
+- **unet tutorial adapter**: adding docs and guides for tutorial adapter change 3 --> 1 channel via adpter mechanizm
+
 ## [v4.0.0](https://github.com/barnoy1/nn_framework/releases/tag/v4.0.0) (2026-05-11) ([diff](https://github.com/barnoy1/nn_framework/compare/v3.5.0...v4.0.0))
 
 ### feat
