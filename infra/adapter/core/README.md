@@ -1,48 +1,35 @@
-# Simple Adapter Quickstart
+# Adapter Manifest Quickstart
 
-This adapter flow is intentionally explicit and easy to extend.
+This adapter flow is manifest-driven, explicit, and easy to extend.
 
 ## Goal
 
-Add a new model adapter without touching reflection internals.
+Add a new model adapter without changing runner flow or engine wrapper contracts.
 
 ## Steps
 
-1. Create a builder class in your adapter package (example: `infra/adapter/my_model/model_builder.py`).
-2. Make that builder implement `ModelBuilder` by returning `BuiltComponents` through the existing runtime path.
-3. Register it once in `infra/adapter/core/registry.py` by adding one `AdapterSpec` entry.
+1. Create `manifest.py` in your adapter package and return `AdapterManifest`.
+2. Implement stage overrides under `overrides/` (`config`, `runtime`, `weights`, `head`).
+3. Keep `model_builder.py` orchestration-only by inheriting the staged builder base.
+4. Expose `manifest()` from the builder class. `core/registry.py` auto-loads it.
 
-```python
-AdapterSpec(
-    name="my_model",
-    source_root_tokens=("my-model", "my_model"),
-    builder_factory=MyModelBuilder,
-)
-```
-
-That is all. Runtime selection is automatic through `resolve_model_builder(...)`.
+Runtime selection remains automatic through `resolve_model_builder(...)`.
 
 ## Built-in adapter structure
 
 Both built-in adapters follow the same package shape:
 
-- `infra/adapter/rf_detr/runtime/`
-- `infra/adapter/rtdetrv2_pytorch/runtime/`
+- `infra/adapter/<name>/manifest.py`
+- `infra/adapter/<name>/model_builder.py`
+- `infra/adapter/<name>/overrides/`
+- `infra/adapter/<name>/runtime/`
 
-Each runtime package uses the same files:
-
-- `config.py`
-- `backbone.py`
-- `variant.py`
-- `weights.py`
-- `__init__.py`
-
-Put adapter-specific logic in `runtime/` and keep `model_builder.py` as a thin orchestrator.
+`model_builder.py` should not contain adapter-specific patch logic. Keep logic in override modules and `runtime/`.
 
 ## Why this is simpler
 
-- One registration point (`registry.py`)
-- One matching rule (`source_root_tokens`)
+- One typed manifest per adapter
+- One deterministic override order
 - One builder entrypoint (`builder_factory(app_config, repo_root)`)
 
 No YAML reflection knowledge is required to add a basic adapter.

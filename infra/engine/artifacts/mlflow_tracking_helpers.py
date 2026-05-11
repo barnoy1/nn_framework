@@ -1,11 +1,31 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Dict
 
 import mlflow
 import yaml
+
+_logger = logging.getLogger(__name__)
+
+
+def ensure_schema_up_to_date(tracking_uri: str) -> None:
+    try:
+        from mlflow.store.db.utils import _upgrade_db, _verify_schema
+        from sqlalchemy import create_engine
+
+        engine = create_engine(tracking_uri)
+        try:
+            _verify_schema(engine)
+        except mlflow.exceptions.MlflowException:
+            _logger.info("Upgrading MLflow DB schema for %s", tracking_uri)
+            _upgrade_db(engine)
+        finally:
+            engine.dispose()
+    except Exception:
+        pass
 
 
 def artifact_root(tracking_dir: Path) -> Path:

@@ -1,4 +1,9 @@
 from .registry import REGISTERED_ADAPTERS, resolve_model_builder
-from .spec import AdapterSpec
+from .spec import AdapterManifest, AdapterSpec
 
-__all__ = ["AdapterSpec", "REGISTERED_ADAPTERS", "resolve_model_builder"]
+__all__ = [
+    "AdapterManifest",
+    "AdapterSpec",
+    "REGISTERED_ADAPTERS",
+    "resolve_model_builder",
+]

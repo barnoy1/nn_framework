@@ -10,6 +10,7 @@ import yaml
 
 from ...artifacts.mlflow_tracking_helpers import (
     artifact_root,
+    ensure_schema_up_to_date,
     extract_run_metadata_from_experiment_yaml,
     flatten_payload,
     resolve_run_folder_name,
@@ -91,6 +92,7 @@ class MLflowCallback(Callback):
         if backend == "sqlite":
             sqlite_path = (tracking_dir / self.sqlite_db_name).resolve()
             tracking_uri = f"sqlite:///{sqlite_path}"
+            ensure_schema_up_to_date(tracking_uri)
             mlflow.set_tracking_uri(tracking_uri)
         else:
             tracking_uri = tracking_dir.resolve().as_uri()

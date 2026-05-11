@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -7,20 +8,31 @@ from infra.adapter.rf_detr import RFDETRModelBuilder
 from infra.adapter.rtdetrv2_pytorch import RTDETRv2ModelBuilder
 from infra.engine.model.wrappers.contracts import ModelBuilder
 
-from .spec import AdapterSpec
+from .spec import AdapterManifest
 
 
-REGISTERED_ADAPTERS: tuple[AdapterSpec, ...] = (
-    AdapterSpec(
-        name="rtdetrv2_pytorch",
-        source_root_tokens=("rtdetrv2_pytorch",),
-        builder_factory=RTDETRv2ModelBuilder,
-    ),
-    AdapterSpec(
-        name="rf_detr",
-        source_root_tokens=("rf-detr", "rfdetr"),
-        builder_factory=RFDETRModelBuilder,
-    ),
+def _manifest_from_builder(builder_factory) -> AdapterManifest:
+    manifest_factory = getattr(builder_factory, "manifest", None)
+    if not callable(manifest_factory):
+        raise TypeError(
+            f"Adapter builder {builder_factory!r} must expose manifest() classmethod"
+        )
+
+    manifest = manifest_factory()
+    if not isinstance(manifest, AdapterManifest):
+        raise TypeError(
+            f"Adapter builder {builder_factory!r} returned invalid manifest: {manifest!r}"
+        )
+
+    if manifest.builder_factory is not builder_factory:
+        manifest = replace(manifest, builder_factory=builder_factory)
+    manifest.validate()
+    return manifest
+
+
+REGISTERED_ADAPTERS: tuple[AdapterManifest, ...] = tuple(
+    _manifest_from_builder(builder_factory)
+    for builder_factory in (RTDETRv2ModelBuilder, RFDETRModelBuilder)
 )
 
 

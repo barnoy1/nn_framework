@@ -6,6 +6,11 @@ from typing import Any
 
 import torch
 
+from ..compat import (
+    build_variant_candidates,
+    normalize_variant_selector,
+    resolve_variant_alias,
+)
 from .config import infer_model_profile, load_dino_config
 
 
@@ -16,13 +21,6 @@ LOSS_COEFFICIENT_KEYS = (
     "mask_ce_loss_coef",
     "mask_dice_loss_coef",
 )
-
-VARIANT_ALIAS_BY_NORMALIZED_KEY = {
-    "xxlarge": "2xlarge",
-    "rfdetrxxlarge": "rfdetr2xlarge",
-    "rfdetrsegxxlarge": "rfdetrseg2xlarge",
-}
-
 
 def _model_config_classes() -> dict[str, type[Any]]:
     from rfdetr.config import (
@@ -61,10 +59,7 @@ def _is_segmentation_model_class(config_cls: type[Any]) -> bool:
 
 
 def segmentation_enabled(app_config, *, config_name: str = "") -> bool:
-    config_cls, _ = _resolve_model_config_class(
-        app_config=app_config,
-        config_name=config_name,
-    )
+    config_cls, _ = _resolve_model_config_class(app_config=app_config, config_name=config_name)
     return _is_segmentation_model_class(config_cls)
 
 
@@ -78,10 +73,6 @@ def _resolve_model_variant(config_name: str) -> str:
     return DEFAULT_MODEL_VARIANT
 
 
-def _normalize_variant_selector(value: str) -> str:
-    return str(value).strip().lower().replace("-", "_").replace(" ", "")
-
-
 def _resolve_selected_variant(*, app_config, config_name: str) -> str:
     model_cfg = app_config.model
     if isinstance(model_cfg, dict):
@@ -89,10 +80,6 @@ def _resolve_selected_variant(*, app_config, config_name: str) -> str:
     else:
         explicit_variant = str(model_cfg.config_variant_name or "").strip()
     return explicit_variant if explicit_variant else _resolve_model_variant(config_name)
-
-
-def _resolve_variant_alias(variant: str) -> str:
-    return VARIANT_ALIAS_BY_NORMALIZED_KEY.get(variant, variant)
 
 
 def _read_optional_loss_value(losses_cfg, key: str):
@@ -103,21 +90,6 @@ def _read_optional_loss_value(losses_cfg, key: str):
     return None
 
 
-def _build_variant_candidates(*, normalized_variant: str) -> tuple[str, ...]:
-    candidates: list[str] = [normalized_variant]
-
-    if normalized_variant.startswith("rfdetrseg"):
-        suffix = normalized_variant.replace("rfdetrseg", "", 1)
-        candidates.append(f"seg_{suffix}")
-
-    if normalized_variant.startswith("rfdetr"):
-        suffix = normalized_variant.replace("rfdetr", "", 1)
-        candidates.append(suffix)
-
-    deduped = list(dict.fromkeys(candidates))
-    return tuple(deduped)
-
-
 def _resolve_model_config_class(*, app_config, config_name: str):
     from ..schemes import MODEL_CONFIG_CLASS_BY_VARIANT
 
@@ -126,17 +98,15 @@ def _resolve_model_config_class(*, app_config, config_name: str):
         app_config=app_config,
         config_name=config_name,
     )
-    normalized_variant = _resolve_variant_alias(
-        _normalize_variant_selector(selected_variant)
+    normalized_variant = resolve_variant_alias(
+        normalize_variant_selector(selected_variant)
     )
 
     if selected_variant in config_classes:
         return config_classes[selected_variant], normalized_variant
 
     class_name = None
-    candidate_keys = _build_variant_candidates(
-        normalized_variant=normalized_variant,
-    )
+    candidate_keys = build_variant_candidates(normalized_variant=normalized_variant)
     for candidate in candidate_keys:
         class_name = MODEL_CONFIG_CLASS_BY_VARIANT.get(candidate)
         if class_name is not None:
@@ -155,10 +125,8 @@ def _resolve_model_config_class(*, app_config, config_name: str):
 def _build_scheme_overrides(*, variant: str) -> dict[str, Any]:
     from ..schemes import MODEL_CONFIG_OVERRIDES_BY_KEY
 
-    normalized = _resolve_variant_alias(_normalize_variant_selector(variant))
-    for candidate in _build_variant_candidates(
-        normalized_variant=normalized,
-    ):
+    normalized = resolve_variant_alias(normalize_variant_selector(variant))
+    for candidate in build_variant_candidates(normalized_variant=normalized):
         override = MODEL_CONFIG_OVERRIDES_BY_KEY.get(candidate)
         if override is not None:
             return deepcopy(override)
