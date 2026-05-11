@@ -1,6 +1,6 @@
 [project]
 name = "nn-framework"
-version = "3.5.0"
+version = "4.0.0"
 requires-python = ">=3.10"
 
 [tool.commitizen]

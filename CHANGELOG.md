@@ -1,3 +1,9 @@
+## [v4.0.0](https://github.com/barnoy1/nn_framework/releases/tag/v4.0.0) (2026-05-11)
+
+### feat
+
+- **manifest adapters**: switch to manifest adapter instead of using scheme and patches manualy
+
 ## [v3.5.0](https://github.com/barnoy1/nn_framework/releases/tag/v3.5.0) (2026-04-13) ([diff](https://github.com/barnoy1/nn_framework/compare/v3.4.0...v3.5.0))
 
 ### feat
