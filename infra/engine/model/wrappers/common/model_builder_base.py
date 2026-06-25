@@ -31,10 +31,11 @@ class AgnosticModelBuilderBase(ModelBuilder):
         self.app_config = app_config
         self.repo_root = repo_root
         self._optimizer_factory = BackboneGroupedAdamWFactory(
-            lr=app_config.train.lr,
-            weight_decay=app_config.train.weight_decay,
-            epochs=app_config.train.epochs,
-            backbone_lr_multiplier=app_config.train.backbone_lr_multiplier,
+            lr=app_config.engine.train.lr,
+            weight_decay=app_config.engine.train.weight_decay,
+            epochs=app_config.engine.train.epochs,
+            backbone_lr_multiplier=app_config.engine.train.backbone_lr_multiplier,
+            eta_min_ratio=app_config.engine.train.scheduler.eta_min_ratio,
         )
 
     def build_model_stack(self) -> tuple[nn.Module, nn.Module, nn.Module]:
@@ -55,20 +56,20 @@ class AgnosticModelBuilderBase(ModelBuilder):
     def build(self) -> BuiltComponents:
         model, base_criterion, postprocessor = self.build_model_stack()
         self.apply_architecture_specifics(
-            model=model, targets=[], dn_num_group=self.app_config.model.dn_num_group
+            model=model, targets=[], dn_num_group=self.app_config.adapter.model.dn_num_group
         )
         criterion = self._build_composite_criterion(base_criterion, model=model)
         class_id_to_name = (
-            self.app_config.data.class_id_to_name or self.app_config.data.label2classid
+            self.app_config.engine.data.class_id_to_name or self.app_config.engine.data.label2classid
         )
 
-        if self.app_config.model.sync_bn and torch.cuda.device_count() > 1:
+        if self.app_config.engine.train.sync_bn and torch.cuda.device_count() > 1:
             model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
         optimizer, scheduler = self._optimizer_factory.build(model)
         ema_model = (
-            EMAModel(model, decay=self.app_config.train.ema_decay)
-            if self.app_config.train.use_ema
+            EMAModel(model, decay=self.app_config.engine.train.ema_decay)
+            if self.app_config.engine.train.use_ema
             else None
         )
 
@@ -106,7 +107,7 @@ class ReflectiveYamlAdapterModelBuilderBase(AgnosticModelBuilderBase):
         self._config_subdir = config_subdir or self._CONFIG_SUBDIR
 
     def _resolve_model_config_path(self) -> Path:
-        configured_path = str(self.app_config.model.model_config_path).strip()
+        configured_path = str(self.app_config.adapter.model.model_config_path).strip()
         if not configured_path:
             raise ValueError("model.model_config_path must not be empty")
 

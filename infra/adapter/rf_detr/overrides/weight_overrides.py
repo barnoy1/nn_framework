@@ -9,7 +9,7 @@ from ..runtime import (
 
 class RFDETRWeightsOverride:
     def apply(self, *, builder, state) -> None:
-        model_factory = state.extras["model_factory"]
+        model_factory = state.model_factory
         config_payload = state.config_payload or {}
         num_channels = int(config_payload.get("num_channels", 3) or 3)
 

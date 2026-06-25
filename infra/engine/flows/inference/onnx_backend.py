@@ -37,7 +37,7 @@ def run_onnx(args, logger) -> None:
     input_name = session.get_inputs()[0].name
 
     transforms = build_image_preprocess_from_loader(
-        runtime.app_config.data.val_dataloader, logger=logger, default_size=640
+        runtime.app_config.engine.data.val_dataloader, logger=logger, default_size=640
     )
     image_paths = list_images(args.input_dir)
 

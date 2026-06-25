@@ -87,12 +87,20 @@ def extract_run_metadata_from_experiment_yaml(
     if not isinstance(payload, dict):
         return {}
 
-    runtime_cfg = (
-        payload.get("runtime") if isinstance(payload.get("runtime"), dict) else {}
+    engine_cfg = payload.get("engine") if isinstance(payload.get("engine"), dict) else {}
+    execution_cfg = (
+        engine_cfg.get("execution")
+        if isinstance(engine_cfg.get("execution"), dict)
+        else {}
     )
-    model_cfg = payload.get("model") if isinstance(payload.get("model"), dict) else {}
+    adapter_cfg = (
+        payload.get("adapter") if isinstance(payload.get("adapter"), dict) else {}
+    )
+    model_cfg = (
+        adapter_cfg.get("model") if isinstance(adapter_cfg.get("model"), dict) else {}
+    )
 
-    description = str(runtime_cfg.get("description") or "").strip()
+    description = str(execution_cfg.get("description") or "").strip()
     source_root = str(model_cfg.get("source_root") or "").strip().rstrip("/")
     model_name = Path(source_root).name if source_root else ""
 
@@ -116,8 +124,11 @@ def register_current_model(
     if not trainer.accelerator.is_main_process:
         return
 
+    adapter_cfg = (
+        execution_config.get("adapter") if isinstance(execution_config, dict) else None
+    )
     model_cfg = (
-        execution_config.get("model") if isinstance(execution_config, dict) else None
+        adapter_cfg.get("model") if isinstance(adapter_cfg, dict) else None
     )
     if not isinstance(model_cfg, dict):
         return

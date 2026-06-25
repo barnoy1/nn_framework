@@ -12,7 +12,7 @@ Both adapters now follow:
 4. runtime helper modules
 5. identical wrapper/flow integration path
 
-Both are selected by `source_root_aliases` and resolved via `resolve_model_builder(...)`.
+Both are selected by their manifest `name` (matched against `adapter.name`) and resolved via `resolve_model_builder(...)`.
 
 ## Behavior-level differences
 

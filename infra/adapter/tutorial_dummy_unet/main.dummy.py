@@ -40,7 +40,6 @@ def main() -> None:
     manifest = create_manifest(builder_factory=TutorialDummyUNetModelBuilder)
     print("Dummy adapter manifest summary")
     print(f"name={manifest.name}")
-    print(f"source_root_aliases={manifest.source_root_aliases}")
     print(f"config_subdir={manifest.config_subdir}")
     print(f"override_order={manifest.override_order}")
     print()
@@ -53,8 +52,8 @@ def main() -> None:
     print()
     print("To use this adapter in full framework flows:")
     print("1) register TutorialDummyUNetModelBuilder in infra/adapter/core/registry.py")
-    print("2) set app_config.model.source_root to one of:")
-    print(f"   {manifest.source_root_aliases}")
+    print("2) set app_config.adapter.name to:")
+    print(f"   {manifest.name}")
     print("3) run normal CLI flows (train/eval/inference) with that app config")
 
 

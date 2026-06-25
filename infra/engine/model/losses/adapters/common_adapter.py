@@ -4,7 +4,7 @@ from ..contracts import ModelAgnosticDetCriterionAdapterBase
 
 
 class AgnosticYoloCriterionAdapter(ModelAgnosticDetCriterionAdapterBase):
-    name = "common"
+    name = "model_agnostic"
 
     _common_base_terms = (
         "loss_bbox",

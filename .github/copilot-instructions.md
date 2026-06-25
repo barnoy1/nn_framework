@@ -3,6 +3,42 @@ name: Project Architecture & Quality Rules
 description: Strict enforcement of SOLID, file length, folder hierarchy, and modern development best practices.
 ---
 
+# Repository Guide (nn_framework)
+
+PyTorch object-detection / instance-segmentation training framework. Generic train/eval/inference flows stay model-agnostic; each concrete model repo is integrated through an **adapter**.
+
+## Commands
+
+- Run flows via `cli.py` (entry: `infra/cli/main.py`):
+  - `python cli.py train --config <exp.yaml> [--checkpoint ...] [--overrides k=v ...]`
+  - `python cli.py eval --config <exp.yaml> --checkpoint <path> --device cuda`
+  - `python cli.py inference --config <exp.yaml> --checkpoint <path> --input-dir <dir>`
+  - `python cli.py inference-onnx --config <exp.yaml> --onnx-model <path> --input-dir <dir>`
+  - `python cli.py export-coco-rle --config <data.yaml> --dataset_root <dir> --output_dir <dir>`
+- Lint/format (ruff, prettier, yamllint, codespell — scoped to `infra/` and `experiment*/`): `make formatting` (= `pre-commit run --all-files`).
+- Commits/releases use commitizen: `make cz_commit`, `make bump_patch|bump_minor|bump_major`, `make changelog`.
+- Docker entrypoints wrap the same CLI: `docker/scripts/{train,eval,inference}.sh`, configured through `NN_*` env vars.
+- There is **no test suite**; do not invent one. Validate changes by running the relevant CLI flow on a small config.
+
+## Architecture
+
+Flow handoff (see `docs/adapter_tutorial/01-mechanism-and-framework-flows.md`):
+`flow manager` (`infra/engine/flows/{train,eval,inference}/mangr_*.py`) → `build_flow_runtime` (`flows/common/runtime.py`) → wrapper factory (`engine/model/wrappers/component_factory.py`) → adapter registry (`infra/adapter/core/registry.py`) → adapter `model_builder` returns `BuiltComponents` (model, criterion, postprocessor, optimizer, scheduler). Flows never branch on model type.
+
+- **Adapters** live in `infra/adapter/<name>/` and are manifest-driven. Each exposes a `model_builder.py` with a `manifest()` classmethod returning `AdapterManifest`; `core/registry.py` resolves the builder by matching `app_config.model.source_root`. Per-stage logic goes in `overrides/` (`config`, `runtime`, `weights`, `head`) and `runtime/` — keep `model_builder.py` orchestration-only (inherit the staged builder base). To add an adapter, follow `infra/adapter/core/README.md` and the dummy walkthrough in `docs/adapter_tutorial/`.
+- **Config**: experiment YAML is Hydra/OmegaConf merged into pydantic schemas (`infra/config/schema_*.py`, assembled in `schemas.py`). The active `AppConfig` is shared via a `ContextVar` (`infra/config/context.py`) — read it with `get_active_app_config()`, never thread it manually. `model.source_root` (a concrete repo under `raw_models/`) and `model.model_config_path` are required.
+- **Concrete model code** is vendored under `raw_models/` (some are git submodules, e.g. `raw_models/RT-DETR`); adapters wrap it without editing it.
+- **Tracking**: MLflow / TensorBoard behind `infra/tracking/api/` (factory + backends). Engine callbacks under `infra/engine/callbacks_stack/`.
+
+## Conventions
+
+- Path tokens in configs/CLI: `@REPO_ROOT/...` and `@MODEL_ROOT/...` resolved by `RuntimePathResolver` (`infra/common/runtime_paths.py`) and `infra/cli/commands.py`. Use them instead of hardcoded absolute paths.
+- CLI handlers build a `SimpleNamespace` and call each flow's `invoke(...)`; flow business logic is imported lazily inside the handler.
+- Conventional Commits enforced (`<type>(<scope>): <subject>`, scope = class/file name); types limited to the commitizen list in `pyproject.toml`. CHANGELOG.md is generated — do not hand-edit.
+- Per the rules below: 200-line file cap, ≤5 files per directory. The `infra/` tree already reflects this (deep, narrow packages) — match it.
+
+---
+
 # Global Constraints
 
 ## 1. SOLID Principles Enforcement

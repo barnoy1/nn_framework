@@ -9,7 +9,7 @@ from .config_loader import REPO_ROOT
 
 
 def resolve_model_root(config: AppConfig) -> Path:
-    candidate = Path(config.model.source_root).expanduser()
+    candidate = Path(config.adapter.model.source_root).expanduser()
     if not candidate.is_absolute():
         candidate = REPO_ROOT / candidate
     resolved = candidate.resolve()

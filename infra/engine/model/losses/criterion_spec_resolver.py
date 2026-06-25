@@ -26,23 +26,23 @@ class DualCriterionSpecResolver:
     def __init__(
         self,
         *,
-        adapter_common_specs: Iterable[ConfiguredLossSpec],
+        model_agnostic_specs: Iterable[ConfiguredLossSpec],
         concrete_specs: Iterable[ConfiguredLossSpec],
         fallback_to_model_default: bool,
     ) -> None:
-        self._adapter_common_specs = [item for item in adapter_common_specs]
+        self._model_agnostic_specs = [item for item in model_agnostic_specs]
         self._concrete_specs = [item for item in concrete_specs]
         self._fallback_to_model_default = bool(fallback_to_model_default)
 
     @classmethod
     def from_app_config(cls, app_config) -> "DualCriterionSpecResolver":
-        pairs = app_config.model.losses.criterion_pairs
+        pairs = app_config.adapter.model.losses.criterion_pairs
 
         common_specs = [
             ConfiguredLossSpec(
                 pattern=canonical_loss_alias(str(item.loss)), coef=item.coef
             )
-            for item in pairs.iter_adapter_common()
+            for item in pairs.iter_model_agnostic()
         ]
         common_specs = [
             item
@@ -54,14 +54,14 @@ class DualCriterionSpecResolver:
             ConfiguredLossSpec(
                 pattern=canonical_loss_alias(str(item.loss)), coef=item.coef
             )
-            for item in pairs.iter_concrete_model()
+            for item in pairs.iter_model_specific()
         ]
 
         return cls(
-            adapter_common_specs=common_specs,
+            model_agnostic_specs=common_specs,
             concrete_specs=concrete_specs,
             fallback_to_model_default=bool(
-                getattr(app_config.model.losses, "fallback_to_model_default", True)
+                getattr(app_config.adapter.model.losses, "fallback_to_model_default", True)
             ),
         )
 
@@ -125,11 +125,11 @@ class DualCriterionSpecResolver:
     ) -> ResolvedLossTarget:
         concrete = self._resolve_from_specs(loss_key, self._concrete_specs)
         if concrete is not None:
-            return ResolvedLossTarget(coef=float(concrete), source="concrete")
+            return ResolvedLossTarget(coef=float(concrete), source="model_specific")
 
-        common = self._resolve_from_specs(loss_key, self._adapter_common_specs)
+        common = self._resolve_from_specs(loss_key, self._model_agnostic_specs)
         if common is not None:
-            return ResolvedLossTarget(coef=float(common), source="common")
+            return ResolvedLossTarget(coef=float(common), source="model_agnostic")
 
         if self._fallback_to_model_default:
             return ResolvedLossTarget(
@@ -138,3 +138,21 @@ class DualCriterionSpecResolver:
             )
 
         return ResolvedLossTarget(coef=0.0, source="none")
+
+
+if __name__ == "__main__":
+    # ponytail: routing regression check — agnostic vs specific vs default/none.
+    resolver = DualCriterionSpecResolver(
+        model_agnostic_specs=[ConfiguredLossSpec("loss_bbox", 5.0)],
+        concrete_specs=[ConfiguredLossSpec("loss_ce", 2.0)],
+        fallback_to_model_default=True,
+    )
+    assert resolver.resolve("loss_bbox", {}).source == "model_agnostic"
+    assert resolver.resolve("loss_ce", {}).source == "model_specific"
+    assert resolver.resolve("loss_unknown", {"loss_unknown": 1.0}).source == "default"
+
+    strict = DualCriterionSpecResolver(
+        model_agnostic_specs=[], concrete_specs=[], fallback_to_model_default=False
+    )
+    assert strict.resolve("loss_x", {}).source == "none"  # empty agnostic allowed
+    print("criterion resolver self-check OK")

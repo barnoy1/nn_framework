@@ -1,0 +1,3 @@
+# Canonical Prediction shape, emitted by the adapter postprocessor
+
+Inference results have one canonical shape — `{labels, boxes, scores, masks?}`, with `masks` present iff `segm` is in `data.iou_types`. Each adapter's postprocessor (head stage) emits exactly this shape, so model-specific output variance is resolved inside the adapter where that knowledge lives. Core `to_result_list` previously absorbed four different output shapes as a compatibility shim; that shim is removed, since tolerating per-model shapes in core duplicates the containment the adapter layer already provides. No extra abstraction — the postprocessor returns the canonical list directly.

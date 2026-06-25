@@ -4,12 +4,12 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from .interfaces import (
-    CompositeVisualizationLogger,
-    NullVisualizationLogger,
-    VisualizationLogger,
+    CompositeExperimentTracker,
+    NullExperimentTracker,
+    ExperimentTracker,
 )
-from .mlflow_backend import MlflowVisualizationLogger
-from .tb_backend import TensorBoardVisualizationLogger
+from .mlflow_backend import MlflowExperimentTracker
+from .tb_backend import TensorBoardExperimentTracker
 from ..service_launchers import start_mlflow_ui_service, start_tensorboard_service
 
 
@@ -17,31 +17,23 @@ def _resolve_mlflow_run_base_name(
     experiment_name: str, execution_config: Dict[str, Any] | None
 ) -> str:
     model_name = ""
-    if isinstance(execution_config, dict):
-        runtime_cfg = execution_config.get("runtime")
-        if isinstance(runtime_cfg, dict):
-            description = str(runtime_cfg.get("description") or "").strip()
-            if description:
-                base = description
-            else:
-                base = str(experiment_name)
-        else:
-            base = str(experiment_name)
+    engine_cfg = execution_config.get("engine") if isinstance(execution_config, dict) else None
+    execution_cfg = engine_cfg.get("execution") if isinstance(engine_cfg, dict) else None
+    description = str((execution_cfg or {}).get("description") or "").strip()
+    base = description or str(experiment_name)
 
-        model_cfg = execution_config.get("model")
-        if isinstance(model_cfg, dict):
-            source_root = str(model_cfg.get("source_root") or "").strip().rstrip("/")
-            if source_root:
-                model_name = Path(source_root).name or source_root
-    else:
-        base = str(experiment_name)
+    adapter_cfg = execution_config.get("adapter") if isinstance(execution_config, dict) else None
+    model_cfg = adapter_cfg.get("model") if isinstance(adapter_cfg, dict) else None
+    source_root = str((model_cfg or {}).get("source_root") or "").strip().rstrip("/")
+    if source_root:
+        model_name = Path(source_root).name or source_root
 
     if model_name and model_name not in base:
         return f"{base}__{model_name}"
     return base
 
 
-def create_visualization_logger(
+def create_experiment_tracker(
     *,
     output_root: Path,
     experiment_name: str,
@@ -59,14 +51,14 @@ def create_visualization_logger(
     mlflow_start_service: bool = True,
     execution_config: Dict[str, Any] | None = None,
     logger_port=None,
-) -> VisualizationLogger:
-    loggers: List[VisualizationLogger] = []
+) -> ExperimentTracker:
+    loggers: List[ExperimentTracker] = []
 
     if tensorboard_enabled:
         try:
             resolved = (output_root / tensorboard_log_dir).resolve()
             resolved.mkdir(parents=True, exist_ok=True)
-            loggers.append(TensorBoardVisualizationLogger(log_dir=resolved))
+            loggers.append(TensorBoardExperimentTracker(log_dir=resolved))
             if logger_port is not None:
                 logger_port.info(
                     "TensorBoard visualization logging enabled at {}", resolved
@@ -94,7 +86,7 @@ def create_visualization_logger(
                 experiment_name=experiment_name,
                 execution_config=execution_config,
             )
-            mlflow_logger = MlflowVisualizationLogger(
+            mlflow_logger = MlflowExperimentTracker(
                 experiment_name=experiment_name,
                 run_name=run_base_name,
                 tracking_dir=resolved_mlflow_dir,
@@ -141,7 +133,10 @@ def create_visualization_logger(
                 )
 
     if not loggers:
-        return NullVisualizationLogger()
-    if len(loggers) == 1:
-        return loggers[0]
-    return CompositeVisualizationLogger(loggers=loggers)
+        return NullExperimentTracker()
+    tracker = loggers[0] if len(loggers) == 1 else CompositeExperimentTracker(
+        loggers=loggers
+    )
+    if execution_config:
+        tracker.log_execution_config(execution_config)
+    return tracker

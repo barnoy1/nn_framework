@@ -46,16 +46,9 @@ def invoke(args) -> None:
 
     if str(args.checkpoint).strip():
         state = runtime.wrapper.load_checkpoint_state(str(args.checkpoint))
-        try:
-            runtime.wrapper.validate_checkpoint_class_compatibility(
-                runtime.built.model, state
-            )
-        except RuntimeError as exc:
-            logger.warning(
-                "Checkpoint compatibility warning during training warm-start: {}. "
-                "Continuing with partial state load (classification heads may be re-initialized).",
-                exc,
-            )
+        runtime.wrapper.validate_checkpoint_class_compatibility(
+            runtime.built.model, state, strict=False
+        )
         loaded, skipped, missing = runtime.wrapper.safe_load_state_dict(
             runtime.built.model, state
         )
@@ -67,12 +60,9 @@ def invoke(args) -> None:
         )
 
     profile_train_and_val_dataset_distribution(runtime, logger)
-    mlflow_cfg = app_config.runtime.visualization.mlflow
-    run_output_dir = app_config.ensure_output_dir().resolve()
-    shared_tracking_dir = (
-        run_output_dir.parent if "__" in run_output_dir.name else run_output_dir
-    )
-    monitor_keys_cfg = app_config.train.metrics_key
+    mlflow_cfg = app_config.engine.execution.tracking.mlflow
+    shared_tracking_dir = app_config.engine.execution.mlflow_dir
+    monitor_keys_cfg = app_config.engine.train.metrics_key
     monitor_keys = (
         [monitor_keys_cfg]
         if isinstance(monitor_keys_cfg, str)
@@ -87,16 +77,16 @@ def invoke(args) -> None:
             YoloStyleArtifactsCallback(enabled=True),
             CheckpointCallback(
                 output_dir=app_config.ensure_output_dir(),
-                save_every_n_epochs=app_config.train.save_every_n_epochs,
+                save_every_n_epochs=app_config.engine.train.save_every_n_epochs,
                 monitor_key=primary_monitor_key,
                 monitor_keys=monitor_keys,
             ),
             MLflowCallback(
                 enabled=bool(mlflow_cfg.enabled),
                 tracking_dir=shared_tracking_dir,
-                experiment_name=app_config.runtime.mlflow_experiment_name
+                experiment_name=app_config.engine.execution.mlflow_experiment_name
                 or experiment_name,
-                run_name=app_config.runtime.description or experiment_name,
+                run_name=app_config.engine.execution.description or experiment_name,
                 tracking_backend=str(mlflow_cfg.tracking_backend),
                 sqlite_db_name=str(mlflow_cfg.sqlite_db_name),
                 ui_host=str(mlflow_cfg.host),
@@ -105,15 +95,15 @@ def invoke(args) -> None:
             ),
             ValidationVisualizationCallback(
                 output_dir=app_config.ensure_output_dir(),
-                num_samples=int(app_config.runtime.visualization.num_samples),
+                num_samples=int(app_config.engine.execution.tracking.num_samples),
                 experiment_name=experiment_name,
                 tensorboard_enabled=bool(
-                    app_config.runtime.visualization.tensorboard.enabled
+                    app_config.engine.execution.tracking.tensorboard.enabled
                 ),
                 tensorboard_log_dir=str(
-                    app_config.runtime.visualization.tensorboard.log_dir
+                    app_config.engine.execution.tensorboard_dir
                 ),
-                mlflow_enabled=bool(app_config.runtime.visualization.mlflow.enabled),
+                mlflow_enabled=bool(app_config.engine.execution.tracking.mlflow.enabled),
             ),
         ]
     )

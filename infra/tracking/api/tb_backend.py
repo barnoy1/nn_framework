@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict
+from typing import Any, Dict
 
 import numpy as np
 from PIL import Image
 
 
-class TensorBoardVisualizationLogger:
+class TensorBoardExperimentTracker:
     def __init__(self, log_dir: Path):
         from torch.utils.tensorboard import SummaryWriter
 
@@ -25,6 +25,17 @@ class TensorBoardVisualizationLogger:
 
     def log_text(self, tag: str, text: str, step: int) -> None:
         self._writer.add_text(tag=tag, text_string=str(text), global_step=step)
+
+    def log_execution_config(self, execution_config: Dict[str, Any]) -> None:
+        if not execution_config:
+            return
+        import json
+
+        self._writer.add_text(
+            tag="execution_config",
+            text_string=json.dumps(execution_config, default=str, indent=2)[:20000],
+            global_step=0,
+        )
 
     def log_artifact(self, file_path: Path, artifact_path: str = "artifacts") -> None:
         resolved = Path(file_path).resolve()

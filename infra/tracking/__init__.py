@@ -1,10 +1,10 @@
 from .api import (
-    CompositeVisualizationLogger,
-    MlflowVisualizationLogger,
-    NullVisualizationLogger,
-    TensorBoardVisualizationLogger,
-    VisualizationLogger,
-    create_visualization_logger,
+    CompositeExperimentTracker,
+    MlflowExperimentTracker,
+    NullExperimentTracker,
+    TensorBoardExperimentTracker,
+    ExperimentTracker,
+    create_experiment_tracker,
 )
 from .service_launchers import (
     start_mlflow_ui_service,
@@ -12,12 +12,12 @@ from .service_launchers import (
 )
 
 __all__ = [
-    "VisualizationLogger",
-    "NullVisualizationLogger",
-    "TensorBoardVisualizationLogger",
-    "MlflowVisualizationLogger",
-    "CompositeVisualizationLogger",
-    "create_visualization_logger",
+    "ExperimentTracker",
+    "NullExperimentTracker",
+    "TensorBoardExperimentTracker",
+    "MlflowExperimentTracker",
+    "CompositeExperimentTracker",
+    "create_experiment_tracker",
     "start_mlflow_ui_service",
     "start_tensorboard_service",
 ]

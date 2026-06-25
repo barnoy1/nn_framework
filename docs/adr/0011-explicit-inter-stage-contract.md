@@ -1,0 +1,5 @@
+# Explicit inter-stage contract for the adapter build pipeline
+
+The staged adapter builder (config -> runtime -> weights -> head) keeps its four-phase shape, but its inter-stage contract is made explicit. Real handoffs between stages become typed fields on `AdapterPipelineState` (`model_config`, `config_payload`, `model_api`, `runtime_args`, `model_factory`, `criterion_factory`, plus the final `model`/`criterion`/`postprocessor`); the previous stringly-typed `extras` dict bus is dropped to private-scratch use only, so a missing handoff is a typed-field error at definition time, not a `KeyError` discovered stages later.
+
+The fixed stage order is documented as a data-dependency chain — config produces the model config, weights constructs the model API and runtime args, head consumes them — rather than as bare "predictability"; each stage carries explicit postconditions (what it must have populated by its end), and head must finish with model/criterion/postprocessor set. The `overrides_by_stage` multiplicity is collapsed to one override per stage, since no adapter composes multiple overrides in a stage and there is no composition contract for doing so.

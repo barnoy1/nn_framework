@@ -38,6 +38,11 @@ def register_eval_parser(
     add_common_arguments(eval_parser, defaults)
     eval_parser.add_argument("--checkpoint", type=str, default=defaults["checkpoint"])
     eval_parser.add_argument("--device", type=str, default=defaults["device"])
+    eval_parser.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="Permit partial checkpoint loads (skips strict missing/shape-mismatch failure)",
+    )
     eval_parser.set_defaults(handler=run_eval)
 
 
@@ -52,6 +57,11 @@ def register_inference_parser(
     infer_parser.add_argument("--batch-size", type=int, default=defaults["batch_size"])
     infer_parser.add_argument(
         "--num-workers", type=int, default=defaults["num_workers"]
+    )
+    infer_parser.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="Permit partial checkpoint loads (skips strict missing/shape-mismatch failure)",
     )
     infer_parser.set_defaults(handler=run_inference)
 

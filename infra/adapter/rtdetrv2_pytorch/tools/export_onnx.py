@@ -21,7 +21,7 @@ _add_project_root_to_sys_path()
 
 
 from infra.common.logging.logger import logger
-from infra.core import to_result_list
+from infra.core import to_canonical_predictions
 from infra.engine.flows.common.runtime import build_flow_runtime
 
 
@@ -33,7 +33,7 @@ class _InferenceExportWrapper(torch.nn.Module):
 
     def forward(self, images: torch.Tensor, orig_target_sizes: torch.Tensor):
         outputs = self.model(images)
-        results = to_result_list(outputs, self.postprocessor, orig_target_sizes)
+        results = to_canonical_predictions(outputs, self.postprocessor, orig_target_sizes)
         labels = torch.stack([result["labels"].to(torch.int64) for result in results], dim=0)
         boxes = torch.stack([result["boxes"].to(torch.float32) for result in results], dim=0)
         scores = torch.stack([result["scores"].to(torch.float32) for result in results], dim=0)

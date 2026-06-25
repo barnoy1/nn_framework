@@ -3,14 +3,30 @@ from .context import (
     set_active_app_config,
     try_get_active_app_config,
 )
-from .schemas import AppConfig, DataConfig, ModelConfig, RuntimeConfig, TrainConfig
+from .schemas import (
+    AdapterConfig,
+    AppConfig,
+    DataConfig,
+    DatasetPair,
+    EngineConfig,
+    ExecutionConfig,
+    ModelConfig,
+    OptimizerConfig,
+    SchedulerConfig,
+    TrainConfig,
+)
 
 __all__ = [
     "AppConfig",
+    "AdapterConfig",
+    "EngineConfig",
     "ModelConfig",
     "TrainConfig",
+    "OptimizerConfig",
+    "SchedulerConfig",
     "DataConfig",
-    "RuntimeConfig",
+    "DatasetPair",
+    "ExecutionConfig",
     "set_active_app_config",
     "try_get_active_app_config",
     "get_active_app_config",

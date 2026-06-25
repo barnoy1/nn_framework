@@ -6,13 +6,13 @@ import numpy as np
 import torch
 from PIL import Image
 
-from infra.core import to_result_list
+from infra.core import to_canonical_predictions
 from infra.common.rendering.visualize import render_prediction_with_yolo_caption
 
 
 @torch.no_grad()
 def save_eval_visualizations(runtime, args, logger) -> None:
-    vis_dir = Path(runtime.app_config.train.output_dir) / "inference" / "eval"
+    vis_dir = Path(runtime.app_config.engine.execution.output_dir) / "inference" / "eval"
     vis_dir.mkdir(parents=True, exist_ok=True)
 
     model = runtime.built.model
@@ -40,7 +40,9 @@ def save_eval_visualizations(runtime, args, logger) -> None:
 
         outputs = model(images)
         orig_sizes = torch.stack([target["orig_size"] for target in targets], dim=0)
-        results = to_result_list(outputs, postprocessor, orig_sizes)
+        results = to_canonical_predictions(
+            outputs, postprocessor, orig_sizes, iou_types=runtime.app_config.engine.data.iou_types
+        )
 
         for image_tensor, target, prediction in zip(images, targets, results):
             file_path = target.get("file_path")

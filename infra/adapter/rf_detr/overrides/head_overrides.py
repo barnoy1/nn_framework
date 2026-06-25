@@ -15,7 +15,7 @@ def _realign_head_to_config(*, model, runtime_args) -> None:
 
 class RFDETRHeadOverride:
     def apply(self, *, builder, state) -> None:
-        criterion_factory = state.extras["criterion_factory"]
+        criterion_factory = state.criterion_factory
         model = state.model_api.model
         _realign_head_to_config(model=model, runtime_args=state.runtime_args)
         criterion, _ = criterion_factory(state.runtime_args)

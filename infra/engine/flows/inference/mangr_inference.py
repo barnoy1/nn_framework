@@ -32,7 +32,7 @@ def parse_args() -> argparse.Namespace:
 def invoke(args: argparse.Namespace) -> None:
     app_config = get_execution_config(config_path=args.config, overrides=args.overrides)
     if args.score_thr is None:
-        args.score_thr = float(app_config.runtime.common.score_threshold)
+        args.score_thr = float(app_config.engine.execution.common.score_threshold)
 
     if args.onnx_model:
         run_onnx(args, logger)

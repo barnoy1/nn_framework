@@ -48,7 +48,7 @@ class CompositeCriterion(nn.Module):
             (
                 adapter
                 for adapter in self.adapters
-                if getattr(adapter, "name", "") == "concrete"
+                if getattr(adapter, "name", "") == "model_specific"
             ),
             None,
         )

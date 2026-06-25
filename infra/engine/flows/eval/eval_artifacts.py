@@ -9,7 +9,7 @@ import torch
 
 from infra.config import AppConfig
 from infra.engine.evaluate import evaluate_predictions
-from infra.tracking import create_visualization_logger
+from infra.tracking import create_experiment_tracker
 
 from .eval_inference import run_eval_inference_loop
 from .eval_model_metrics import (
@@ -199,13 +199,8 @@ def run_eval_artifacts(
     diagnostics: Optional[Dict[str, Any]] = None,
     use_deploy_model: bool = True,
 ) -> Dict[str, float]:
-    output_root = Path(app_config.train.output_dir)
-    output_root_resolved = output_root.resolve()
-    shared_tracking_dir = (
-        output_root_resolved.parent
-        if "__" in output_root_resolved.name
-        else output_root_resolved
-    )
+    output_root = Path(app_config.engine.execution.output_dir)
+    shared_tracking_dir = app_config.engine.execution.mlflow_dir
     inference_dir = output_root / "inference"
     inference_dir.mkdir(parents=True, exist_ok=True)
     eval_vis_dir = inference_dir / "eval"
@@ -213,28 +208,28 @@ def run_eval_artifacts(
     _prune_eval_non_image_files(eval_vis_dir)
     log_step = int(image_epoch_suffix) if image_epoch_suffix is not None else 0
 
-    vis_logger = create_visualization_logger(
+    vis_logger = create_experiment_tracker(
         output_root=output_root,
         experiment_name=experiment_name,
-        tensorboard_enabled=bool(app_config.runtime.visualization.tensorboard.enabled),
-        tensorboard_log_dir=str(app_config.runtime.visualization.tensorboard.log_dir),
-        tensorboard_host=str(app_config.runtime.visualization.tensorboard.host),
-        tensorboard_port=int(app_config.runtime.visualization.tensorboard.port),
+        tensorboard_enabled=bool(app_config.engine.execution.tracking.tensorboard.enabled),
+        tensorboard_log_dir=str(app_config.engine.execution.tensorboard_dir),
+        tensorboard_host=str(app_config.engine.execution.tracking.tensorboard.host),
+        tensorboard_port=int(app_config.engine.execution.tracking.tensorboard.port),
         tensorboard_start_service=bool(
-            app_config.runtime.visualization.tensorboard.start_service
+            app_config.engine.execution.tracking.tensorboard.start_service
         ),
-        mlflow_enabled=bool(app_config.runtime.visualization.mlflow.enabled),
+        mlflow_enabled=bool(app_config.engine.execution.tracking.mlflow.enabled),
         mlflow_dir=str(shared_tracking_dir),
         mlflow_tracking_backend=str(
-            app_config.runtime.visualization.mlflow.tracking_backend
+            app_config.engine.execution.tracking.mlflow.tracking_backend
         ),
         mlflow_sqlite_db_name=str(
-            app_config.runtime.visualization.mlflow.sqlite_db_name
+            app_config.engine.execution.tracking.mlflow.sqlite_db_name
         ),
-        mlflow_host=str(app_config.runtime.visualization.mlflow.host),
-        mlflow_port=int(app_config.runtime.visualization.mlflow.port),
+        mlflow_host=str(app_config.engine.execution.tracking.mlflow.host),
+        mlflow_port=int(app_config.engine.execution.tracking.mlflow.port),
         mlflow_start_service=bool(
-            app_config.runtime.visualization.mlflow.start_service
+            app_config.engine.execution.tracking.mlflow.start_service
         ),
         execution_config=app_config.model_dump(mode="json"),
         logger_port=logger,
@@ -251,7 +246,7 @@ def run_eval_artifacts(
     model_eval = model_eval.to(device).eval()
 
     samples = build_eval_samples(
-        app_config.data.val_sets, app_config.data.mapping or {}
+        app_config.engine.data.val_sets, app_config.engine.data.mapping or {}
     )
     eval_outputs = run_eval_inference_loop(
         app_config=app_config,
@@ -271,7 +266,7 @@ def run_eval_artifacts(
     metrics = evaluate_predictions(
         predictions=eval_outputs["all_predictions"],
         targets=eval_outputs["all_targets_for_metric"],
-        iou_types=app_config.data.iou_types,
+        iou_types=app_config.engine.data.iou_types,
     )
 
     diagnostics_payload: Dict[str, Any] = diagnostics if diagnostics is not None else {}

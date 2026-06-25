@@ -120,7 +120,7 @@ def _profile_single_dataset_distribution(
 
 
 def profile_dataset_distribution(runtime, logger) -> None:
-    output_dir = Path(runtime.app_config.train.output_dir) / "dataset"
+    output_dir = Path(runtime.app_config.engine.execution.output_dir) / "dataset"
     _profile_single_dataset_distribution(
         dataset=runtime.val_loader.dataset,
         split_name="val",
@@ -130,7 +130,7 @@ def profile_dataset_distribution(runtime, logger) -> None:
 
 
 def profile_train_and_val_dataset_distribution(runtime, logger) -> None:
-    output_dir = Path(runtime.app_config.train.output_dir) / "dataset"
+    output_dir = Path(runtime.app_config.engine.execution.output_dir) / "dataset"
     _profile_single_dataset_distribution(
         dataset=runtime.train_loader.dataset,
         split_name="train",

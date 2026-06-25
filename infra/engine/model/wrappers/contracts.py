@@ -39,10 +39,16 @@ class CheckpointAdapter(Protocol):
         self,
         model: nn.Module,
         state_dict: Dict[str, torch.Tensor],
+        *,
+        strict: bool = True,
     ) -> None: ...
 
     def safe_load_state_dict(
-        self, model: nn.Module, state_dict: Dict[str, torch.Tensor]
+        self,
+        model: nn.Module,
+        state_dict: Dict[str, torch.Tensor],
+        *,
+        strict: bool = False,
     ) -> Tuple[int, int, int]: ...
 
 
@@ -59,10 +65,16 @@ class ModelWrapperAdapter(Protocol):
         self,
         model: nn.Module,
         state_dict: Dict[str, torch.Tensor],
+        *,
+        strict: bool = True,
     ) -> None: ...
 
     def safe_load_state_dict(
-        self, model: nn.Module, state_dict: Dict[str, torch.Tensor]
+        self,
+        model: nn.Module,
+        state_dict: Dict[str, torch.Tensor],
+        *,
+        strict: bool = False,
     ) -> Tuple[int, int, int]: ...
 
 

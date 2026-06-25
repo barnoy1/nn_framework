@@ -1,0 +1,3 @@
+# Model-agnostic loss support is capability-gated
+
+Model-agnostic losses (the five base detection losses) are an optional per-model capability, not a universal requirement. A model only supports the subset its outputs allow (e.g. DFL requires distribution outputs), so an empty or partial `model_agnostic` group is valid — a segmentation-only model supports none and carries a fully model-specific criterion. An agnostic loss the model can't produce is silently inactive rather than an error, because a typo of a non-supported loss name is indistinguishable from "this model doesn't support it." We accept that silent inactivity as the contract instead of adding validation.

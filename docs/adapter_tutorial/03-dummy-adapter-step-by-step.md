@@ -42,7 +42,6 @@ Purpose: declarative adapter contract.
 Defines:
 
 - `name`
-- `source_root_aliases`
 - `builder_factory`
 - `config_subdir`
 - `overrides_by_stage`
@@ -51,13 +50,13 @@ The staged order is fixed by core spec and validated on load.
 
 ### Manifest field deep dive
 
-#### `source_root_aliases`
+#### `name`
 
-What it is: matching aliases used by `resolve_model_builder(...)` against `app_config.model.source_root`.
+What it is: the adapter's unique key, matched by `resolve_model_builder(...)` against `app_config.adapter.name`.
 
-Why needed: runtime flow remains generic; adapter choice becomes data-driven.
+Why needed: runtime flow remains generic; adapter choice becomes data-driven by an explicit name instead of source-path guessing.
 
-Best practice: include lowercase variants and common aliases.
+Best practice: keep it short, lowercase, and identical to the `adapter.name` used in experiment YAMLs.
 
 #### `builder_factory`
 

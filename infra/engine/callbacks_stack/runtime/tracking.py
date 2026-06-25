@@ -37,7 +37,7 @@ class MLflowCallback(Callback):
 
     @staticmethod
     def _resolve_model_name(trainer: "Trainer") -> str:
-        source_root = str(getattr(trainer.app_config.model, "source_root", "") or "")
+        source_root = str(getattr(trainer.app_config.adapter.model, "source_root", "") or "")
         source_root = source_root.strip().rstrip("/")
         if not source_root:
             return "model"
@@ -72,12 +72,12 @@ class MLflowCallback(Callback):
         if not self.enabled:
             return
         tracking_dir = self.tracking_dir or (
-            Path(trainer.app_config.train.output_dir) / "mlflow"
+            trainer.app_config.engine.execution.mlflow_dir
         )
         tracking_dir.mkdir(parents=True, exist_ok=True)
         mlflow_artifact_root = artifact_root(tracking_dir)
         experiment_name = self.experiment_name or trainer.experiment_name
-        run_output_dir = Path(trainer.app_config.train.output_dir)
+        run_output_dir = Path(trainer.app_config.engine.execution.output_dir)
         run_folder_name = resolve_run_folder_name(
             run_output_dir=run_output_dir,
             tracking_dir=tracking_dir.resolve(),
@@ -148,7 +148,7 @@ class MLflowCallback(Callback):
                 }
                 mlflow.log_params(chunk)
         experiment_config_path = getattr(trainer, "experiment_config_path", None)
-        config_dir = Path(trainer.app_config.train.output_dir) / "configs"
+        config_dir = Path(trainer.app_config.engine.execution.output_dir) / "configs"
         config_dir.mkdir(parents=True, exist_ok=True)
 
         target = config_dir / "experiment.yaml"
@@ -175,15 +175,25 @@ class MLflowCallback(Callback):
 
         metadata_tags = extract_run_metadata_from_experiment_yaml(target)
         if not metadata_tags:
-            runtime_cfg = (
-                execution_config.get("runtime")
-                if isinstance(execution_config.get("runtime"), dict)
+            engine_cfg = (
+                execution_config.get("engine")
+                if isinstance(execution_config.get("engine"), dict)
                 else {}
             )
-            fallback_description = str(runtime_cfg.get("description") or "").strip()
+            execution_cfg = (
+                engine_cfg.get("execution")
+                if isinstance(engine_cfg.get("execution"), dict)
+                else {}
+            )
+            adapter_cfg = (
+                execution_config.get("adapter")
+                if isinstance(execution_config.get("adapter"), dict)
+                else {}
+            )
+            fallback_description = str(execution_cfg.get("description") or "").strip()
             fallback_source_root = str(
-                execution_config.get("model", {}).get("source_root")
-                if isinstance(execution_config.get("model"), dict)
+                adapter_cfg.get("model", {}).get("source_root")
+                if isinstance(adapter_cfg.get("model"), dict)
                 else ""
             ).strip()
             if fallback_description:
@@ -199,7 +209,7 @@ class MLflowCallback(Callback):
         mlflow.set_tag(
             "model.source_root",
             metadata_tags.get(
-                "model.source_root", str(trainer.app_config.model.source_root)
+                "model.source_root", str(trainer.app_config.adapter.model.source_root)
             ),
         )
         self._active = True

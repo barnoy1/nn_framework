@@ -6,7 +6,7 @@ from typing import Dict, TYPE_CHECKING
 
 from PIL import Image
 
-from infra.tracking import create_visualization_logger
+from infra.tracking import create_experiment_tracker
 from ..core import Callback
 from .visualization_helpers import (
     compose_grid,
@@ -62,14 +62,9 @@ class ValidationVisualizationCallback(Callback):
     def on_train_start(self, trainer: "Trainer") -> None:
         if not trainer.accelerator.is_main_process:
             return
-        vis_cfg = trainer.app_config.runtime.visualization
-        output_root_resolved = self.output_dir.resolve()
-        shared_tracking_dir = (
-            output_root_resolved.parent
-            if "__" in output_root_resolved.name
-            else output_root_resolved
-        )
-        self._logger = create_visualization_logger(
+        vis_cfg = trainer.app_config.engine.execution.tracking
+        shared_tracking_dir = trainer.app_config.engine.execution.mlflow_dir
+        self._logger = create_experiment_tracker(
             output_root=self.output_dir,
             experiment_name=self.experiment_name,
             tensorboard_enabled=self.tensorboard_enabled,

@@ -74,7 +74,7 @@ def _resolve_model_variant(config_name: str) -> str:
 
 
 def _resolve_selected_variant(*, app_config, config_name: str) -> str:
-    model_cfg = app_config.model
+    model_cfg = app_config.adapter.model
     if isinstance(model_cfg, dict):
         explicit_variant = str(model_cfg.get("config_variant_name") or "").strip()
     else:
@@ -149,14 +149,13 @@ def build_model_config(*, app_config, config_path: Path):
     use_segmentation = _is_segmentation_model_class(config_cls)
     scheme_overrides = _build_scheme_overrides(variant=variant)
 
-    model_cfg = app_config.model
+    model_cfg = app_config.adapter.model
+    num_classes = app_config.engine.data.num_classes
     if isinstance(model_cfg, dict):
-        num_classes = model_cfg["num_classes"]
         num_queries = model_cfg["num_queries"]
         hidden_dim = model_cfg["hidden_dim"]
         losses_cfg = model_cfg["losses"]
     else:
-        num_classes = model_cfg.num_classes
         num_queries = model_cfg.num_queries
         hidden_dim = model_cfg.hidden_dim
         losses_cfg = model_cfg.losses

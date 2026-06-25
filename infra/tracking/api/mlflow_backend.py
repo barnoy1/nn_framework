@@ -27,26 +27,20 @@ def _sanitize_param_value(value: str, max_len: int = 490) -> str:
     return f"{text[:max_len]}..."
 
 
-class MlflowVisualizationLogger:
+class MlflowExperimentTracker:
     @staticmethod
     def _resolve_description(execution_config: Dict[str, Any] | None) -> str:
-        if not isinstance(execution_config, dict):
-            return ""
-        runtime_cfg = execution_config.get("runtime")
-        if not isinstance(runtime_cfg, dict):
-            return ""
-        return str(runtime_cfg.get("description") or "").strip()
+        engine_cfg = execution_config.get("engine") if isinstance(execution_config, dict) else None
+        execution_cfg = engine_cfg.get("execution") if isinstance(engine_cfg, dict) else None
+        return str((execution_cfg or {}).get("description") or "").strip()
 
     @staticmethod
     def _resolve_model_metadata(
         execution_config: Dict[str, Any] | None,
     ) -> tuple[str, str]:
-        if not isinstance(execution_config, dict):
-            return "model", ""
-        model_cfg = execution_config.get("model")
-        if not isinstance(model_cfg, dict):
-            return "model", ""
-        source_root = str(model_cfg.get("source_root") or "").strip().rstrip("/")
+        adapter_cfg = execution_config.get("adapter") if isinstance(execution_config, dict) else None
+        model_cfg = adapter_cfg.get("model") if isinstance(adapter_cfg, dict) else None
+        source_root = str((model_cfg or {}).get("source_root") or "").strip().rstrip("/")
         if not source_root:
             return "model", ""
         model_name = Path(source_root).name or source_root
@@ -72,7 +66,7 @@ class MlflowVisualizationLogger:
     @staticmethod
     def _compose_run_name(base_run_name: str, run_context_dir: Path) -> str:
         resolved_base = str(base_run_name or "run").strip() or "run"
-        run_folder_name = MlflowVisualizationLogger._resolve_run_folder_name(
+        run_folder_name = MlflowExperimentTracker._resolve_run_folder_name(
             run_context_dir
         )
         suffix = f"__{run_folder_name}"
@@ -139,8 +133,6 @@ class MlflowVisualizationLogger:
             self._mlflow.set_tag("description", description)
             self._mlflow.set_tag("runtime.description", description)
         self._last_step = -1
-        if execution_config:
-            self.log_execution_config(execution_config)
 
     @property
     def run_id(self) -> str | None:

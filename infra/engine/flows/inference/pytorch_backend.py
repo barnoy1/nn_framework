@@ -10,7 +10,7 @@ from PIL import Image
 from infra.core import (
     build_label_id_remap_from_config_and_annotations,
     normalize_prediction_labels_for_metrics,
-    to_result_list,
+    to_canonical_predictions,
 )
 from infra.data.preprocess import build_image_preprocess_from_loader
 from infra.engine.flows.common.image_io import list_images, load_pil_image
@@ -28,9 +28,11 @@ def run_pytorch(args, logger) -> None:
         build_loaders=False,
     )
     state = runtime.wrapper.load_checkpoint_state(args.checkpoint)
-    runtime.wrapper.validate_checkpoint_class_compatibility(runtime.built.model, state)
+    runtime.wrapper.validate_checkpoint_class_compatibility(
+        runtime.built.model, state, strict=True
+    )
     loaded, skipped, missing = runtime.wrapper.safe_load_state_dict(
-        runtime.built.model, state
+        runtime.built.model, state, strict=not getattr(args, "allow_partial", False)
     )
     logger.info(
         "Loaded checkpoint tensors={}, skipped_shape={}, missing={}",
@@ -55,17 +57,17 @@ def run_pytorch(args, logger) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     transforms = build_image_preprocess_from_loader(
-        runtime.app_config.data.val_dataloader, logger=logger, default_size=640
+        runtime.app_config.engine.data.val_dataloader, logger=logger, default_size=640
     )
     label_id_remap = build_label_id_remap_from_config_and_annotations(
-        remap_mscoco_category=bool(runtime.app_config.data.remap_mscoco_category),
+        remap_mscoco_category=bool(runtime.app_config.engine.data.remap_mscoco_category),
         class_id_to_name={
             int(k): str(v)
-            for k, v in (runtime.app_config.data.class_id_to_name or {}).items()
+            for k, v in (runtime.app_config.engine.data.class_id_to_name or {}).items()
         },
         annotation_files=[
             str(dataset_pair.ann_file)
-            for dataset_pair in runtime.app_config.data.val_sets
+            for dataset_pair in runtime.app_config.engine.data.val_sets
         ],
     )
     image_paths = list_images(args.input_dir)
@@ -96,7 +98,9 @@ def run_pytorch(args, logger) -> None:
 
         with torch.no_grad():
             outputs = model(batch_tensor)
-            results = to_result_list(outputs, postprocessor, orig_sizes)
+            results = to_canonical_predictions(
+                outputs, postprocessor, orig_sizes, iou_types=runtime.app_config.engine.data.iou_types
+            )
             results = normalize_prediction_labels_for_metrics(
                 results,
                 label_id_remap=label_id_remap,

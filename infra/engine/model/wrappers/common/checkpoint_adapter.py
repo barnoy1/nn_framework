@@ -60,15 +60,43 @@ class GenericCheckpointAdapter(CheckpointAdapter):
             for key, value in state_dict.items()
         }
 
+    _CLASS_HEAD_MARKERS = (
+        "class_embed",
+        "class_head",
+        "score_head",
+        "cls_score",
+        "classifier",
+    )
+
     def validate_checkpoint_class_compatibility(
         self,
         model: nn.Module,
         state_dict: Dict[str, torch.Tensor],
+        *,
+        strict: bool = True,
     ) -> None:
-        return
+        normalized = self._normalize_state_dict_keys(state_dict)
+        model_state = model.state_dict()
+        for key, ckpt_tensor in normalized.items():
+            model_tensor = model_state.get(key)
+            if model_tensor is None or model_tensor.shape == ckpt_tensor.shape:
+                continue
+            if not any(marker in key.lower() for marker in self._CLASS_HEAD_MARKERS):
+                continue
+            message = (
+                f"Checkpoint head class-count mismatch on {key!r}: "
+                f"checkpoint {tuple(ckpt_tensor.shape)} vs model {tuple(model_tensor.shape)}"
+            )
+            if strict:
+                raise ValueError(message)
+            logger.warning("{} (train flow: proceeding)", message)
 
     def safe_load_state_dict(
-        self, model: nn.Module, state_dict: Dict[str, torch.Tensor]
+        self,
+        model: nn.Module,
+        state_dict: Dict[str, torch.Tensor],
+        *,
+        strict: bool = False,
     ) -> Tuple[int, int, int]:
         normalized = self._normalize_state_dict_keys(state_dict)
         model_state = model.state_dict()
@@ -84,4 +112,41 @@ class GenericCheckpointAdapter(CheckpointAdapter):
             compatible[key] = value
 
         missing_keys, _ = model.load_state_dict(compatible, strict=False)
+        if strict and (skipped_shape or missing_keys):
+            raise ValueError(
+                f"Strict checkpoint load failed: skipped_shape={skipped_shape}, "
+                f"missing={len(missing_keys)}. Pass --allow-partial to override."
+            )
         return len(compatible), skipped_shape, len(missing_keys)
+
+
+if __name__ == "__main__":
+    # ponytail: checkpoint strictness matrix — train warns, eval/strict raise.
+    import tempfile
+
+    model = nn.Linear(4, 3)
+    model.class_embed = nn.Linear(4, 3)  # head with 3 classes
+    adapter = GenericCheckpointAdapter(repo_root=Path(tempfile.gettempdir()))
+
+    good = {k: v.clone() for k, v in model.state_dict().items()}
+    mismatch = dict(good)
+    mismatch["class_embed.weight"] = torch.zeros(5, 4)  # 5 classes != 3
+
+    # strict class-compat: eval-style hard error; train-style only warns
+    try:
+        adapter.validate_checkpoint_class_compatibility(model, mismatch, strict=True)
+        raise AssertionError("eval class-count mismatch must raise")
+    except ValueError:
+        pass
+    adapter.validate_checkpoint_class_compatibility(model, mismatch, strict=False)
+
+    # strict load fails fast on shape mismatch; permissive proceeds
+    try:
+        adapter.safe_load_state_dict(model, mismatch, strict=True)
+        raise AssertionError("strict load must raise on shape mismatch")
+    except ValueError:
+        pass
+    loaded, skipped, missing = adapter.safe_load_state_dict(model, mismatch, strict=False)
+    assert skipped == 1 and loaded >= 1
+    adapter.safe_load_state_dict(model, good, strict=True)  # clean load OK
+    print("checkpoint strictness self-check OK")

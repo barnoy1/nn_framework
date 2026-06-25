@@ -55,34 +55,34 @@ def _resolve_dataset_transforms(
 
 
 def prepare_data_if_needed(config: AppConfig) -> None:
-    if not config.runtime.prepare_data:
+    if not config.engine.execution.prepare_data:
         return
-    if not config.runtime.supervisely_dataset_root:
+    if not config.engine.execution.supervisely_dataset_root:
         raise ValueError(
             "runtime.prepare_data=True requires runtime.supervisely_dataset_root"
         )
     convert_dataset(
-        dataset_root=Path(config.runtime.supervisely_dataset_root),
-        output_dir=Path(config.data.dataset_root),
-        splits=config.runtime.supervisely_splits,
-        ann_subdir=config.runtime.ann_subdir,
-        img_subdir=config.runtime.img_subdir,
+        dataset_root=Path(config.engine.execution.supervisely_dataset_root),
+        output_dir=Path(config.engine.data.dataset_root),
+        splits=config.engine.execution.supervisely_splits,
+        ann_subdir=config.engine.execution.ann_subdir,
+        img_subdir=config.engine.execution.img_subdir,
     )
 
 
 def build_loaders(config: AppConfig) -> tuple[DataLoader, DataLoader]:
-    use_masks = "segm" in config.data.iou_types
+    use_masks = "segm" in config.engine.data.iou_types
     train_transforms_per_dataset = _resolve_dataset_transforms(
-        loader_cfg=config.data.train_dataloader,
+        loader_cfg=config.engine.data.train_dataloader,
         use_masks=use_masks,
         default_size=640,
-        dataset_count=len(config.data.train_sets),
+        dataset_count=len(config.engine.data.train_sets),
     )
     val_transforms_per_dataset = _resolve_dataset_transforms(
-        loader_cfg=config.data.val_dataloader,
+        loader_cfg=config.engine.data.val_dataloader,
         use_masks=use_masks,
         default_size=640,
-        dataset_count=len(config.data.val_sets),
+        dataset_count=len(config.engine.data.val_sets),
     )
 
     train_datasets = [
@@ -90,24 +90,24 @@ def build_loaders(config: AppConfig) -> tuple[DataLoader, DataLoader]:
             img_dir=dataset_pair.img_dir,
             ann_file=dataset_pair.ann_file,
             transforms=train_transforms_per_dataset[index],
-            iou_types=config.data.iou_types,
-            keep_rle=config.data.keep_rle_in_targets,
-            filter_empty_targets=config.data.filter_empty_targets,
-            label_mapping=config.data.mapping,
+            iou_types=config.engine.data.iou_types,
+            keep_rle=config.engine.data.keep_rle_in_targets,
+            filter_empty_targets=config.engine.data.filter_empty_targets,
+            label_mapping=config.engine.data.mapping,
         )
-        for index, dataset_pair in enumerate(config.data.train_sets)
+        for index, dataset_pair in enumerate(config.engine.data.train_sets)
     ]
     val_datasets = [
         COCODetectionDataset(
             img_dir=dataset_pair.img_dir,
             ann_file=dataset_pair.ann_file,
             transforms=val_transforms_per_dataset[index],
-            iou_types=config.data.iou_types,
-            keep_rle=config.data.keep_rle_in_targets,
+            iou_types=config.engine.data.iou_types,
+            keep_rle=config.engine.data.keep_rle_in_targets,
             filter_empty_targets=False,
-            label_mapping=config.data.mapping,
+            label_mapping=config.engine.data.mapping,
         )
-        for index, dataset_pair in enumerate(config.data.val_sets)
+        for index, dataset_pair in enumerate(config.engine.data.val_sets)
     ]
 
     train_dataset = (
@@ -118,23 +118,9 @@ def build_loaders(config: AppConfig) -> tuple[DataLoader, DataLoader]:
     )
 
     collate_fn = DetectionCollateFn()
-    runtime_worker_count = config.runtime.num_workers
-    worker_count = (
-        int(runtime_worker_count)
-        if runtime_worker_count is not None
-        else int(config.train.num_workers)
-    )
-    runtime_batch_size = config.runtime.batch_size
-    train_batch_size = (
-        int(runtime_batch_size)
-        if runtime_batch_size is not None
-        else int(config.train.batch_size)
-    )
-    val_batch_size = (
-        int(runtime_batch_size)
-        if runtime_batch_size is not None
-        else int(config.train.val_batch_size)
-    )
+    worker_count = int(config.engine.train.num_workers)
+    train_batch_size = int(config.engine.train.batch_size)
+    val_batch_size = int(config.engine.train.val_batch_size)
 
     loader_worker_kwargs = {}
     if worker_count > 0:

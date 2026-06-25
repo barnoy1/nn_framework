@@ -1,375 +1,369 @@
 # @package _global_
 
-model:
-  # Filesystem root of the concrete model repository implementation.
-  source_root: raw_models/RT-DETR/rtdetrv2_pytorch
-  # Baseline model recipe used by wrapper/model builder.
-  model_config_path: configs/rtdetrv2/rtdetrv2_r18vd_120e_coco_instance_seg_rle_1ch.yml
-  # Number of classifier outputs expected from the head.
-  num_classes: 10
-  # Number of object queries decoded per image.
-  num_queries: 300
-  # Transformer hidden channel width.
-  hidden_dim: 256
-  # Denoising groups for training stabilization.
-  dn_num_group: 5
-  # Enable SyncBatchNorm across devices in distributed setups.
-  sync_bn: true
+adapter:
+  name: rtdetrv2_pytorch
+  model:
+    # Filesystem root of the concrete model repository implementation.
+    source_root: raw_models/RT-DETR/rtdetrv2_pytorch
+    # Baseline model recipe used by wrapper/model builder.
+    model_config_path: configs/rtdetrv2/rtdetrv2_r18vd_120e_coco_instance_seg_rle_1ch.yml
+    # Number of classifier outputs expected from the head.
+    # Number of object queries decoded per image.
+    num_queries: 300
+    # Transformer hidden channel width.
+    hidden_dim: 256
+    # Denoising groups for training stabilization.
+    dn_num_group: 5
+    # Enable SyncBatchNorm across devices in distributed setups.
 
-  losses:
-    # Concrete criterion loss-to-coefficient pairing (used for optimization + reporting groups).
-    # Grouping policy:
-    #   - adapter_common: framework-agnostic/common (YOLO-like) losses
-    #   - concrete_model: model-specific (RT-DETRv2) losses
-    # Prefix entries (for example: loss_bbox_aux_) match all indexed losses like loss_bbox_aux_0, loss_bbox_aux_1, ...
-    fallback_to_model_default: true
-    criterion_pairs:
-      adapter_common:
-        # Active model-agnostic losses in the 2-stage pipeline for RT-DETRv2 outputs.
-        # DFL is intentionally omitted (no DFL provider in this runtime path).
-        - loss: loss_bbox
-          coef: 5.0
-        - loss: loss_giou
-          coef: 2.0
-        - loss: loss_vfl
-          coef: 1.0
-        - loss: loss_focal
-          coef: 0.25
-      concrete_model:
-        # RT-DETRv2-specific decoder auxiliary supervision variants (suffix: _aux_{i}).
-        - loss: loss_bbox_aux_
-          coef: 5.0
-        - loss: loss_giou_aux_
-          coef: 2.0
-        - loss: loss_vfl_aux_
-          coef: 5.0
-        - loss: loss_focal_aux_
-          coef: 5.0
+    losses:
+      # Concrete criterion loss-to-coefficient pairing (used for optimization + reporting groups).
+      # Grouping policy:
+      #   - model_agnostic: framework-agnostic/common (YOLO-like) losses
+      #   - model_specific: model-specific (RT-DETRv2) losses
+      # Prefix entries (for example: loss_bbox_aux_) match all indexed losses like loss_bbox_aux_0, loss_bbox_aux_1, ...
+      fallback_to_model_default: true
+      criterion_pairs:
+        model_agnostic:
+          # Active model-agnostic losses in the 2-stage pipeline for RT-DETRv2 outputs.
+          # DFL is intentionally omitted (no DFL provider in this runtime path).
+          - loss: loss_bbox
+            coef: 5.0
+          - loss: loss_giou
+            coef: 2.0
+          - loss: loss_vfl
+            coef: 1.0
+          - loss: loss_focal
+            coef: 0.25
+        model_specific:
+          # RT-DETRv2-specific decoder auxiliary supervision variants (suffix: _aux_{i}).
+          - loss: loss_bbox_aux_
+            coef: 5.0
+          - loss: loss_giou_aux_
+            coef: 2.0
+          - loss: loss_vfl_aux_
+            coef: 5.0
+          - loss: loss_focal_aux_
+            coef: 5.0
 
-        # RT-DETRv2-specific denoising supervision variants (suffix: _dn_{i}).
-        - loss: loss_bbox_dn_
-          coef: 5.0
-        - loss: loss_giou_dn_
-          coef: 2.0
-        - loss: loss_vfl_dn_
-          coef: 1.0
-        - loss: loss_focal_dn_
-          coef: 1.0
+          # RT-DETRv2-specific denoising supervision variants (suffix: _dn_{i}).
+          - loss: loss_bbox_dn_
+            coef: 5.0
+          - loss: loss_giou_dn_
+            coef: 2.0
+          - loss: loss_vfl_dn_
+            coef: 1.0
+          - loss: loss_focal_dn_
+            coef: 1.0
 
-        # RT-DETRv2-specific encoder supervision variants (suffix: _enc_{i}).
-        - loss: loss_bbox_enc_
-          coef: 5.0
-        - loss: loss_giou_enc_
-          coef: 2.0
-        - loss: loss_vfl_enc_
-          coef: 5.0
-        - loss: loss_focal_enc_
-          coef: 5.0
+          # RT-DETRv2-specific encoder supervision variants (suffix: _enc_{i}).
+          - loss: loss_bbox_enc_
+            coef: 5.0
+          - loss: loss_giou_enc_
+            coef: 2.0
+          - loss: loss_vfl_enc_
+            coef: 5.0
+          - loss: loss_focal_enc_
+            coef: 5.0
 
-train:
-  # Per-step training batch size.
-  batch_size: 8
-  # Per-step validation batch size.
-  val_batch_size: 8
-  # Base optimizer learning rate.
-  lr: 0.00002
-  # Multiplier applied to backbone LR relative to base LR.
-  backbone_lr_multiplier: 0.1
-  # L2 regularization strength.
-  weight_decay: 0.0001
-  # Gradient clipping norm threshold (0 disables).
-  grad_clip_norm: 0.1
-  # AMP mode (`fp16` reduces memory/latency).
-  mixed_precision: "fp16"
-  # Root directory for run artifacts.
-  output_dir: ./out
-  # Logging cadence in training steps.
-  log_every_n_steps: 20
-  # Validation cadence in epochs.
-  val_every_n_epochs: 1
-  # Checkpoint save cadence in epochs.
-  save_every_n_epochs: 5
-  # Enable Exponential Moving Average model weights.
-  use_ema: true
-  # EMA decay factor (higher = slower update).
-  ema_decay: 0.9999
-  # Warmup updates before full EMA behavior.
-  ema_warmup_updates: 2000
-  # Global random seed for reproducibility.
-  seed: 1
-  # Metrics key(s) to use for best checkpoint selection (supports multiple for multi-objective monitoring).
-  metrics_key:
-    - "val_loss"
-    - "val_map"
-data:
-  # Skip samples with no valid annotations during training.
-  filter_empty_targets: true
-  # Keep segmentation in RLE format when mask tensors are not materialized.
-  keep_rle_in_targets: true
-  # High-level task mode.
-  task: detection
-  evaluator:
-    # Evaluator backend.
-    type: CocoEvaluator
-    # IoU tasks to compute metrics for.
-    iou_types: [bbox, segm]
-  # Declared dataset class space size.
-  num_classes: 10
-  # Compatibility flag for COCO-style category remap paths.
-  remap_mscoco_category: true
-  mapping:
-    # Map dataset contiguous class 0 -> model class index 4 (airplane).
-    0: 4
-
-  # Canonical mapping from class index to class name used by logs/visualization.
-  label2classid:
-    &label2classid {
-      0: person,
-      1: bicycle,
-      2: car,
-      3: motorcycle,
-      4: airplane,
-      5: bus,
-      6: train,
-      7: truck,
-      8: boat,
-      9: traffic light,
-      10: fire hydrant,
-      11: stop sign,
-      12: parking meter,
-      13: bench,
-      14: bird,
-      15: cat,
-      16: dog,
-      17: horse,
-      18: sheep,
-      19: cow,
-      20: elephant,
-      21: bear,
-      22: zebra,
-      23: giraffe,
-      24: backpack,
-      25: umbrella,
-      26: handbag,
-      27: tie,
-      28: suitcase,
-      29: frisbee,
-      30: skis,
-      31: snowboard,
-      32: sports ball,
-      33: kite,
-      34: baseball bat,
-      35: baseball glove,
-      36: skateboard,
-      37: surfboard,
-      38: tennis racket,
-      39: bottle,
-      40: wine glass,
-      41: cup,
-      42: fork,
-      43: knife,
-      44: spoon,
-      45: bowl,
-      46: banana,
-      47: apple,
-      48: sandwich,
-      49: orange,
-      50: broccoli,
-      51: carrot,
-      52: hot dog,
-      53: pizza,
-      54: donut,
-      55: cake,
-      56: chair,
-      57: couch,
-      58: potted plant,
-      59: bed,
-      60: dining table,
-      61: toilet,
-      62: tv,
-      63: laptop,
-      64: mouse,
-      65: remote,
-      66: keyboard,
-      67: cell phone,
-      68: microwave,
-      69: oven,
-      70: toaster,
-      71: sink,
-      72: refrigerator,
-      73: book,
-      74: clock,
-      75: vase,
-      76: scissors,
-      77: teddy bear,
-      78: hair drier,
-      79: toothbrush,
-    }
-  # Alias used by visualizers/inference output label rendering.
-  class_id_to_name: *label2classid
-
-  train_dataloader:
-    # Loader implementation type.
-    type: DataLoader
-    dataset:
-      # Dataset adapter type.
-      type: CocoDetection
-      datasets:
-        # Training image directory.
-        - img_folder: ${oc.env:HOME}/repo/datasets/drone-dataset-(uav)-DatasetNinja/train/img
-          # Training COCO annotation file.
-          ann_file: ${oc.env:HOME}/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_train.json
-      # Ask dataset to prepare segmentation masks.
-      return_masks: true
-      transforms:
-        # Transform container semantics.
-        type: Compose
-        ops:
-          # Geometric: flips image + bboxes + masks.
-          - { type: RandomHorizontalFlip, p: 0.5 }
-          # Geometric: vertical flip (synchronized with annotations).
-          - { type: RandomVerticalFlip, p: 0.2 }
-          # Geometric: rotation in degrees range [-limit, +limit].
-          - { type: Rotate, limit: 15, p: 0.3 }
-          # Image-only grayscale conversion (keeps 3 channels).
-          - { type: ToGray, p: 1.0, num_output_channels: 1 }
-          # Image-only color jitter in HSV space (annotations unchanged).
-          - { type: HueSaturationValue, hue_shift_limit: 12, sat_shift_limit: 24, val_shift_limit: 12, p: 0.3 }
-          # Image-only contrast/brightness change.
-          - { type: RandomBrightnessContrast, p: 0.3 }
-          # Final spatial normalization to model input size.
-          - { type: Resize, size: [512, 512] }
-          # Convert image to float tensor-like representation with scaling.
-          - { type: ConvertPILImage, dtype: "float32", scale: true }
-          # Convert GT boxes to normalized cxcywh expected by model/loss.
-          - { type: ConvertBoxes, fmt: "cxcywh", normalize: true }
-    # Shuffle training data each epoch.
-    shuffle: true
-    # Drop final incomplete batch for stable step math.
-    drop_last: true
-    collate_fn:
-      # Batch collation strategy.
-      type: BatchImageCollateFunction
-      # Multi-scale training candidate sizes.
-      scales: [384, 416, 448, 480, 512]
-
-  val_dataloader:
-    # Loader implementation type.
-    type: DataLoader
-    dataset:
-      # Dataset adapter type.
-      type: CocoDetection
-      datasets:
-        # Validation image directory.
-        - img_folder: ${oc.env:HOME}/repo/datasets/drone-dataset-(uav)-DatasetNinja/valid/img
-          # Validation COCO annotation file.
-          ann_file: ${oc.env:HOME}/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_valid.json
-      # Keep masks available for segm evaluation.
-      return_masks: true
-      transforms:
-        # Transform container semantics.
-        type: Compose
-        ops:
-          # Deterministic resize for validation/inference parity.
-          - { type: LetterBox, size: [512, 512], fill_value: 114 }
-          # Image-only grayscale conversion for 1-channel model parity.
-          - { type: ToGray, p: 1.0, num_output_channels: 1 }
-          # Convert image to scaled float representation.
-          - { type: ConvertPILImage, dtype: "float32", scale: true }
-    # Keep deterministic order for reproducible eval.
-    shuffle: false
-    # Keep tail batch for full-dataset evaluation coverage.
-    drop_last: false
-    collate_fn:
-      # Batch collation strategy.
-      type: BatchImageCollateFunction
-
-runtime:
-  description: drone_fine_tune_rtdetrv2_r18vd_120e_coco_1ch
-  common:
-    # Runtime default output root.
-    output_dir: out
-    # Shared checkpoint path for train/eval/inference defaults.
-    checkpoint: ${oc.env:HOME}/.cache/torch/hub/checkpoints/rtdetrv2/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
-    # Execution device.
-    device: cuda
-    # Hardware backend toggles.
-    use_gpu: true
-    use_xpu: false
-    use_mlu: false
-    use_npu: false
-    # Iteration logging interval for runtime tools.
-    log_iter: 20
-    # Runtime epoch override.
+engine:
+  train:
+    # Per-step training batch size.
+    batch_size: 8
+    # Per-step validation batch size.
+    val_batch_size: 8
+    # Base optimizer learning rate.
+    lr: 0.00002
+    # Multiplier applied to backbone LR relative to base LR.
+    backbone_lr_multiplier: 0.1
+    # L2 regularization strength.
+    weight_decay: 0.0001
+    # Gradient clipping norm threshold (0 disables).
+    grad_clip_norm: 0.1
+    # AMP mode (`fp16` reduces memory/latency).
+    mixed_precision: "fp16"
+    # Root directory for run artifacts.
+    # Logging cadence in training steps.
+    log_every_n_steps: 20
+    # Validation cadence in epochs.
+    val_every_n_epochs: 1
+    # Checkpoint save cadence in epochs.
+    save_every_n_epochs: 5
+    # Enable Exponential Moving Average model weights.
+    use_ema: true
+    # EMA decay factor (higher = slower update).
+    ema_decay: 0.9999
+    # Warmup updates before full EMA behavior.
+    ema_warmup_updates: 2000
+    # Global random seed for reproducibility.
+    seed: 1
+    # Metrics key(s) to use for best checkpoint selection (supports multiple for multi-objective monitoring).
+    metrics_key:
+      - "val_loss"
+      - "val_map"
+    sync_bn: true
     epochs: 20
-    # Shared confidence threshold for evaluation metrics (train validation + eval flow).
-    score_threshold: 0.35
-    # Generic runtime batch size used by utility flows.
-    batch_size: 2
-    # Generic runtime worker count.
     num_workers: 2
-  visualization:
-    # Number of qualitative visualization samples to save.
-    num_samples: 4
-    # tensorboard logging directory for visualizations.
-    tensorboard:
-      # Enable TensorBoard logging for visualizations.
-      enabled: false
-      log_dir: visualization/tensorboard
-    # mlflow logging configuration for visualizations.
-    mlflow:
-      # Enable MLflow logging for visualizations.
-      enabled: true
-      # Directory for mlflow tracking/artifacts for visualizations.
-      mlflow_dir: visualization/mlflow
+  data:
+    # Skip samples with no valid annotations during training.
+    filter_empty_targets: true
+    # Keep segmentation in RLE format when mask tensors are not materialized.
+    keep_rle_in_targets: true
+    # High-level task mode.
+    # Declared dataset class space size.
+    num_classes: 10
+    # Compatibility flag for COCO-style category remap paths.
+    remap_mscoco_category: true
+    mapping:
+      # Map dataset contiguous class 0 -> model class index 4 (airplane).
+      0: 4
 
-  data_preparation:
-    # Whether to convert raw Supervisely-like data before training/eval.
-    prepare_data: false
-    # Source dataset root for conversion when enabled.
-    supervisely_dataset_root: null
-    # Splits to convert.
-    supervisely_splits: [train, valid]
-    # Annotation and image subfolder names in source dataset.
-    ann_subdir: ann
-    img_subdir: img
-    # Optional experiment tracking hooks.
-    mlflow_experiment_name: null
+    # Canonical mapping from class index to class name used by logs/visualization.
+    label2classid:
+      &label2classid {
+        0: person,
+        1: bicycle,
+        2: car,
+        3: motorcycle,
+        4: airplane,
+        5: bus,
+        6: train,
+        7: truck,
+        8: boat,
+        9: traffic light,
+        10: fire hydrant,
+        11: stop sign,
+        12: parking meter,
+        13: bench,
+        14: bird,
+        15: cat,
+        16: dog,
+        17: horse,
+        18: sheep,
+        19: cow,
+        20: elephant,
+        21: bear,
+        22: zebra,
+        23: giraffe,
+        24: backpack,
+        25: umbrella,
+        26: handbag,
+        27: tie,
+        28: suitcase,
+        29: frisbee,
+        30: skis,
+        31: snowboard,
+        32: sports ball,
+        33: kite,
+        34: baseball bat,
+        35: baseball glove,
+        36: skateboard,
+        37: surfboard,
+        38: tennis racket,
+        39: bottle,
+        40: wine glass,
+        41: cup,
+        42: fork,
+        43: knife,
+        44: spoon,
+        45: bowl,
+        46: banana,
+        47: apple,
+        48: sandwich,
+        49: orange,
+        50: broccoli,
+        51: carrot,
+        52: hot dog,
+        53: pizza,
+        54: donut,
+        55: cake,
+        56: chair,
+        57: couch,
+        58: potted plant,
+        59: bed,
+        60: dining table,
+        61: toilet,
+        62: tv,
+        63: laptop,
+        64: mouse,
+        65: remote,
+        66: keyboard,
+        67: cell phone,
+        68: microwave,
+        69: oven,
+        70: toaster,
+        71: sink,
+        72: refrigerator,
+        73: book,
+        74: clock,
+        75: vase,
+        76: scissors,
+        77: teddy bear,
+        78: hair drier,
+        79: toothbrush,
+      }
+    # Alias used by visualizers/inference output label rendering.
+    class_id_to_name: *label2classid
 
-  export:
-    # Apply postprocessing in export flow.
-    post_process: true
-    # Apply NMS in export flow.
-    nms: true
-    # Enable benchmark mode for export profiling.
-    benchmark: false
-    # Fuse Conv+BN prior to export when supported.
-    fuse_conv_bn: false
+    train_dataloader:
+      # Loader implementation type.
+      type: DataLoader
+      dataset:
+        # Dataset adapter type.
+        type: CocoDetection
+        datasets:
+          # Training image directory.
+          - img_folder: ${oc.env:HOME}/repo/datasets/drone-dataset-(uav)-DatasetNinja/train/img
+            # Training COCO annotation file.
+            ann_file: ${oc.env:HOME}/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_train.json
+        # Ask dataset to prepare segmentation masks.
+        return_masks: true
+        transforms:
+          # Transform container semantics.
+          type: Compose
+          ops:
+            # Geometric: flips image + bboxes + masks.
+            - { type: RandomHorizontalFlip, p: 0.5 }
+            # Geometric: vertical flip (synchronized with annotations).
+            - { type: RandomVerticalFlip, p: 0.2 }
+            # Geometric: rotation in degrees range [-limit, +limit].
+            - { type: Rotate, limit: 15, p: 0.3 }
+            # Image-only grayscale conversion (keeps 3 channels).
+            - { type: ToGray, p: 1.0, num_output_channels: 1 }
+            # Image-only color jitter in HSV space (annotations unchanged).
+            - { type: HueSaturationValue, hue_shift_limit: 12, sat_shift_limit: 24, val_shift_limit: 12, p: 0.3 }
+            # Image-only contrast/brightness change.
+            - { type: RandomBrightnessContrast, p: 0.3 }
+            # Final spatial normalization to model input size.
+            - { type: Resize, size: [512, 512] }
+            # Convert image to float tensor-like representation with scaling.
+            - { type: ConvertPILImage, dtype: "float32", scale: true }
+            # Convert GT boxes to normalized cxcywh expected by model/loss.
+            - { type: ConvertBoxes, fmt: "cxcywh", normalize: true }
+      # Shuffle training data each epoch.
+      shuffle: true
+      # Drop final incomplete batch for stable step math.
+      drop_last: true
+      collate_fn:
+        # Batch collation strategy.
+        type: BatchImageCollateFunction
+        # Multi-scale training candidate sizes.
+        scales: [384, 416, 448, 480, 512]
 
-  actions:
-    inference:
-      # Input directory for image inference.
-      input_dir: input_data
+    val_dataloader:
+      # Loader implementation type.
+      type: DataLoader
+      dataset:
+        # Dataset adapter type.
+        type: CocoDetection
+        datasets:
+          # Validation image directory.
+          - img_folder: ${oc.env:HOME}/repo/datasets/drone-dataset-(uav)-DatasetNinja/valid/img
+            # Validation COCO annotation file.
+            ann_file: ${oc.env:HOME}/repo/datasets/drone-dataset-(uav)-DatasetNinja/instances_valid.json
+        # Keep masks available for segm evaluation.
+        return_masks: true
+        transforms:
+          # Transform container semantics.
+          type: Compose
+          ops:
+            # Deterministic resize for validation/inference parity.
+            - { type: LetterBox, size: [512, 512], fill_value: 114 }
+            # Image-only grayscale conversion for 1-channel model parity.
+            - { type: ToGray, p: 1.0, num_output_channels: 1 }
+            # Convert image to scaled float representation.
+            - { type: ConvertPILImage, dtype: "float32", scale: true }
+      # Keep deterministic order for reproducible eval.
+      shuffle: false
+      # Keep tail batch for full-dataset evaluation coverage.
+      drop_last: false
+      collate_fn:
+        # Batch collation strategy.
+        type: BatchImageCollateFunction
 
-    inference_onnx:
-      # ONNX model file for ONNX inference path.
-      onnx_model: raw_models/RT-DETR/rtdetrv2_pytorch/exported_models/model.onnx
-      # Input directory for ONNX inference.
-      input_dir: input_data
+  execution:
+    common:
+      # Runtime default output root.
+      output_dir: out
+      # Shared checkpoint path for train/eval/inference defaults.
+      checkpoint: ${oc.env:HOME}/.cache/torch/hub/checkpoints/rtdetrv2/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
+      # Execution device.
+      device: cuda
+      # Hardware backend toggles.
+      use_gpu: true
+      use_xpu: false
+      use_mlu: false
+      use_npu: false
+      # Iteration logging interval for runtime tools.
+      log_iter: 20
+      # Runtime epoch override.
+      # Shared confidence threshold for evaluation metrics (train validation + eval flow).
+      score_threshold: 0.35
+      # Generic runtime batch size used by utility flows.
+      # Generic runtime worker count.
+    description: drone_fine_tune_rtdetrv2_r18vd_120e_coco_1ch
+    tracking:
+      # Number of qualitative visualization samples to save.
+      num_samples: 4
+      # tensorboard logging directory for visualizations.
+      tensorboard:
+        # Enable TensorBoard logging for visualizations.
+        enabled: false
+        log_dir: visualization/tensorboard
+      # mlflow logging configuration for visualizations.
+      mlflow:
+        # Enable MLflow logging for visualizations.
+        enabled: true
+        # Directory for mlflow tracking/artifacts for visualizations.
+        mlflow_dir: visualization/mlflow
 
-    export_onnx:
-      # Source checkpoint for ONNX export.
-      checkpoint: weights/rtdetrv2/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
-      # Destination ONNX path.
-      onnx_model: raw_models/RT-DETR/rtdetrv2_pytorch/exported_models/model.onnx
-
-    export_coco_rle:
-      # Dataset root for COCO-RLE conversion utility.
-      dataset_root: ${oc.env:HOME}/repo/datasets/drone-dataset-(uav)-DatasetNinja
-      # Output directory for converted artifacts.
-      output_dir: ${oc.env:HOME}/repo/datasets/drone-dataset-(uav)-DatasetNinja
-      # Splits to export.
-      splits: [train, valid]
-      # Annotation and image subfolder names for exporter.
+    data_preparation:
+      # Whether to convert raw Supervisely-like data before training/eval.
+      prepare_data: false
+      # Source dataset root for conversion when enabled.
+      supervisely_dataset_root: null
+      # Splits to convert.
+      supervisely_splits: [train, valid]
+      # Annotation and image subfolder names in source dataset.
       ann_subdir: ann
       img_subdir: img
+      # Optional experiment tracking hooks.
+      mlflow_experiment_name: null
+
+    export:
+      # Apply postprocessing in export flow.
+      post_process: true
+      # Apply NMS in export flow.
+      nms: true
+      # Enable benchmark mode for export profiling.
+      benchmark: false
+      # Fuse Conv+BN prior to export when supported.
+      fuse_conv_bn: false
+
+    actions:
+      inference:
+        # Input directory for image inference.
+        input_dir: input_data
+
+      inference_onnx:
+        # ONNX model file for ONNX inference path.
+        onnx_model: raw_models/RT-DETR/rtdetrv2_pytorch/exported_models/model.onnx
+        # Input directory for ONNX inference.
+        input_dir: input_data
+
+      export_onnx:
+        # Source checkpoint for ONNX export.
+        checkpoint: weights/rtdetrv2/rtdetrv2_r18vd_120e_coco_rerun_48.1.pth
+        # Destination ONNX path.
+        onnx_model: raw_models/RT-DETR/rtdetrv2_pytorch/exported_models/model.onnx
+
+      export_coco_rle:
+        # Dataset root for COCO-RLE conversion utility.
+        dataset_root: ${oc.env:HOME}/repo/datasets/drone-dataset-(uav)-DatasetNinja
+        # Output directory for converted artifacts.
+        output_dir: ${oc.env:HOME}/repo/datasets/drone-dataset-(uav)-DatasetNinja
+        # Splits to export.
+        splits: [train, valid]
+        # Annotation and image subfolder names for exporter.
+        ann_subdir: ann
+        img_subdir: img

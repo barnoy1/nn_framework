@@ -46,15 +46,22 @@ class FrameworkModelAdapter(ModelWrapperAdapter):
         self,
         model: nn.Module,
         state_dict: Dict[str, torch.Tensor],
+        *,
+        strict: bool = True,
     ) -> None:
         self._checkpoint_adapter.validate_checkpoint_class_compatibility(
             model=model,
             state_dict=state_dict,
+            strict=strict,
         )
 
     def safe_load_state_dict(
-        self, model: nn.Module, state_dict: Dict[str, torch.Tensor]
+        self,
+        model: nn.Module,
+        state_dict: Dict[str, torch.Tensor],
+        *,
+        strict: bool = False,
     ) -> Tuple[int, int, int]:
         return self._checkpoint_adapter.safe_load_state_dict(
-            model=model, state_dict=state_dict
+            model=model, state_dict=state_dict, strict=strict
         )

@@ -37,13 +37,36 @@ REGISTERED_ADAPTERS: tuple[AdapterManifest, ...] = tuple(
 
 
 def resolve_model_builder(*, app_config: Any, repo_root: Path) -> ModelBuilder:
-    source_root = str(app_config.model.source_root or "")
+    name = str(app_config.adapter.name or "").strip()
+    by_name: dict[str, AdapterManifest] = {}
     for spec in REGISTERED_ADAPTERS:
-        if spec.matches_source_root(source_root):
-            return spec.builder_factory(app_config, repo_root)
+        if spec.name in by_name:
+            raise ValueError(
+                f"Duplicate adapter name registered: {spec.name!r}"
+            )
+        by_name[spec.name] = spec
 
-    available = ", ".join(spec.name for spec in REGISTERED_ADAPTERS)
-    raise NotImplementedError(
-        "No model wrapper adapter registered for "
-        f"source_root={source_root!r}. Available adapters: {available}"
-    )
+    spec = by_name.get(name)
+    if spec is None:
+        available = ", ".join(sorted(by_name)) or "<none>"
+        raise NotImplementedError(
+            f"No adapter registered for adapter.name={name!r}. "
+            f"Available adapters: {available}"
+        )
+    return spec.builder_factory(app_config, repo_root)
+
+
+if __name__ == "__main__":
+    # ponytail: smallest check for the name-selection error path; known-name
+    # resolution is covered end-to-end by the rf_detr train acceptance gate.
+    from types import SimpleNamespace
+
+    try:
+        resolve_model_builder(
+            app_config=SimpleNamespace(adapter=SimpleNamespace(name="missing")),
+            repo_root=Path("."),
+        )
+        raise AssertionError("unknown adapter.name must raise")
+    except NotImplementedError as exc:
+        assert "missing" in str(exc)
+    print("registry self-check OK")

@@ -35,14 +35,14 @@ def parse_args() -> argparse.Namespace:
 def invoke(args: argparse.Namespace) -> None:
     runtime = build_flow_runtime(overrides=args.overrides, config_path=args.config)
     app_config = get_execution_config(runtime=runtime)
-    app_config.train.use_ema = False
-    app_config.train.mixed_precision = "no"
+    app_config.engine.train.use_ema = False
+    app_config.engine.train.mixed_precision = "no"
     runtime.built.ema_model = None
 
     profile_dataset_distribution(runtime, logger)
 
     output_root = app_config.ensure_output_dir()
-    eval_batch_num_samples = int(app_config.runtime.visualization.num_samples)
+    eval_batch_num_samples = int(app_config.engine.execution.tracking.num_samples)
     saved_eval_batches = 0
     for step, (images, targets) in enumerate(runtime.val_loader):
         if step >= 3:
@@ -62,9 +62,11 @@ def invoke(args: argparse.Namespace) -> None:
         )
 
     state = runtime.wrapper.load_checkpoint_state(args.checkpoint)
-    runtime.wrapper.validate_checkpoint_class_compatibility(runtime.built.model, state)
+    runtime.wrapper.validate_checkpoint_class_compatibility(
+        runtime.built.model, state, strict=True
+    )
     loaded, skipped, missing = runtime.wrapper.safe_load_state_dict(
-        runtime.built.model, state
+        runtime.built.model, state, strict=not getattr(args, "allow_partial", False)
     )
     logger.info(
         "Loaded checkpoint tensors={}, skipped_shape={}, missing={}",
@@ -72,10 +74,9 @@ def invoke(args: argparse.Namespace) -> None:
         skipped,
         missing,
     )
-
     net_classes = model_num_classes(runtime.built.model)
     if net_classes is not None:
-        configured_mapping = app_config.data.mapping or {}
+        configured_mapping = app_config.engine.data.mapping or {}
         configured_label_ids = sorted(
             {int(label_id) for label_id in configured_mapping.values()}
         )
@@ -105,7 +106,7 @@ def invoke(args: argparse.Namespace) -> None:
     score_thr = (
         float(args.score_thr)
         if args.score_thr is not None
-        else float(app_config.runtime.common.score_threshold)
+        else float(app_config.engine.execution.common.score_threshold)
     )
     metrics = run_eval_artifacts(
         app_config=app_config,

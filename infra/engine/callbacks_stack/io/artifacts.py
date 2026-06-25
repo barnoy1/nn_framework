@@ -32,13 +32,13 @@ class YoloStyleArtifactsCallback(Callback):
     def on_train_start(self, trainer: "Trainer") -> None:
         if not self.enabled or not trainer.accelerator.is_main_process:
             return
-        output_root = Path(trainer.app_config.train.output_dir)
+        output_root = Path(trainer.app_config.engine.execution.output_dir)
         output_root.mkdir(parents=True, exist_ok=True)
         self._results_csv = output_root / "results.csv"
         self._save_labels_plot(trainer)
 
     def _save_labels_plot(self, trainer: "Trainer") -> None:
-        output_root = Path(trainer.app_config.train.output_dir)
+        output_root = Path(trainer.app_config.engine.execution.output_dir)
         train_counts, train_names = collect_class_frequency(
             trainer.train_loader.dataset
         )
@@ -74,7 +74,7 @@ class YoloStyleArtifactsCallback(Callback):
         if matrix is None or names is None:
             return
 
-        output_root = Path(trainer.app_config.train.output_dir)
+        output_root = Path(trainer.app_config.engine.execution.output_dir)
         save_confusion_matrix_plots(
             output_root=output_root, matrix=matrix, labels=names
         )
@@ -110,7 +110,7 @@ class YoloStyleArtifactsCallback(Callback):
         self._rows.append(row)
         self._write_results_csv()
         render_training_artifact_plots(
-            output_root=Path(trainer.app_config.train.output_dir), rows=self._rows
+            output_root=Path(trainer.app_config.engine.execution.output_dir), rows=self._rows
         )
 
     def _write_results_csv(self) -> None:

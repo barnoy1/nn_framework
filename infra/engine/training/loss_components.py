@@ -24,12 +24,12 @@ class LossComponentSplitter:
 
     @classmethod
     def from_config(cls, app_config) -> "LossComponentSplitter":
-        configured_pairs = app_config.model.losses.criterion_pairs
+        configured_pairs = app_config.adapter.model.losses.criterion_pairs
         common_terms = list(
             dict.fromkeys(
                 [
                     canonical_loss_alias(str(item.loss))
-                    for item in configured_pairs.iter_adapter_common()
+                    for item in configured_pairs.iter_model_agnostic()
                 ]
             )
         )
@@ -38,19 +38,15 @@ class LossComponentSplitter:
             for term in common_terms
             if str(term).strip().lower().rstrip("_") in cls._SUPPORTED_COMMON_TERMS
         ]
-        dfl_terms = list(
-            dict.fromkeys(
-                [canonical_loss_alias(str(item.loss)) for item in configured_pairs.dfl]
-            )
-        )
+        dfl_terms = [term for term in common_terms if "dfl" in str(term).lower()]
         concrete_terms = [
             canonical_loss_alias(str(item.loss))
-            for item in configured_pairs.iter_concrete_model()
+            for item in configured_pairs.iter_model_specific()
         ]
 
         terms = {
             "common": common_terms,
-            "common_dfl": [term for term in dfl_terms if term in common_terms],
+            "common_dfl": dfl_terms,
             "custom": list(dict.fromkeys(concrete_terms)),
         }
         return cls(terms=terms)

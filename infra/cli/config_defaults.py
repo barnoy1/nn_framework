@@ -46,9 +46,14 @@ def load_config_payload(path: str) -> dict[str, Any]:
 
 def build_parser_defaults(config_path: str, action: str) -> dict[str, Any]:
     payload = load_config_payload(config_path)
+    engine_cfg = (
+        payload.get("engine", {})
+        if isinstance(payload.get("engine", {}), dict)
+        else {}
+    )
     runtime_cfg = (
-        payload.get("runtime", {})
-        if isinstance(payload.get("runtime", {}), dict)
+        engine_cfg.get("execution", {})
+        if isinstance(engine_cfg.get("execution", {}), dict)
         else {}
     )
     runtime_common = (
@@ -73,10 +78,14 @@ def build_parser_defaults(config_path: str, action: str) -> dict[str, Any]:
         else {}
     )
     train_cfg = (
-        payload.get("train", {}) if isinstance(payload.get("train", {}), dict) else {}
+        engine_cfg.get("train", {})
+        if isinstance(engine_cfg.get("train", {}), dict)
+        else {}
     )
     data_cfg = (
-        payload.get("data", {}) if isinstance(payload.get("data", {}), dict) else {}
+        engine_cfg.get("data", {})
+        if isinstance(engine_cfg.get("data", {}), dict)
+        else {}
     )
 
     device_default = str(runtime_common.get("device", "cuda"))
@@ -90,12 +99,8 @@ def build_parser_defaults(config_path: str, action: str) -> dict[str, Any]:
         "config": str(resolve_config_path(config_path)),
         "output_dir": str(runtime_common.get("output_dir", str(REPO_ROOT / "out"))),
         "device": device_default,
-        "batch_size": int(
-            runtime_common.get("batch_size", train_cfg.get("batch_size", 1))
-        ),
-        "num_workers": int(
-            runtime_common.get("num_workers", train_cfg.get("num_workers", 2))
-        ),
+        "batch_size": int(train_cfg.get("batch_size", 1)),
+        "num_workers": int(train_cfg.get("num_workers", 2)),
         "checkpoint": str(runtime_common.get("checkpoint", "")),
         "input_dir": "",
         "onnx_model": "",
@@ -168,7 +173,11 @@ def load_dataset_export_settings(
     with conf_path.open("r", encoding="utf-8") as file:
         payload = yaml.safe_load(file) or {}
 
-    data_cfg = payload.get("data", payload if isinstance(payload, dict) else {})
+    engine_cfg = payload.get("engine") if isinstance(payload, dict) else None
+    if isinstance(engine_cfg, dict) and isinstance(engine_cfg.get("data"), dict):
+        data_cfg = engine_cfg["data"]
+    else:
+        data_cfg = payload.get("data", payload if isinstance(payload, dict) else {})
     if not isinstance(data_cfg, dict):
         return splits, ann_subdir, img_subdir
 

@@ -37,10 +37,10 @@ def warn_unmatched_configured_losses(
     if getattr(trainer, "_warned_unmatched_configured_losses", False):
         return
 
-    configured_pairs = trainer.app_config.model.losses.criterion_pairs
+    configured_pairs = trainer.app_config.adapter.model.losses.criterion_pairs
     configured_specs = [
-        *configured_pairs.iter_adapter_common(),
-        *configured_pairs.iter_concrete_model(),
+        *configured_pairs.iter_model_agnostic(),
+        *configured_pairs.iter_model_specific(),
     ]
 
     active_patterns = [
@@ -100,7 +100,7 @@ def save_eval_batch_visualizations_for_trainer(
         return
 
     output_root = trainer.app_config.ensure_output_dir()
-    num_samples = int(trainer.app_config.runtime.visualization.num_samples)
+    num_samples = int(trainer.app_config.engine.execution.tracking.num_samples)
     saved = 0
 
     for step, (images, targets) in enumerate(trainer.val_loader):
@@ -132,7 +132,7 @@ def save_val_batch_visualizations_for_trainer(
         return
 
     output_root = trainer.app_config.ensure_output_dir()
-    num_samples = int(trainer.app_config.runtime.visualization.num_samples)
+    num_samples = int(trainer.app_config.engine.execution.tracking.num_samples)
     saved = 0
 
     for step, (images, targets) in enumerate(trainer.val_loader):

@@ -56,7 +56,7 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
             trainer.model_wrapper.apply_architecture_specifics(
                 model=trainer.accelerator.unwrap_model(trainer.model),
                 targets=targets,
-                dn_num_group=trainer.app_config.model.dn_num_group,
+                dn_num_group=trainer.app_config.adapter.model.dn_num_group,
             )
 
         try:
@@ -95,9 +95,9 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
         trainer.optimizer.zero_grad(set_to_none=True)
         try:
             trainer.accelerator.backward(loss)
-            if trainer.app_config.train.grad_clip_norm > 0:
+            if trainer.app_config.engine.train.grad_clip_norm > 0:
                 trainer.accelerator.clip_grad_norm_(
-                    trainer.model.parameters(), trainer.app_config.train.grad_clip_norm
+                    trainer.model.parameters(), trainer.app_config.engine.train.grad_clip_norm
                 )
             trainer.optimizer.step()
         except (torch.OutOfMemoryError, RuntimeError) as error:
@@ -156,7 +156,7 @@ def train_one_epoch(trainer, epoch: int) -> Dict[str, float]:
             )
 
         if (
-            step % trainer.app_config.train.log_every_n_steps == 0
+            step % trainer.app_config.engine.train.log_every_n_steps == 0
             and trainer.accelerator.is_main_process
         ):
             trainer.logger.debug(

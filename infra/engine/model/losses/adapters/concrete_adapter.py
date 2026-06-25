@@ -6,7 +6,7 @@ from .common_adapter import AgnosticYoloCriterionAdapter
 
 
 class ConcreteCriterionAdapter(AgnosticYoloCriterionAdapter):
-    name = "concrete"
+    name = "model_specific"
 
     _dfl_output_keys = (
         "pred_distri",

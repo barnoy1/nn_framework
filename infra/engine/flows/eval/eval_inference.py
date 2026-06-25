@@ -13,7 +13,7 @@ from PIL import Image
 from infra.core import (
     build_label_id_remap_from_config_and_annotations,
     normalize_prediction_labels_for_metrics,
-    to_result_list,
+    to_canonical_predictions,
 )
 from infra.data.preprocess import build_image_preprocess_from_loader
 from infra.engine.flows.common.image_io import load_pil_image
@@ -41,15 +41,15 @@ def run_eval_inference_loop(
     logger,
 ) -> Dict[str, object]:
     transforms = build_image_preprocess_from_loader(
-        app_config.data.val_dataloader, logger=logger, default_size=640
+        app_config.engine.data.val_dataloader, logger=logger, default_size=640
     )
     label_id_remap = build_label_id_remap_from_config_and_annotations(
-        remap_mscoco_category=bool(app_config.data.remap_mscoco_category),
+        remap_mscoco_category=bool(app_config.engine.data.remap_mscoco_category),
         class_id_to_name={
-            int(k): str(v) for k, v in (app_config.data.class_id_to_name or {}).items()
+            int(k): str(v) for k, v in (app_config.engine.data.class_id_to_name or {}).items()
         },
         annotation_files=[
-            str(dataset_pair.ann_file) for dataset_pair in app_config.data.val_sets
+            str(dataset_pair.ann_file) for dataset_pair in app_config.engine.data.val_sets
         ],
     )
     all_predictions: List[Dict[str, torch.Tensor]] = []
@@ -73,7 +73,7 @@ def run_eval_inference_loop(
     )
     visualization_indices: set[int] = set()
     if max_visualizations > 0 and len(samples) > 0:
-        configured_seed = app_config.runtime.common.seed
+        configured_seed = app_config.engine.train.seed
         try:
             rng_seed = int(configured_seed)
         except (TypeError, ValueError):
@@ -101,8 +101,12 @@ def run_eval_inference_loop(
                 else:
                     batch_tensor = batch_tensor[:, :expected_channels, :, :]
             outputs = model_eval(batch_tensor)
-            prediction = to_result_list(outputs, post_eval, orig_sizes)[0]
-            prediction_for_vis = to_result_list(outputs, post_eval, transformed_sizes)[
+            prediction = to_canonical_predictions(
+                outputs, post_eval, orig_sizes, iou_types=app_config.engine.data.iou_types
+            )[0]
+            prediction_for_vis = to_canonical_predictions(
+                outputs, post_eval, transformed_sizes, iou_types=app_config.engine.data.iou_types
+            )[
                 0
             ]
             normalized_results = normalize_prediction_labels_for_metrics(

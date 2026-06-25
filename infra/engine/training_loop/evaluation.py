@@ -21,7 +21,7 @@ def validate_epoch(
     resolved_score_thr = (
         float(score_thr)
         if score_thr is not None
-        else float(trainer.app_config.runtime.common.score_threshold)
+        else float(trainer.app_config.engine.execution.common.score_threshold)
     )
     unwrapped_model = trainer.accelerator.unwrap_model(trainer.model)
     with use_ema_weights_for_eval(trainer.ema_model, unwrapped_model, trainer.logger):
@@ -32,7 +32,7 @@ def validate_epoch(
         )
         class_id_to_name = {
             int(key): str(value)
-            for key, value in (trainer.app_config.data.class_id_to_name or {}).items()
+            for key, value in (trainer.app_config.engine.data.class_id_to_name or {}).items()
         }
         diagnostics: Dict[str, object] = {}
         metrics = run_eval_artifacts(
@@ -43,7 +43,7 @@ def validate_epoch(
             logger=trainer.logger,
             class_id_to_name=class_id_to_name,
             experiment_name=trainer.experiment_name,
-            vis_samples=int(trainer.app_config.runtime.visualization.num_samples),
+            vis_samples=int(trainer.app_config.engine.execution.tracking.num_samples),
             score_thr=resolved_score_thr,
             image_epoch_suffix=epoch + 1,
             write_metrics_json=True,
@@ -84,7 +84,7 @@ def run_baseline_eval_sanity(
     resolved_score_thr = (
         float(score_thr)
         if score_thr is not None
-        else float(trainer.app_config.runtime.common.score_threshold)
+        else float(trainer.app_config.engine.execution.common.score_threshold)
     )
     if trainer.accelerator.is_main_process:
         trainer.logger.info(
@@ -101,7 +101,7 @@ def run_baseline_eval_sanity(
     unwrapped_model = trainer.accelerator.unwrap_model(trainer.model)
     class_id_to_name = {
         int(key): str(value)
-        for key, value in (trainer.app_config.data.class_id_to_name or {}).items()
+        for key, value in (trainer.app_config.engine.data.class_id_to_name or {}).items()
     }
     diagnostics: Dict[str, object] = {}
     metrics = run_eval_artifacts(
@@ -112,7 +112,7 @@ def run_baseline_eval_sanity(
         logger=trainer.logger,
         class_id_to_name=class_id_to_name,
         experiment_name=trainer.experiment_name,
-        vis_samples=int(trainer.app_config.runtime.visualization.num_samples),
+        vis_samples=int(trainer.app_config.engine.execution.tracking.num_samples),
         score_thr=resolved_score_thr,
         image_epoch_suffix=epoch + 1,
         write_metrics_json=True,

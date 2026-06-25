@@ -1,0 +1,3 @@
+# experiment.yaml is the framework/adapter contract
+
+A single `experiment.yaml` is the sole contract between the framework and an adapter, with a deliberate section split. The `train` section configures the framework's training loop only (epochs, batch size, lr, optimizer, scheduler, EMA, precision) and has no influence on model flow. The `model` section defines the model itself (source repo, config path, num_classes, num_queries, hidden_dim, dn_num_group, losses). The adapter consumes `model`; the training loop consumes `train`. Keeping these concerns in one file with strict ownership lets a new model be enabled by config alone, without the framework knowing model internals or the adapter knowing training policy.

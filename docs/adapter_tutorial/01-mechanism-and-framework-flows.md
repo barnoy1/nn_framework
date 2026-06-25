@@ -10,7 +10,7 @@ The handoff chain is:
 
 1. Flow manager (`train`, `eval`, `inference`) calls `build_flow_runtime(...)`.
 2. Runtime builder creates model wrapper through `create_wrapper(...)`.
-3. Wrapper asks adapter registry to resolve a model builder based on `app_config.model.source_root`.
+3. Wrapper asks adapter registry to resolve a model builder based on `app_config.adapter.name`.
 4. Resolved builder constructs `BuiltComponents` (model, criterion, postprocessor, optimizer, scheduler, etc.).
 5. Flow manager uses those components without knowing model internals.
 
@@ -74,7 +74,8 @@ Typical tasks:
 
 - choose model API class/factory
 - prepare intermediate runtime objects
-- attach stage-local helpers in `state.extras`
+- attach stage-local scratch helpers in `state._scratch` (typed handoffs use the
+  `state.model_factory` / `state.criterion_factory` fields instead)
 
 ### `weights`
 
@@ -112,7 +113,7 @@ That means:
 ## Invariants you should preserve
 
 1. Do not change caller-side flow APIs.
-2. Keep adapter selection based on `source_root_aliases`.
+2. Keep adapter selection based on the manifest `name` (matched against `adapter.name`).
 3. Ensure deterministic override order.
 4. Keep builder orchestration-only; move specifics to staged overrides.
 5. Return fully formed `BuiltComponents` to the wrapper layer.

@@ -22,7 +22,14 @@ class AdapterPipelineState:
     model_api: Any = None
     runtime_args: Any = None
     config_payload: dict[str, Any] | None = None
-    extras: dict[str, Any] = field(default_factory=dict)
+    model_factory: Any = None
+    criterion_factory: Any = None
+    _scratch: dict[str, Any] = field(default_factory=dict)
+
+
+STAGE_POSTCONDITIONS: dict[str, tuple[str, ...]] = {
+    "head": ("model", "criterion", "postprocessor"),
+}
 
 
 class StagedAdapterModelBuilder(ReflectiveYamlAdapterModelBuilderBase):
@@ -59,11 +66,39 @@ class StagedAdapterModelBuilder(ReflectiveYamlAdapterModelBuilderBase):
             overrides = self._manifest.iter_stage_overrides(stage)
             for override in overrides:
                 override.apply(builder=self, state=state)
+            self._enforce_stage_postconditions(stage, state)
 
-        if state.model is None or state.criterion is None or state.postprocessor is None:
-            raise ValueError(
-                f"Adapter {self._manifest.name!r} must set model/criterion/postprocessor"
-            )
         if self._RUNTIME_FUNCTION_PATCHES:
             self._apply_runtime_patch_manifest(target=state.model)
         return state.model, state.criterion, state.postprocessor
+
+    def _enforce_stage_postconditions(self, stage: str, state: "AdapterPipelineState") -> None:
+        for field_name in STAGE_POSTCONDITIONS.get(stage, ()):
+            if getattr(state, field_name) is None:
+                raise ValueError(
+                    f"Adapter {self._manifest.name!r} stage {stage!r} must set "
+                    f"{field_name!r} before the stage boundary"
+                )
+
+
+if __name__ == "__main__":
+    # ponytail: smallest check that an unset head field fails at the stage
+    # boundary; full pipeline is covered by the rf_detr train acceptance gate.
+    from types import SimpleNamespace
+
+    builder = StagedAdapterModelBuilder.__new__(StagedAdapterModelBuilder)
+    builder._manifest = SimpleNamespace(name="probe")
+    state = AdapterPipelineState(
+        app_config=None,
+        repo_root=Path("."),
+        config_path=Path("."),
+        runtime_config_path=Path("."),
+    )
+    state.model = object()
+    state.criterion = object()  # postprocessor left None
+    try:
+        builder._enforce_stage_postconditions("head", state)
+        raise AssertionError("head stage must require postprocessor")
+    except ValueError as exc:
+        assert "postprocessor" in str(exc)
+    print("staged builder self-check OK")

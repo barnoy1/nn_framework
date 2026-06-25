@@ -1,17 +1,17 @@
-from .factory import create_visualization_logger
+from .factory import create_experiment_tracker
 from .interfaces import (
-    CompositeVisualizationLogger,
-    NullVisualizationLogger,
-    VisualizationLogger,
+    CompositeExperimentTracker,
+    NullExperimentTracker,
+    ExperimentTracker,
 )
-from .mlflow_backend import MlflowVisualizationLogger
-from .tb_backend import TensorBoardVisualizationLogger
+from .mlflow_backend import MlflowExperimentTracker
+from .tb_backend import TensorBoardExperimentTracker
 
 __all__ = [
-    "VisualizationLogger",
-    "NullVisualizationLogger",
-    "TensorBoardVisualizationLogger",
-    "MlflowVisualizationLogger",
-    "CompositeVisualizationLogger",
-    "create_visualization_logger",
+    "ExperimentTracker",
+    "NullExperimentTracker",
+    "TensorBoardExperimentTracker",
+    "MlflowExperimentTracker",
+    "CompositeExperimentTracker",
+    "create_experiment_tracker",
 ]

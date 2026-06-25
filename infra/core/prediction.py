@@ -49,55 +49,49 @@ def build_label_id_remap_from_config_and_annotations(
     return remap
 
 
-def to_result_list(outputs, postprocessor, orig_sizes):
+def _stack_triplet(labels, boxes, scores) -> list:
+    if labels.ndim == 1:
+        labels, boxes, scores = labels[None], boxes[None], scores[None]
+    return [
+        {"labels": li, "boxes": bi, "scores": si}
+        for li, bi, si in zip(labels, boxes, scores)
+    ]
+
+
+def _as_prediction_dicts(obj) -> list:
+    if isinstance(obj, list) and obj and isinstance(obj[0], dict):
+        return obj
+    if isinstance(obj, (tuple, list)) and len(obj) == 3:
+        return _stack_triplet(*obj)
+    if isinstance(obj, dict) and {"labels", "boxes", "scores"}.issubset(obj):
+        return _stack_triplet(obj["labels"], obj["boxes"], obj["scores"])
+    raise TypeError(f"Unsupported postprocessor output: {type(obj)}")
+
+
+def to_canonical_predictions(outputs, postprocessor, orig_sizes, *, iou_types=()):
+    """Single canonical shape `{labels, boxes, scores, masks?}` per image.
+
+    `masks` is kept iff `segm in iou_types` and the postprocessor produced it.
+    """
+    want_masks = "segm" in set(iou_types or ())
     if isinstance(outputs, list) and outputs and isinstance(outputs[0], dict):
-        return outputs
-
-    if isinstance(outputs, dict):
-        processed = postprocessor(outputs, orig_sizes)
+        raw = outputs
     elif isinstance(outputs, (tuple, list)) and len(outputs) == 3:
-        labels, boxes, scores = outputs
-        if labels.ndim == 1:
-            labels = labels.unsqueeze(0)
-            boxes = boxes.unsqueeze(0)
-            scores = scores.unsqueeze(0)
-        return [
-            {"labels": labels_i, "boxes": boxes_i, "scores": scores_i}
-            for labels_i, boxes_i, scores_i in zip(labels, boxes, scores)
-        ]
+        raw = _stack_triplet(*outputs)
     else:
-        processed = postprocessor(outputs, orig_sizes)
+        raw = _as_prediction_dicts(postprocessor(outputs, orig_sizes))
 
-    if isinstance(processed, list):
-        return processed
-
-    if isinstance(processed, (tuple, list)) and len(processed) == 3:
-        labels, boxes, scores = processed
-        if labels.ndim == 1:
-            labels = labels.unsqueeze(0)
-            boxes = boxes.unsqueeze(0)
-            scores = scores.unsqueeze(0)
-        return [
-            {"labels": labels_i, "boxes": boxes_i, "scores": scores_i}
-            for labels_i, boxes_i, scores_i in zip(labels, boxes, scores)
-        ]
-
-    if isinstance(processed, dict) and {"labels", "boxes", "scores"}.issubset(
-        set(processed.keys())
-    ):
-        labels = processed["labels"]
-        boxes = processed["boxes"]
-        scores = processed["scores"]
-        if labels.ndim == 1:
-            labels = labels.unsqueeze(0)
-            boxes = boxes.unsqueeze(0)
-            scores = scores.unsqueeze(0)
-        return [
-            {"labels": labels_i, "boxes": boxes_i, "scores": scores_i}
-            for labels_i, boxes_i, scores_i in zip(labels, boxes, scores)
-        ]
-
-    raise TypeError(f"Unsupported output format: {type(processed)}")
+    canonical = []
+    for item in raw:
+        result = {
+            "labels": item["labels"],
+            "boxes": item["boxes"],
+            "scores": item["scores"],
+        }
+        if want_masks and item.get("masks") is not None:
+            result["masks"] = item["masks"]
+        canonical.append(result)
+    return canonical
 
 
 def normalize_prediction_labels_for_metrics(
@@ -128,3 +122,20 @@ def normalize_prediction_labels_for_metrics(
         normalized_results.append(normalized)
 
     return normalized_results
+
+
+if __name__ == "__main__":
+    # ponytail: smallest shape check — detection omits masks, segm keeps them.
+    import torch as _t
+
+    item = {
+        "labels": _t.tensor([1]),
+        "boxes": _t.tensor([[0.0, 0.0, 1.0, 1.0]]),
+        "scores": _t.tensor([0.9]),
+        "masks": _t.zeros(1, 2, 2),
+    }
+    det = to_canonical_predictions([item], None, None, iou_types=("bbox",))[0]
+    seg = to_canonical_predictions([item], None, None, iou_types=("bbox", "segm"))[0]
+    assert set(det) == {"labels", "boxes", "scores"}, det.keys()
+    assert "masks" in seg and set(seg) == {"labels", "boxes", "scores", "masks"}
+    print("prediction shape self-check OK")

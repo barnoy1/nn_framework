@@ -26,7 +26,7 @@ _add_project_root_to_sys_path()
 
 
 from infra.common.rendering.visualize import render_prediction_with_yolo_caption
-from infra.core import to_result_list
+from infra.core import to_canonical_predictions
 from infra.data.preprocess import build_image_preprocess_from_loader
 from infra.engine.flows.common.runtime import build_flow_runtime
 
@@ -106,13 +106,13 @@ def main() -> None:
     response.raise_for_status()
     image = Image.open(BytesIO(response.content)).convert("RGB")
 
-    transforms = build_image_preprocess_from_loader(runtime.app_config.data.val_dataloader, default_size=640)
+    transforms = build_image_preprocess_from_loader(runtime.app_config.engine.data.val_dataloader, default_size=640)
     image_tensor = transforms(image).unsqueeze(0).to(device)
     orig_sizes = torch.tensor([[image.size[0], image.size[1]]], dtype=torch.int64, device=device)
 
     with torch.no_grad():
         source_outputs = model(image_tensor)
-        source_results = to_result_list(source_outputs, postprocessor, orig_sizes)
+        source_results = to_canonical_predictions(source_outputs, postprocessor, orig_sizes)
     source_prediction = {
         "labels": source_results[0]["labels"].detach().cpu().numpy(),
         "boxes": source_results[0]["boxes"].detach().cpu().numpy(),

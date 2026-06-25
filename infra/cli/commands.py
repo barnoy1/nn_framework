@@ -24,12 +24,18 @@ def _expand_runtime_env_tokens(path: str) -> str:
     return RuntimePathResolver.expand_runtime_tokens(path)
 
 
+def _model_section(payload: dict) -> dict:
+    adapter_cfg = payload.get("adapter") if isinstance(payload.get("adapter"), dict) else {}
+    model_cfg = adapter_cfg.get("model") if isinstance(adapter_cfg.get("model"), dict) else {}
+    return model_cfg
+
+
 def resolve_model_root(config_path: str) -> Path:
     payload = load_config_payload(config_path)
-    model_cfg = payload.get("model") if isinstance(payload.get("model"), dict) else {}
+    model_cfg = _model_section(payload)
     source_root = str(model_cfg.get("source_root") or "").strip()
     if not source_root:
-        raise ValueError("model.source_root must be set in the experiment config")
+        raise ValueError("adapter.model.source_root must be set in the experiment config")
 
     candidate = Path(source_root).expanduser()
     if not candidate.is_absolute():
@@ -41,10 +47,10 @@ def resolve_model_root(config_path: str) -> Path:
 
 def resolve_model_config_path(config_path: str) -> Path:
     payload = load_config_payload(config_path)
-    model_cfg = payload.get("model") if isinstance(payload.get("model"), dict) else {}
+    model_cfg = _model_section(payload)
     model_config_path = str(model_cfg.get("model_config_path") or "").strip()
     if not model_config_path:
-        raise ValueError("model.model_config_path must be set in the experiment config")
+        raise ValueError("adapter.model.model_config_path must be set in the experiment config")
 
     model_root = resolve_model_root(config_path)
     candidate = Path(model_config_path).expanduser()
@@ -92,7 +98,7 @@ def resolve_checkpoint_path(path: str, *, config_path: str | None = None) -> str
 
 
 def run_train(args: argparse.Namespace) -> None:
-    args.overrides = [*args.overrides, f"train.output_dir={Path(args.run_root)}"]
+    args.overrides = [*args.overrides, f"engine.execution.common.output_dir={Path(args.run_root)}"]
 
     from infra.engine.flows.train.mangr_train import invoke
 
@@ -107,7 +113,7 @@ def run_eval(args: argparse.Namespace) -> None:
         raise ValueError("--checkpoint is required for eval (can be provided via CLI)")
     run_root = Path(args.run_root)
     checkpoint_path = resolve_checkpoint_path(args.checkpoint, config_path=args.config)
-    overrides = [*args.overrides, f"train.output_dir={run_root}"]
+    overrides = [*args.overrides, f"engine.execution.common.output_dir={run_root}"]
 
     from infra.engine.flows.eval.mangr_eval import invoke
 
@@ -118,6 +124,7 @@ def run_eval(args: argparse.Namespace) -> None:
             device=args.device,
             vis_samples=getattr(args, "vis_samples", 16),
             score_thr=getattr(args, "score_thr", None),
+            allow_partial=getattr(args, "allow_partial", False),
             overrides=overrides,
         )
     )
@@ -146,6 +153,7 @@ def run_inference(args: argparse.Namespace) -> None:
             batch_size=int(args.batch_size),
             num_workers=int(args.num_workers),
             score_thr=float(getattr(args, "score_thr", 0.3)),
+            allow_partial=getattr(args, "allow_partial", False),
             overrides=args.overrides,
         )
     )

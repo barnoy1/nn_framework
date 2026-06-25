@@ -26,7 +26,6 @@ class AdapterOverride(Protocol):
 @dataclass(frozen=True)
 class AdapterManifest:
     name: str
-    source_root_aliases: tuple[str, ...]
     builder_factory: BuilderFactory
     overrides_by_stage: Mapping[AdapterStage, tuple[AdapterOverride, ...]]
     override_order: tuple[AdapterStage, ...] = DEFAULT_OVERRIDE_ORDER
@@ -34,22 +33,12 @@ class AdapterManifest:
     yaml_class_patches: tuple[dict[str, Any], ...] = ()
     runtime_function_patches: tuple[dict[str, Any], ...] = ()
 
-    def matches_source_root(self, source_root: str) -> bool:
-        normalized = str(source_root).strip().lower()
-        if not normalized:
-            return False
-        return any(alias in normalized for alias in self.source_root_aliases)
-
     def iter_stage_overrides(self, stage: AdapterStage) -> tuple[AdapterOverride, ...]:
         return tuple(self.overrides_by_stage.get(stage, ()))
 
     def validate(self) -> None:
         if not self.name.strip():
             raise ValueError("Adapter manifest name must not be empty")
-        if not self.source_root_aliases:
-            raise ValueError(
-                f"Adapter manifest {self.name!r} must define source_root aliases"
-            )
         if self.override_order != DEFAULT_OVERRIDE_ORDER:
             raise ValueError(
                 f"Adapter manifest {self.name!r} must use deterministic override order "
@@ -63,6 +52,16 @@ class AdapterManifest:
         if missing:
             raise ValueError(
                 f"Adapter manifest {self.name!r} missing override stages: {missing}"
+            )
+        multi = [
+            stage
+            for stage, overrides in self.overrides_by_stage.items()
+            if len(overrides) > 1
+        ]
+        if multi:
+            raise ValueError(
+                f"Adapter manifest {self.name!r} must define at most one override "
+                f"per stage; offending stages: {multi}"
             )
 
 

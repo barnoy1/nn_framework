@@ -19,7 +19,7 @@ def build_common_bucket_names(trainer) -> list[str]:
         dict.fromkeys(
             [
                 f"common_{canonical_loss_alias(str(item.loss)).rstrip('_')}"
-                for item in trainer.app_config.model.losses.criterion_pairs.iter_adapter_common()
+                for item in trainer.app_config.adapter.model.losses.criterion_pairs.iter_model_agnostic()
             ]
         )
     )

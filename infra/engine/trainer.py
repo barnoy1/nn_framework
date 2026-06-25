@@ -58,10 +58,10 @@ class Trainer:
         self.experiment_config_path = experiment_config_path
         self.logger = logger_port or logger
 
-        set_seed(self.app_config.train.seed)
+        set_seed(self.app_config.engine.train.seed)
 
         self.accelerator = Accelerator(
-            mixed_precision=self.app_config.train.mixed_precision
+            mixed_precision=self.app_config.engine.train.mixed_precision
         )
         if self.ema_model is not None:
             self.accelerator.register_for_checkpointing(self.ema_model)
@@ -93,11 +93,7 @@ class Trainer:
         self._warned_unmatched_configured_losses = False
         self.last_validation_confusion_matrix: Optional[np.ndarray] = None
         self.last_validation_confusion_labels: list[str] = []
-        self.total_epochs = (
-            int(self.app_config.runtime.epochs)
-            if self.app_config.runtime.epochs is not None
-            else int(self.app_config.train.epochs)
-        )
+        self.total_epochs = int(self.app_config.engine.train.epochs)
         self._loss_splitter = LossComponentSplitter.from_config(self.app_config)
 
     def _split_loss_components(
@@ -172,7 +168,7 @@ class Trainer:
 
                 val_metrics: Dict[str, float] = {}
                 should_validate = first_epoch_in_run or (
-                    (epoch + 1) % self.app_config.train.val_every_n_epochs == 0
+                    (epoch + 1) % self.app_config.engine.train.val_every_n_epochs == 0
                 )
                 if should_validate:
                     val_metrics = self.validate(epoch)
