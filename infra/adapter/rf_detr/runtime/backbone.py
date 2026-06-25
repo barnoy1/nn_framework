@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from omegaconf import DictConfig
+
 
 _SINGLE_CHANNEL_POLICY_PATCHED = False
 
@@ -18,14 +20,20 @@ def apply_local_dinov2_config(
     dinov2_module.size_to_config_with_registers[size] = resolved_config_path
 
 
-def apply_single_channel_backbone_policy(*, config_payload: dict[str, object]) -> None:
+def apply_single_channel_backbone_policy(
+    *, config_payload: DictConfig
+) -> None:
     from rfdetr.models.backbone.dinov2_with_windowed_attn import (
         WindowedDinov2WithRegistersBackbone,
     )
 
     global _SINGLE_CHANNEL_POLICY_PATCHED
 
-    num_channels = int(config_payload.get("num_channels", 3) or 3)
+    if not isinstance(config_payload, DictConfig):
+        raise TypeError("RF-DETR backbone policy expects OmegaConf DictConfig")
+    num_channels = int(
+        config_payload.num_channels if "num_channels" in config_payload else 3
+    )
     if num_channels == 3:
         return
     if _SINGLE_CHANNEL_POLICY_PATCHED:

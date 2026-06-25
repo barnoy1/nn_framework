@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import torch
+from omegaconf import DictConfig
 
 from ..compat import (
     build_variant_candidates,
@@ -137,7 +138,11 @@ def _build_scheme_overrides(*, variant: str) -> dict[str, Any]:
 def build_model_config(*, app_config, config_path: Path):
     config_name = config_path.name
     config_payload = load_dino_config(config_path)
-    num_channels = int(config_payload.get("num_channels", 3) or 3)
+    if not isinstance(config_payload, DictConfig):
+        raise TypeError("RF-DETR build_model_config expects OmegaConf DictConfig")
+    num_channels = int(
+        config_payload.num_channels if "num_channels" in config_payload else 3
+    )
     model_profile = infer_model_profile(
         config_path=config_path,
         config_payload=config_payload,
