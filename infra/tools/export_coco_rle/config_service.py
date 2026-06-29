@@ -16,7 +16,11 @@ def load_data_config(conf_data_path: Path) -> dict:
     with conf_data_path.open("r", encoding="utf-8") as file:
         payload = yaml.safe_load(file) or {}
 
-    data_cfg = payload.get("data", payload if isinstance(payload, dict) else {})
+    engine_cfg = payload.get("engine") if isinstance(payload, dict) else None
+    if isinstance(engine_cfg, dict) and isinstance(engine_cfg.get("data"), dict):
+        data_cfg = engine_cfg["data"]
+    else:
+        data_cfg = payload.get("data", payload if isinstance(payload, dict) else {})
     if not isinstance(data_cfg, dict):
         raise ValueError(f"Invalid data config structure in {conf_data_path}")
 

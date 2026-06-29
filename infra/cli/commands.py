@@ -124,6 +124,7 @@ def run_eval(args: argparse.Namespace) -> None:
             device=args.device,
             vis_samples=getattr(args, "vis_samples", 16),
             score_thr=getattr(args, "score_thr", None),
+            gt_data=getattr(args, "gt_data", []),
             allow_partial=getattr(args, "allow_partial", False),
             overrides=overrides,
         )

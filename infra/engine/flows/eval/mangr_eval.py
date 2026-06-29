@@ -28,6 +28,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--vis-samples", type=int, default=16)
     parser.add_argument("--score-thr", type=float, default=None)
+    parser.add_argument(
+        "--gt-data", nargs="*", choices=["bbox", "masks"], default=[]
+    )
     parser.add_argument("--overrides", nargs="*", default=[])
     return parser.parse_args()
 
@@ -118,6 +121,7 @@ def invoke(args: argparse.Namespace) -> None:
         experiment_name=experiment_name,
         vis_samples=args.vis_samples,
         score_thr=score_thr,
+        gt_data=list(getattr(args, "gt_data", []) or []),
         image_epoch_suffix=None,
         write_metrics_json=True,
         diagnostics=diagnostics,

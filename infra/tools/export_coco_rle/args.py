@@ -11,8 +11,8 @@ def parse_arguments():
         "-c",
         "--conf_data",
         type=str,
-        required=True,
-        help="Path to the configuration data file.",
+        default=None,
+        help="Path to the configuration data file (required for Supervisely input).",
     )
     parser.add_argument(
         "-r",

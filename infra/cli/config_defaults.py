@@ -8,6 +8,16 @@ import yaml
 from .constants import ACTION_TO_RUNTIME_SECTION, REPO_ROOT
 
 
+GT_DATA_MODES = ("bbox", "masks")
+
+
+def _coerce_gt_data_modes(value: Any) -> list[str]:
+    if value is None:
+        return []
+    candidates = value if isinstance(value, (list, tuple)) else [value]
+    return [str(mode) for mode in candidates if str(mode) in GT_DATA_MODES]
+
+
 def _resolve_relocated_experiment_path(candidate: Path) -> Path | None:
     parts = candidate.parts
     marker = ("infra", "config", "hydra", "experiment")
@@ -103,6 +113,7 @@ def build_parser_defaults(config_path: str, action: str) -> dict[str, Any]:
         "num_workers": int(train_cfg.get("num_workers", 2)),
         "checkpoint": str(runtime_common.get("checkpoint", "")),
         "input_dir": "",
+        "gt_data": _coerce_gt_data_modes(runtime_action.get("gt_data")),
         "onnx_model": "",
         "dataset_conf": str(resolve_config_path(config_path)),
         "experiment_conf": None,

@@ -43,7 +43,8 @@ class GenericCheckpointAdapter(CheckpointAdapter):
             )
         if isinstance(checkpoint, dict):
             if "ema" in checkpoint:
-                return checkpoint["ema"].get("module", checkpoint["ema"])
+                ema = checkpoint["ema"]
+                return ema.get("module") or ema.get("ema_model") or ema
             if "model" in checkpoint:
                 return checkpoint["model"]
             return checkpoint

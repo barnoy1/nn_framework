@@ -3,11 +3,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, List
 
+import numpy as np
 import torch
 from pycocotools.coco import COCO
 
 
-def build_eval_samples(val_sets, label_mapping: Dict[int, int]) -> List[Dict]:
+def build_eval_samples(
+    val_sets, label_mapping: Dict[int, int], load_masks: bool = False
+) -> List[Dict]:
     samples: List[Dict] = []
     normalized_mapping = {int(k): int(v) for k, v in (label_mapping or {}).items()}
 
@@ -31,6 +34,7 @@ def build_eval_samples(val_sets, label_mapping: Dict[int, int]) -> List[Dict]:
 
             boxes_xyxy: List[List[float]] = []
             labels: List[int] = []
+            mask_list: List["np.ndarray"] = []
             for ann in annotations:
                 if ann.get("iscrowd", 0) == 1:
                     continue
@@ -53,6 +57,8 @@ def build_eval_samples(val_sets, label_mapping: Dict[int, int]) -> List[Dict]:
 
                 boxes_xyxy.append([x1, y1, x2, y2])
                 labels.append(mapped_label)
+                if load_masks:
+                    mask_list.append(coco.annToMask(ann).astype(bool))
 
             if boxes_xyxy:
                 gt_boxes = torch.tensor(boxes_xyxy, dtype=torch.float32)
@@ -61,15 +67,20 @@ def build_eval_samples(val_sets, label_mapping: Dict[int, int]) -> List[Dict]:
                 gt_boxes = torch.zeros((0, 4), dtype=torch.float32)
                 gt_labels = torch.zeros((0,), dtype=torch.long)
 
-            samples.append(
-                {
-                    "dataset_name": dataset_name,
-                    "image_id": int(image_id),
-                    "image_path": image_path,
-                    "file_name": str(image_meta["file_name"]),
-                    "gt_boxes": gt_boxes,
-                    "gt_labels": gt_labels,
-                }
-            )
+            sample = {
+                "dataset_name": dataset_name,
+                "image_id": int(image_id),
+                "image_path": image_path,
+                "file_name": str(image_meta["file_name"]),
+                "gt_boxes": gt_boxes,
+                "gt_labels": gt_labels,
+            }
+            if load_masks:
+                if mask_list:
+                    gt_masks = torch.from_numpy(np.stack(mask_list)).bool()
+                else:
+                    gt_masks = torch.zeros((0, height, width), dtype=torch.bool)
+                sample["gt_masks"] = gt_masks
+            samples.append(sample)
 
     return samples

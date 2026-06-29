@@ -1,0 +1,240 @@
+# @package _global_
+
+adapter:
+  name: rf_detr
+  model:
+    # Filesystem root of the concrete model repository implementation.
+    source_root: raw_models/rf-detr
+    # Baseline model recipe used by wrapper/model builder (3-channel).
+    model_config_path: dinov2_configs/dinov2_small.json
+    # Model variant selector for model config class lookup (schemes.py).
+    config_variant_name: "small"
+    # Number of object queries decoded per image.
+    num_queries: 300
+    # Transformer hidden channel width.
+    hidden_dim: 256
+    # Denoising groups for training stabilization.
+    dn_num_group: 5
+
+    losses:
+      fallback_to_model_default: true
+      criterion_pairs:
+        model_agnostic:
+          - loss: cls_loss
+            coef: 1.0
+          - loss: loss_bbox
+            coef: 5.0
+          - loss: loss_giou
+            coef: 2.0
+          - loss: loss_vfl
+            coef: 1.0
+          - loss: loss_focal
+            coef: 0.25
+        model_specific:
+          - loss: class_error
+            coef: 0.0
+          - loss: cardinality_error
+            coef: 0.0
+
+          - loss: loss_ce
+            coef: 2.0
+
+          - loss: loss_bbox_
+            coef: 5.0
+          - loss: loss_giou_
+            coef: 2.0
+          - loss: loss_ce_
+            coef: 2.0
+
+          - loss: loss_bbox_enc
+            coef: 5.0
+          - loss: loss_giou_enc
+            coef: 2.0
+          - loss: loss_ce_enc
+            coef: 2.0
+
+engine:
+  train:
+    batch_size: 1
+    val_batch_size: 1
+    lr: 0.00002
+    backbone_lr_multiplier: 0.1
+    weight_decay: 0.0001
+    grad_clip_norm: 0.1
+    mixed_precision: "fp16"
+    log_every_n_steps: 20
+    val_every_n_epochs: 1
+    save_every_n_epochs: 1
+    use_ema: true
+    ema_decay: 0.9999
+    ema_warmup_updates: 2000
+    seed: 1
+    metrics_key:
+      - "val_loss"
+      - "val_map"
+    sync_bn: true
+    epochs: 20
+    num_workers: 2
+  data:
+    filter_empty_targets: true
+    keep_rle_in_targets: true
+    # ShipRSImageNet: 50 contiguous ship classes (source COCO ids 1-50, id 0 'ships' dropped).
+    num_classes: 50
+    # Source ids are already contiguous (0-49) after the export drop; no remap.
+    remap_mscoco_category: false
+    mapping: {}
+
+    # Canonical mapping from class index to class name (dataset categories, NOT COCO).
+    label2classid:
+      &label2classid {
+        0: AOE,
+        1: Arleigh Burke DD,
+        2: Asagiri DD,
+        3: Atago DD,
+        4: Austin LL,
+        5: Barge,
+        6: Cargo,
+        7: Commander,
+        8: Container Ship,
+        9: Dock,
+        10: EPF,
+        11: Enterprise,
+        12: Ferry,
+        13: Fishing Vessel,
+        14: Hatsuyuki DD,
+        15: Hovercraft,
+        16: Hyuga DD,
+        17: LHA LL,
+        18: LSD 41 LL,
+        19: Masyuu AS,
+        20: Medical Ship,
+        21: Midway,
+        22: Motorboat,
+        23: Nimitz,
+        24: Oil Tanker,
+        25: Osumi LL,
+        26: Other Aircraft Carrier,
+        27: Other Auxiliary Ship,
+        28: Other Destroyer,
+        29: Other Frigate,
+        30: Other Landing,
+        31: Other Merchant,
+        32: Other Ship,
+        33: Other Warship,
+        34: Patrol,
+        35: Perry FF,
+        36: RoRo,
+        37: Sailboat,
+        38: Sanantonio AS,
+        39: Submarine,
+        40: Test Ship,
+        41: Ticonderoga,
+        42: Training Ship,
+        43: Tugboat,
+        44: Wasp LL,
+        45: Yacht,
+        46: YuDao LL,
+        47: YuDeng LL,
+        48: YuTing LL,
+        49: YuZhao LL,
+      }
+    class_id_to_name: *label2classid
+
+    train_dataloader:
+      type: DataLoader
+      dataset:
+        type: CocoDetection
+        datasets:
+          - img_folder: ${oc.env:HOME}/repo/datasets/marine_vessels/ShipRSImageNet.v1i.coco/train
+            ann_file: ${oc.env:HOME}/repo/datasets/marine_vessels/ShipRSImageNet.v1i.coco/instances_train.json
+        return_masks: true
+        transforms:
+          type: Compose
+          ops:
+            - { type: RandomHorizontalFlip, p: 0.5 }
+            - { type: RandomVerticalFlip, p: 0.2 }
+            - { type: Rotate, limit: 15, p: 0.3 }
+            - { type: HueSaturationValue, hue_shift_limit: 12, sat_shift_limit: 24, val_shift_limit: 12, p: 0.3 }
+            - { type: RandomBrightnessContrast, p: 0.3 }
+            - { type: ToGray, p: 0.2 }
+            - { type: Resize, size: [640, 640] }
+            - { type: ConvertPILImage, dtype: "float32", scale: true }
+            - { type: ConvertBoxes, fmt: "cxcywh", normalize: true }
+      shuffle: true
+      drop_last: true
+      collate_fn:
+        type: BatchImageCollateFunction
+        scales: [448, 480, 512, 544, 576, 608, 640]
+
+    val_dataloader:
+      type: DataLoader
+      dataset:
+        type: CocoDetection
+        datasets:
+          - img_folder: ${oc.env:HOME}/repo/datasets/marine_vessels/ShipRSImageNet.v1i.coco/valid
+            ann_file: ${oc.env:HOME}/repo/datasets/marine_vessels/ShipRSImageNet.v1i.coco/instances_valid.json
+        return_masks: true
+        transforms:
+          type: Compose
+          ops:
+            - { type: LetterBox, size: [640, 640], fill_value: 114 }
+            - { type: ConvertPILImage, dtype: "float32", scale: true }
+      shuffle: false
+      drop_last: false
+      collate_fn:
+        type: BatchImageCollateFunction
+
+  execution:
+    common:
+      output_dir: out
+      checkpoint: ${oc.env:HOME}/.cache/torch/hub/checkpoints/rf_detr/rf-detr-small.pth
+      device: cuda
+      use_gpu: true
+      use_xpu: false
+      use_mlu: false
+      use_npu: false
+      log_iter: 20
+      score_threshold: 0.35
+    description: shiprs_rf_detr_small_coco_det_rle_3ch
+    tracking:
+      num_samples: 4
+      tensorboard:
+        enabled: false
+        log_dir: visualization/tensorboard
+      mlflow:
+        enabled: true
+        mlflow_dir: visualization/mlflow
+
+    data_preparation:
+      prepare_data: false
+      supervisely_dataset_root: null
+      supervisely_splits: [train, valid]
+      ann_subdir: ann
+      img_subdir: img
+      mlflow_experiment_name: null
+
+    export:
+      post_process: true
+      nms: true
+      benchmark: false
+      fuse_conv_bn: false
+
+    actions:
+      inference:
+        input_dir: input_data
+
+      inference_onnx:
+        onnx_model: raw_models/RT-DETR/rf_detr/exported_models/model.onnx
+        input_dir: input_data
+
+      export_onnx:
+        checkpoint: ${oc.env:HOME}/.cache/torch/hub/checkpoints/rf_detr/rf-detr-small.pth
+        onnx_model: raw_models/RT-DETR/rf_detr/exported_models/model.onnx
+
+      export_coco_rle:
+        # COCO bbox -> COCO-RLE normalization (config-driven; see .vscode/launch.json).
+        dataset_root: ${oc.env:HOME}/repo/datasets/marine_vessels/ShipRSImageNet.v1i.coco
+        output_dir: ${oc.env:HOME}/repo/datasets/marine_vessels/ShipRSImageNet.v1i.coco
+        splits: [train, valid]
+        ann_subdir: .
+        img_subdir: .

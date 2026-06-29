@@ -39,6 +39,13 @@ def register_eval_parser(
     eval_parser.add_argument("--checkpoint", type=str, default=defaults["checkpoint"])
     eval_parser.add_argument("--device", type=str, default=defaults["device"])
     eval_parser.add_argument(
+        "--gt-data",
+        nargs="*",
+        choices=["bbox", "masks"],
+        default=defaults["gt_data"],
+        help="Also save a ground-truth render per eval image: 'bbox' draws GT box outlines, 'masks' draws RLE masks, both draws both. Omit to disable.",
+    )
+    eval_parser.add_argument(
         "--allow-partial",
         action="store_true",
         help="Permit partial checkpoint loads (skips strict missing/shape-mismatch failure)",

@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 
 
-DEFAULT_BBOX_ALPHA = 0.4
+DEFAULT_BBOX_ALPHA = 0.2
 DEFAULT_BBOX_FILL_COLOR = (0, 255, 0)
 
 
@@ -143,7 +143,7 @@ def _apply_transparent_bbox_fill(
         y2 = max(0, min(y2, height - 1))
         if x2 <= x1 or y2 <= y1:
             continue
-        cv2.rectangle(overlay, (x1, y1), (x2, y2), fill_color, thickness=-1)
+        cv2.rectangle(overlay, (x1, y1), (x2, y2), fill_color, thickness=cv2.FILLED)
 
     return cv2.addWeighted(overlay, float(alpha), frame, 1.0 - float(alpha), 0.0)
 

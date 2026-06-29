@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import random
-import re
 from pathlib import Path
 from typing import Dict, List, Optional
 
-import numpy as np
 import torch
 import torchvision
-from PIL import Image
 
 from infra.core import (
     build_label_id_remap_from_config_and_annotations,
@@ -17,12 +14,9 @@ from infra.core import (
 )
 from infra.data.preprocess import build_image_preprocess_from_loader
 from infra.engine.flows.common.image_io import load_pil_image
-from infra.common.rendering.visualize import render_prediction_with_yolo_caption
 
-
-def _safe_token(value: str) -> str:
-    token = re.sub(r"[^A-Za-z0-9._-]+", "_", str(value)).strip("_")
-    return token or "unknown"
+from .eval_confusion import build_confusion_events
+from .eval_vis_writer import write_sample_visualization
 
 
 def run_eval_inference_loop(
@@ -35,11 +29,13 @@ def run_eval_inference_loop(
     class_id_to_name: Dict[int, str],
     score_thr: float,
     vis_samples: int,
+    gt_data: Optional[List[str]] = None,
     image_epoch_suffix: Optional[int],
     eval_vis_dir: Path,
     vis_logger,
     logger,
 ) -> Dict[str, object]:
+    gt_modes = list(gt_data or [])
     transforms = build_image_preprocess_from_loader(
         app_config.engine.data.val_dataloader, logger=logger, default_size=640
     )
@@ -106,9 +102,7 @@ def run_eval_inference_loop(
             )[0]
             prediction_for_vis = to_canonical_predictions(
                 outputs, post_eval, transformed_sizes, iou_types=app_config.engine.data.iou_types
-            )[
-                0
-            ]
+            )[0]
             normalized_results = normalize_prediction_labels_for_metrics(
                 [prediction, prediction_for_vis],
                 label_id_remap=label_id_remap,
@@ -152,9 +146,9 @@ def run_eval_inference_loop(
                 ious = torchvision.ops.box_iou(
                     pred_for_metric["boxes"], sample["gt_boxes"]
                 )
-                pred_labels = pred_for_metric["labels"].unsqueeze(1)
-                gt_labels = sample["gt_labels"].unsqueeze(0)
-                label_match = pred_labels == gt_labels
+                label_match = pred_for_metric["labels"].unsqueeze(1) == sample[
+                    "gt_labels"
+                ].unsqueeze(0)
                 if label_match.any():
                     matched_ious = torch.where(
                         label_match, ious, torch.zeros_like(ious)
@@ -162,80 +156,27 @@ def run_eval_inference_loop(
                     max_per_gt = matched_ious.max(dim=0).values
                     gt_matched_iou50 += int((max_per_gt >= 0.5).sum().item())
 
-            pred_labels = pred_for_metric["labels"].detach().cpu().long()
-            gt_labels = sample["gt_labels"].detach().cpu().long()
-            if pred_for_metric["boxes"].numel() > 0 and sample["gt_boxes"].numel() > 0:
-                ious_for_match = torchvision.ops.box_iou(
-                    pred_for_metric["boxes"], sample["gt_boxes"]
+            confusion_events.extend(
+                build_confusion_events(
+                    pred_boxes=pred_for_metric["boxes"],
+                    pred_labels=pred_for_metric["labels"],
+                    gt_boxes=sample["gt_boxes"],
+                    gt_labels=sample["gt_labels"],
                 )
-                candidate_pairs = []
-                for pred_idx in range(ious_for_match.shape[0]):
-                    for gt_idx in range(ious_for_match.shape[1]):
-                        iou_value = float(ious_for_match[pred_idx, gt_idx].item())
-                        if iou_value >= 0.5:
-                            candidate_pairs.append((iou_value, pred_idx, gt_idx))
-                candidate_pairs.sort(key=lambda item: item[0], reverse=True)
-                matched_pred = set()
-                matched_gt = set()
-                for _, pred_idx, gt_idx in candidate_pairs:
-                    if pred_idx in matched_pred or gt_idx in matched_gt:
-                        continue
-                    matched_pred.add(pred_idx)
-                    matched_gt.add(gt_idx)
-                    confusion_events.append(
-                        (
-                            int(gt_labels[gt_idx].item()),
-                            int(pred_labels[pred_idx].item()),
-                        )
-                    )
-                for gt_idx in range(gt_labels.numel()):
-                    if gt_idx not in matched_gt:
-                        confusion_events.append((int(gt_labels[gt_idx].item()), None))
-                for pred_idx in range(pred_labels.numel()):
-                    if pred_idx not in matched_pred:
-                        confusion_events.append(
-                            (None, int(pred_labels[pred_idx].item()))
-                        )
-            else:
-                for gt_idx in range(gt_labels.numel()):
-                    confusion_events.append((int(gt_labels[gt_idx].item()), None))
-                for pred_idx in range(pred_labels.numel()):
-                    confusion_events.append((None, int(pred_labels[pred_idx].item())))
+            )
 
             if sample_index in visualization_indices:
-                vis_tensor = batch_tensor[0].detach().cpu()
-                if vis_tensor.ndim != 3:
-                    raise ValueError(
-                        f"Expected CHW tensor for visualization, got shape={tuple(vis_tensor.shape)}"
-                    )
-                if int(vis_tensor.shape[0]) == 1:
-                    vis_tensor = vis_tensor.repeat(3, 1, 1)
-                elif int(vis_tensor.shape[0]) > 3:
-                    vis_tensor = vis_tensor[:3]
-                vis_image = (
-                    vis_tensor.clamp(0.0, 1.0).permute(1, 2, 0).numpy() * 255.0
-                ).astype(np.uint8)
-                rendered = render_prediction_with_yolo_caption(
-                    image=vis_image,
-                    prediction=prediction_for_vis,
+                write_sample_visualization(
+                    sample=sample,
+                    image_tensor=batch_tensor[0],
+                    prediction_for_vis=prediction_for_vis,
                     class_id_to_name=class_id_to_name,
-                    confidence_threshold=score_thr,
-                )
-                dataset_name = _safe_token(str(sample.get("dataset_name", "dataset")))
-                image_id = int(sample.get("image_id", -1))
-                image_stem = _safe_token(
-                    Path(str(sample.get("file_name", "image"))).stem
-                )
-                image_folder = eval_vis_dir / f"{dataset_name}__image_id_{image_id}"
-                image_folder.mkdir(parents=True, exist_ok=True)
-                image_name = (
-                    f"{dataset_name}__{image_stem}__epoch_{resolved_epoch:04d}.png"
-                )
-                rendered_image = Image.fromarray(rendered)
-                rendered_image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
-                rendered_image.save(image_folder / image_name, optimize=True)
-                vis_logger.log_image(
-                    tag="eval/visualization", image=rendered, step=saved_vis
+                    score_thr=score_thr,
+                    eval_vis_dir=eval_vis_dir,
+                    resolved_epoch=resolved_epoch,
+                    vis_logger=vis_logger,
+                    step=saved_vis,
+                    gt_data=gt_modes,
                 )
                 saved_vis += 1
     logger.info("Saved {} eval visualizations to {}", saved_vis, eval_vis_dir)

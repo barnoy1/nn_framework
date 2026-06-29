@@ -194,11 +194,13 @@ def run_eval_artifacts(
     experiment_name: str,
     vis_samples: int = 16,
     score_thr: float = 0.3,
+    gt_data: Optional[list[str]] = None,
     image_epoch_suffix: Optional[int] = None,
     write_metrics_json: bool = True,
     diagnostics: Optional[Dict[str, Any]] = None,
     use_deploy_model: bool = True,
 ) -> Dict[str, float]:
+    gt_modes = list(gt_data or [])
     output_root = Path(app_config.engine.execution.output_dir)
     shared_tracking_dir = app_config.engine.execution.mlflow_dir
     inference_dir = output_root / "inference"
@@ -246,7 +248,9 @@ def run_eval_artifacts(
     model_eval = model_eval.to(device).eval()
 
     samples = build_eval_samples(
-        app_config.engine.data.val_sets, app_config.engine.data.mapping or {}
+        app_config.engine.data.val_sets,
+        app_config.engine.data.mapping or {},
+        load_masks="masks" in gt_modes,
     )
     eval_outputs = run_eval_inference_loop(
         app_config=app_config,
@@ -257,6 +261,7 @@ def run_eval_artifacts(
         class_id_to_name=class_id_to_name,
         score_thr=score_thr,
         vis_samples=vis_samples,
+        gt_data=gt_modes,
         image_epoch_suffix=image_epoch_suffix,
         eval_vis_dir=eval_vis_dir,
         vis_logger=vis_logger,

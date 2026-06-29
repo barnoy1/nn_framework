@@ -22,12 +22,26 @@ def rectangle_to_polygon(exterior: List[List[float]]) -> List[float]:
     return [x_min, y_min, x_max, y_min, x_max, y_max, x_min, y_max]
 
 
+def bbox_to_polygon(bbox: List[float]) -> List[float]:
+    if len(bbox) != 4:
+        raise ValueError(f"Expected bbox [x, y, w, h], got {bbox}")
+    x_min, y_min, width, height = [float(value) for value in bbox]
+    if width <= 0 or height <= 0:
+        raise ValueError(f"Invalid bbox size: width={width}, height={height}")
+    return [x_min, y_min, x_min + width, y_min, x_min + width, y_min + height, x_min, y_min + height]
+
+
 def polygon_to_rle(polygon: List[float], height: int, width: int) -> Dict[str, object]:
     rles = mask_utils.frPyObjects([polygon], height, width)
     mask = mask_utils.decode(rles)
     encoded = mask_utils.encode(np.asfortranarray(mask[:, :, 0]))
     encoded["counts"] = encoded["counts"].decode("utf-8")
     return {"size": encoded["size"], "counts": encoded["counts"]}
+
+
+def bbox_to_polygon(bbox: List[float]) -> List[float]:
+    x, y, w, h = (float(value) for value in bbox)
+    return [x, y, x + w, y, x + w, y + h, x, y + h]
 
 
 def resolve_image_path(img_dir: Path, stem: str) -> Path:

@@ -178,11 +178,13 @@
       "args": [
         "eval",
         "--config",
-        "infra/adapter/rf_detr/experiments/rfdetr_small_coco_instance_seg_rle.yaml",
+        // "infra/adapter/rf_detr/experiments/rfdetr_small_coco_instance_seg_rle.yaml",
+        "infra/adapter/rf_detr/experiments/rfdetr_small_shiprs_det_rle_1ch.yaml",
         "--output-dir",
         "${workspaceFolder}/out",
         "--checkpoint",
-        "${env:HOME}/.cache/torch/hub/checkpoints/rf_detr/rf-detr-small.pth",
+        // "${env:HOME}/.cache/torch/hub/checkpoints/rf_detr/rf-detr-small.pth",
+        "${workspaceFolder}/out/runs/20260625_194855_248958/checkpoint/best_val_loss.pt",
         "--device",
         "cuda"
       ],
@@ -203,9 +205,11 @@
       "args": [
         "inference",
         "--config",
-        "infra/adapter/rf_detr/experiments/rfdetr_small_coco_instance_seg_rle_1ch.yaml",
+        // "infra/adapter/rf_detr/experiments/rfdetr_small_coco_instance_seg_rle.yaml",
+        "infra/adapter/rf_detr/experiments/rfdetr_small_shiprs_det_rle_1ch.yaml",
         "--checkpoint",
-        "${env:HOME}/.cache/torch/hub/checkpoints/rf_detr/rf-detr-small.pth",
+        // "${env:HOME}/.cache/torch/hub/checkpoints/rf_detr/rf-detr-small.pth",
+        "${workspaceFolder}/out/runs/20260625_194855_248958/checkpoint/best_val_loss.pt",
         "--input-dir",
         "${workspaceFolder}/input_data",
         "--output-dir",
@@ -264,6 +268,158 @@
         "${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja",
         "--output_dir",
         "${env:HOME}/Desktop/repo/datasets/drone-dataset-(uav)-DatasetNinja"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "rfdetr_small: export coco rle (shiprs)",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/cli.py",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "export-coco-rle",
+        "--config",
+        "infra/adapter/rf_detr/experiments/rfdetr_small_shiprs_det_rle_1ch.yaml",
+        "--dataset_root",
+        "${env:HOME}/repo/datasets/marine_vessels/ShipRSImageNet.v1i.coco",
+        "--output_dir",
+        "${env:HOME}/repo/datasets/marine_vessels/ShipRSImageNet.v1i.coco",
+        "--splits",
+        "train",
+        "valid",
+        "--ann_subdir",
+        ".",
+        "--img_subdir",
+        "."
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "rfdetr_small: train (shiprs 1ch)",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/cli.py",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "train",
+        "--config",
+        "infra/adapter/rf_detr/experiments/rfdetr_small_shiprs_det_rle_1ch.yaml",
+        "--output-dir",
+        "${workspaceFolder}/out"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "rfdetr_small: eval (shiprs 1ch)",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/cli.py",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "eval",
+        "--config",
+        // "infra/adapter/rf_detr/experiments/rfdetr_small_coco_instance_seg_rle.yaml",
+        "infra/adapter/rf_detr/experiments/rfdetr_small_shiprs_det_rle_1ch.yaml",
+        "--output-dir",
+        "${workspaceFolder}/out",
+        "--checkpoint",
+        // "${env:HOME}/.cache/torch/hub/checkpoints/rf_detr/rf-detr-small.pth",
+        "${workspaceFolder}/out/runs/20260625_194855_248958/checkpoint/best_val_loss.pt",
+        "--device",
+        "cuda",
+        "--gt-data",
+        "bbox",
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "rfdetr_small: export coco rle (shiprs 3ch)",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/cli.py",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "export-coco-rle",
+        "--config",
+        "infra/adapter/rf_detr/experiments/rfdetr_small_shiprs_det_rle_3ch.yaml",
+        "--dataset_root",
+        "${env:HOME}/repo/datasets/marine_vessels/ShipRSImageNet.v1i.coco",
+        "--output_dir",
+        "${env:HOME}/repo/datasets/marine_vessels/ShipRSImageNet.v1i.coco",
+        "--splits",
+        "train",
+        "valid",
+        "--ann_subdir",
+        ".",
+        "--img_subdir",
+        "."
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "rfdetr_small: train (shiprs 3ch)",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/cli.py",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "train",
+        "--config",
+        "infra/adapter/rf_detr/experiments/rfdetr_small_shiprs_det_rle_3ch.yaml",
+        "--output-dir",
+        "${workspaceFolder}/out"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "rfdetr_small: eval (shiprs 3ch)",
+      "type": "debugpy",
+      "request": "launch",
+      "subProcess": false,
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "program": "${workspaceFolder}/cli.py",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "eval",
+        "--config",
+        "infra/adapter/rf_detr/experiments/rfdetr_small_shiprs_det_rle_3ch.yaml",
+        "--device",
+        "cuda"
       ],
       "env": {
         "PYTHONUNBUFFERED": "1"
